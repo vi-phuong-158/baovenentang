@@ -9,8 +9,13 @@
  * Gửi bản tin email hàng ngày cho tất cả người đăng ký
  */
 function sendDailyEmailDigest(articles) {
-  if (articles.length === 0) {
+  if (!articles || articles.length === 0) {
     Logger.log('[Email] Không có bài để gửi');
+    return;
+  }
+
+  if (!hasRequiredConfig_(REQUIRED_BREVO_CONFIG)) {
+    Logger.log('[Email] Bỏ qua gửi email vì chưa cấu hình BREVO_API_KEY hoặc SENDER_EMAIL');
     return;
   }
   
@@ -76,6 +81,8 @@ function filterArticlesByTopics(articles, userTopics) {
  */
 function sendEmailViaBrevo(params) {
   try {
+    assertRequiredConfig_(REQUIRED_BREVO_CONFIG);
+
     const payload = {
       sender: {
         name: CONFIG.SENDER_NAME,
@@ -131,6 +138,7 @@ function buildEmailHTML(name, articles) {
   
   // Thông điệp ngày
   const messageOfDay = articles.find(a => a.message)?.message || '';
+  const safeName = escapeHtml_(name || 'bạn');
   
   return `
 <!DOCTYPE html>
@@ -157,7 +165,7 @@ function buildEmailHTML(name, articles) {
           <!-- Greeting -->
           <tr>
             <td style="padding:25px 30px 0;">
-              <p style="margin:0;font-size:16px;color:#333;">Xin chào <strong>${name}</strong>,</p>
+              <p style="margin:0;font-size:16px;color:#333;">Xin chào <strong>${safeName}</strong>,</p>
               <p style="margin:10px 0 0;color:#666;font-size:14px;line-height:1.6;">
                 Trận Địa Số gửi đến bạn các tin chọn lọc trong ngày, được phân tích và tổng hợp tự động.
               </p>
@@ -202,7 +210,7 @@ function buildEmailHTML(name, articles) {
             <td style="padding:25px 30px;">
               <div style="background:linear-gradient(135deg,#2c3e50,#34495e);padding:25px;border-radius:8px;text-align:center;">
                 <p style="color:#bdc3c7;margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:1px;">💬 Thông điệp ngày</p>
-                <p style="color:white;margin:0;font-size:16px;font-style:italic;line-height:1.6;">"${messageOfDay}"</p>
+                <p style="color:white;margin:0;font-size:16px;font-style:italic;line-height:1.6;">"${escapeHtml_(messageOfDay)}"</p>
               </div>
             </td>
           </tr>
@@ -256,18 +264,18 @@ function buildArticleBlock(article, isImportant) {
     <div style="background:white;border:1px solid #eee;border-radius:8px;padding:18px;margin:12px 0;">
       <div style="margin-bottom:8px;">
         <span style="background:${accent};color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;">
-          ${icon} ${article.category}
+          ${icon} ${escapeHtml_(article.category || 'Khác')}
         </span>
       </div>
       <h3 style="margin:0 0 10px;color:#2c3e50;font-size:17px;line-height:1.4;">
-        ${article.title}
+        ${escapeHtml_(article.title || '')}
       </h3>
       <p style="margin:0 0 12px;color:#555;font-size:14px;line-height:1.6;">
-        ${article.summary}
+        ${escapeHtml_(article.summary || '')}
       </p>
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#999;font-size:12px;">📰 ${article.source}</span>
-        <a href="${article.link}" 
+        <span style="color:#999;font-size:12px;">📰 ${escapeHtml_(article.source || '')}</span>
+        <a href="${escapeHtml_(article.link || '#')}" 
            style="color:${accent};font-size:13px;font-weight:bold;text-decoration:none;">
           Đọc đầy đủ →
         </a>
@@ -279,6 +287,12 @@ function buildArticleBlock(article, isImportant) {
  * Gửi email chào mừng khi có người mới đăng ký
  */
 function sendWelcomeEmail(subscriber) {
+  if (!hasRequiredConfig_(REQUIRED_BREVO_CONFIG)) {
+    Logger.log('[Email] Bỏ qua email chào mừng vì chưa cấu hình Brevo');
+    return;
+  }
+
+  const safeName = escapeHtml_(subscriber.name || subscriber.email || 'bạn');
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
@@ -286,7 +300,7 @@ function sendWelcomeEmail(subscriber) {
     <h1 style="color:white;margin:0;">🛡️ Chào mừng đến TRẬN ĐỊA SỐ</h1>
   </div>
   <div style="background:white;padding:30px;border:1px solid #eee;border-radius:0 0 8px 8px;">
-    <p>Xin chào <strong>${subscriber.name}</strong>,</p>
+    <p>Xin chào <strong>${safeName}</strong>,</p>
     <p>Cảm ơn bạn đã đăng ký nhận bản tin Trận Địa Số!</p>
     <p>Từ ngày mai, mỗi sáng lúc 6h30, bạn sẽ nhận được bản tin tổng hợp các thông tin quan trọng về:</p>
     <ul>
@@ -311,4 +325,15 @@ function sendWelcomeEmail(subscriber) {
     subject: '🛡️ Chào mừng đến Trận Địa Số!',
     htmlContent: html
   });
+}
+
+function escapeHtml_(value) {
+  if (value === undefined || value === null) return '';
+
+  return value.toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

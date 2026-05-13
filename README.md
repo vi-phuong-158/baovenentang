@@ -40,13 +40,15 @@
 ```
 tran-dia-so/
 ├── backend/                     # Google Apps Script
-│   ├── 01-config.gs            # Cấu hình API keys
+│   ├── 01-config.gs            # Đọc cấu hình từ Script Properties
 │   ├── 02-rss-crawler.gs       # Crawl tin RSS
 │   ├── 03-gemini-ai.gs         # Xử lý AI
 │   ├── 04-sheets-db.gs         # Database
 │   ├── 05-telegram-bot.gs      # Bot Telegram
 │   ├── 06-email-brevo.gs       # Gửi email
-│   └── 07-main.gs              # Entry point + Web API
+│   ├── 07-main.gs              # Entry point + Web API
+│   ├── appsscript.json         # Manifest Apps Script
+│   └── README.md               # Hướng dẫn triển khai backend
 │
 ├── web/                         # Frontend Web App
 │   ├── index.html              # Trang chủ

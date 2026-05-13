@@ -18,6 +18,8 @@ function runDailyNewsBot() {
   Logger.log('═══════════════════════════════════');
   
   try {
+    assertRequiredConfig_(REQUIRED_SHEET_CONFIG.concat(REQUIRED_GEMINI_CONFIG));
+
     // Bước 1: Crawl RSS từ các báo
     Logger.log('\n📥 BƯỚC 1: Crawl RSS');
     const rawArticles = fetchAllRSS();
@@ -84,6 +86,11 @@ function runDailyNewsBot() {
  */
 function notifyAdminError(error) {
   try {
+    if (!hasRequiredConfig_(REQUIRED_BREVO_CONFIG) || isBlank_(CONFIG.ADMIN_EMAIL)) {
+      Logger.log('Không gửi email báo lỗi vì thiếu cấu hình Brevo hoặc ADMIN_EMAIL');
+      return;
+    }
+
     sendEmailViaBrevo({
       toEmail: CONFIG.ADMIN_EMAIL,
       toName: 'Admin',
@@ -106,7 +113,8 @@ function notifyAdminError(error) {
  * GET request - Trả về dữ liệu (tin tức, quiz, phản bác)
  */
 function doGet(e) {
-  const action = e.parameter.action || 'home';
+  const params = (e && e.parameter) || {};
+  const action = params.action || 'home';
   let result;
   
   try {
@@ -116,12 +124,12 @@ function doGet(e) {
         break;
         
       case 'quiz':
-        const count = parseInt(e.parameter.count) || 10;
+        const count = parseInt(params.count, 10) || 10;
         result = { success: true, data: getRandomQuiz(count) };
         break;
         
       case 'rebuttals':
-        const keyword = e.parameter.keyword || '';
+        const keyword = params.keyword || '';
         result = { success: true, data: getRebuttals(keyword) };
         break;
         
@@ -141,9 +149,7 @@ function doGet(e) {
     result = { success: false, error: error.toString() };
   }
   
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse_(result);
 }
 
 /**
@@ -154,8 +160,7 @@ function doPost(e) {
   
   try {
     // Kiểm tra nếu là webhook Telegram
-    const contents = e.postData.contents;
-    const data = JSON.parse(contents);
+    const data = parsePostData_(e);
     
     if (data.update_id) {
       // Telegram webhook
@@ -166,13 +171,13 @@ function doPost(e) {
     }
     
     // API call thường
-    const action = data.action || e.parameter.action;
+    const action = data.action || ((e && e.parameter) ? e.parameter.action : '');
     
     switch(action) {
       case 'subscribe':
         result = addSubscriber(data);
         if (result.success) {
-          sendWelcomeEmail(data);
+          sendWelcomeEmail(result.subscriber);
         }
         break;
         
@@ -193,9 +198,18 @@ function doPost(e) {
   } catch(error) {
     result = { success: false, error: error.toString() };
   }
-  
+
+  return jsonResponse_(result);
+}
+
+function parsePostData_(e) {
+  const contents = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+  return JSON.parse(contents);
+}
+
+function jsonResponse_(payload) {
   return ContentService
-    .createTextOutput(JSON.stringify(result))
+    .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -203,11 +217,9 @@ function doPost(e) {
  * Lấy thống kê tổng quan
  */
 function getStatistics() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  
-  const tinTucSheet = ss.getSheetByName('TIN_TUC');
-  const dangKySheet = ss.getSheetByName('DANG_KY');
-  const quizSheet = ss.getSheetByName('QUIZ_RESULT');
+  const tinTucSheet = getSheet_('TIN_TUC');
+  const dangKySheet = getSheet_('DANG_KY');
+  const quizSheet = getSheet_('QUIZ_RESULT');
   
   return {
     totalArticles: Math.max(0, tinTucSheet.getLastRow() - 1),
@@ -226,6 +238,7 @@ function getStatistics() {
  */
 function setupSystem() {
   Logger.log('🛠️ Bắt đầu setup hệ thống...');
+  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
   
   // 1. Tạo cấu trúc sheets
   initializeSheets();
@@ -234,14 +247,18 @@ function setupSystem() {
   setupDailyTrigger();
   
   // 3. Setup Telegram webhook (nếu đã có Web App URL)
-  if (CONFIG.WEB_APP_URL && !CONFIG.WEB_APP_URL.includes('...')) {
+  if (!isBlank_(CONFIG.WEB_APP_URL) && hasRequiredConfig_(REQUIRED_TELEGRAM_CONFIG)) {
     setTelegramWebhook();
+  } else {
+    Logger.log('ℹ️ Chưa set Telegram webhook vì thiếu WEB_APP_URL hoặc cấu hình Telegram');
   }
+
+  logMissingOptionalConfig_();
   
   Logger.log('✅ Setup hoàn tất!');
   Logger.log('📌 Tiếp theo:');
   Logger.log('   1. Deploy Web App (Deploy > New deployment > Web app)');
-  Logger.log('   2. Copy URL Web App vào CONFIG.WEB_APP_URL');
+  Logger.log('   2. Copy URL Web App vào Script Property WEB_APP_URL');
   Logger.log('   3. Chạy setTelegramWebhook() để kích hoạt bot');
   Logger.log('   4. Test bằng cách chạy testRun()');
 }
@@ -268,6 +285,21 @@ function setupDailyTrigger() {
   Logger.log(`✅ Đã tạo trigger chạy lúc ${CONFIG.RUN_HOUR}h hàng ngày`);
 }
 
+function logMissingOptionalConfig_() {
+  const checks = [
+    { name: 'Gemini AI', keys: REQUIRED_GEMINI_CONFIG },
+    { name: 'Telegram', keys: REQUIRED_TELEGRAM_CONFIG.concat(['WEB_APP_URL']) },
+    { name: 'Brevo Email', keys: REQUIRED_BREVO_CONFIG.concat(['ADMIN_EMAIL']) }
+  ];
+
+  checks.forEach(check => {
+    const missing = getMissingConfigKeys_(check.keys);
+    if (missing.length > 0) {
+      Logger.log(`⚠️ ${check.name} chưa đủ cấu hình: ${missing.join(', ')}`);
+    }
+  });
+}
+
 /**
  * 🧪 TEST - Chạy thử để kiểm tra hệ thống
  */
@@ -287,14 +319,18 @@ function testRun() {
     // Test 2: Gemini
     Logger.log('\n--- Test 2: Gemini AI ---');
     const filtered = filterByKeywords(articles.slice(0, 3));
-    if (filtered.length > 0) {
+    if (!hasRequiredConfig_(REQUIRED_GEMINI_CONFIG)) {
+      Logger.log('Bỏ qua Gemini test vì thiếu GEMINI_API_KEY');
+    } else if (filtered.length > 0) {
       const summary = summarizeWithGemini(filtered);
       Logger.log(`Tóm tắt: ${JSON.stringify(summary[0])}`);
     }
     
     // Test 3: Telegram (chỉ gửi 1 tin test)
     Logger.log('\n--- Test 3: Telegram ---');
-    if (filtered.length > 0) {
+    if (!hasRequiredConfig_(REQUIRED_TELEGRAM_CONFIG)) {
+      Logger.log('Bỏ qua Telegram test vì thiếu TELEGRAM_TOKEN hoặc TELEGRAM_CHANNEL');
+    } else if (filtered.length > 0) {
       sendTelegramMessage(
         CONFIG.TELEGRAM_CHANNEL, 
         '🧪 *Test*: Đây là tin nhắn kiểm tra từ Trận Địa Số'
@@ -313,7 +349,7 @@ function testRun() {
  */
 function seedSampleData() {
   // Sample Quiz
-  const quizSheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('QUIZ');
+  const quizSheet = getSheet_('QUIZ');
   const sampleQuizzes = [
     [
       'Q001',
@@ -350,7 +386,7 @@ function seedSampleData() {
   sampleQuizzes.forEach(q => quizSheet.appendRow(q));
   
   // Sample Phản bác
-  const rebuttalSheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('PHAN_BAC');
+  const rebuttalSheet = getSheet_('PHAN_BAC');
   const sampleRebuttals = [
     [
       new Date(),

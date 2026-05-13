@@ -36,7 +36,7 @@ function summarizeWithGemini(articles) {
       const aiData = aiResults.find(r => r.id === idx) || {};
       return {
         ...original,
-        summary: aiData.summary || original.description.substring(0, 200),
+        summary: aiData.summary || (original.description || '').substring(0, 200),
         category: aiData.category || 'Khác',
         priority: aiData.priority || 'Bình thường',
         message: aiData.message || '',
@@ -52,7 +52,7 @@ function summarizeWithGemini(articles) {
     // Fallback: dùng description gốc
     return limited.map(a => ({
       ...a,
-      summary: a.description.substring(0, 200) + '...',
+      summary: ((a.description || a.title || '').substring(0, 200)) + '...',
       category: 'Khác',
       priority: 'Bình thường',
       message: '',
@@ -95,6 +95,8 @@ Trả về mảng JSON kết quả:`;
  * Gọi Gemini API
  */
 function callGeminiAPI(prompt) {
+  assertRequiredConfig_(REQUIRED_GEMINI_CONFIG);
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
   
   const payload = {
@@ -124,7 +126,9 @@ function callGeminiAPI(prompt) {
   
   const data = JSON.parse(response.getContentText());
   
-  if (!data.candidates || data.candidates.length === 0) {
+  if (!data.candidates || data.candidates.length === 0 ||
+      !data.candidates[0].content || !data.candidates[0].content.parts ||
+      data.candidates[0].content.parts.length === 0) {
     throw new Error('Gemini không trả về kết quả');
   }
   

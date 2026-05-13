@@ -5,119 +5,143 @@
  * ============================================================
  */
 
+const SHEET_HEADERS = {
+  TIN_TUC: [
+    'Ngày', 'Tiêu đề', 'Tóm tắt', 'Chủ đề',
+    'Ưu tiên', 'Thông điệp', 'Nguồn', 'Link', 'Từ khóa', 'Đã gửi'
+  ],
+  DANG_KY: [
+    'Email', 'Họ tên', 'Đơn vị', 'Chủ đề quan tâm',
+    'Kênh nhận', 'Telegram Username', 'Ngày đăng ký', 'Trạng thái'
+  ],
+  THONG_KE: [
+    'Ngày', 'Số bài tin', 'Email đã gửi', 'Tỷ lệ mở',
+    'Lượt đọc Web', 'Lượt làm Quiz', 'Đăng ký mới'
+  ],
+  PHAN_BAC: [
+    'Ngày tạo', 'Chủ đề', 'Luận điệu sai trái',
+    'Luận điểm phản bác', 'Bằng chứng', 'Nguồn'
+  ],
+  QUIZ: [
+    'ID', 'Câu hỏi', 'Đáp án A', 'Đáp án B',
+    'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích', 'Chủ đề'
+  ],
+  QUIZ_RESULT: [
+    'Thời gian', 'Người làm', 'Đơn vị', 'Điểm', 'Tổng câu', 'Chi tiết'
+  ]
+};
+
 /**
- * Khởi tạo cấu trúc các sheet (chạy 1 lần khi setup)
+ * Khởi tạo cấu trúc các sheet (chạy 1 lần khi setup).
  */
 function initializeSheets() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  
-  // Sheet TIN_TUC
-  createSheetIfNotExists(ss, 'TIN_TUC', [
-    'Ngày', 'Tiêu đề', 'Tóm tắt', 'Chủ đề', 
-    'Ưu tiên', 'Thông điệp', 'Nguồn', 'Link', 'Từ khóa', 'Đã gửi'
-  ]);
-  
-  // Sheet DANG_KY
-  createSheetIfNotExists(ss, 'DANG_KY', [
-    'Email', 'Họ tên', 'Đơn vị', 'Chủ đề quan tâm', 
-    'Kênh nhận', 'Telegram Username', 'Ngày đăng ký', 'Trạng thái'
-  ]);
-  
-  // Sheet THONG_KE
-  createSheetIfNotExists(ss, 'THONG_KE', [
-    'Ngày', 'Số bài tin', 'Email đã gửi', 'Tỷ lệ mở', 
-    'Lượt đọc Web', 'Lượt làm Quiz', 'Đăng ký mới'
-  ]);
-  
-  // Sheet PHAN_BAC
-  createSheetIfNotExists(ss, 'PHAN_BAC', [
-    'Ngày tạo', 'Chủ đề', 'Luận điệu sai trái', 
-    'Luận điểm phản bác', 'Bằng chứng', 'Nguồn'
-  ]);
-  
-  // Sheet QUIZ
-  createSheetIfNotExists(ss, 'QUIZ', [
-    'ID', 'Câu hỏi', 'Đáp án A', 'Đáp án B', 
-    'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích', 'Chủ đề'
-  ]);
-  
-  // Sheet QUIZ_RESULT
-  createSheetIfNotExists(ss, 'QUIZ_RESULT', [
-    'Thời gian', 'Người làm', 'Đơn vị', 'Điểm', 'Tổng câu', 'Chi tiết'
-  ]);
-  
+  const ss = getSpreadsheet_();
+
+  Object.keys(SHEET_HEADERS).forEach(name => {
+    createSheetIfNotExists(ss, name, SHEET_HEADERS[name]);
+  });
+
   Logger.log('✅ Đã khởi tạo đầy đủ cấu trúc Sheets');
 }
 
+function getSpreadsheet_() {
+  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
+  return SpreadsheetApp.openById(CONFIG.SHEET_ID);
+}
+
+function getSheet_(name) {
+  const ss = getSpreadsheet_();
+  return createSheetIfNotExists(ss, name, SHEET_HEADERS[name] || []);
+}
+
 /**
- * Tạo sheet nếu chưa tồn tại
+ * Tạo sheet nếu chưa tồn tại, đồng thời đảm bảo header đúng.
  */
 function createSheetIfNotExists(spreadsheet, name, headers) {
   let sheet = spreadsheet.getSheetByName(name);
-  
+
   if (!sheet) {
     sheet = spreadsheet.insertSheet(name);
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length)
-         .setBackground('#c0392b')
-         .setFontColor('white')
-         .setFontWeight('bold');
-    sheet.setFrozenRows(1);
     Logger.log(`✅ Đã tạo sheet: ${name}`);
   }
-  
+
+  ensureSheetHeaders_(sheet, headers);
   return sheet;
 }
 
-/**
- * Lưu các bài viết đã xử lý vào sheet TIN_TUC
- */
-function saveArticlesToSheet(articles) {
-  if (articles.length === 0) return;
-  
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('TIN_TUC');
-  const today = new Date();
-  
-  const rows = articles.map(a => [
-    today,
-    a.title,
-    a.summary,
-    a.category,
-    a.priority,
-    a.message,
-    a.source,
-    a.link,
-    (a.keywords || []).join(', '),
-    'Chưa'
-  ]);
-  
-  if (rows.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length)
-         .setValues(rows);
+function ensureSheetHeaders_(sheet, headers) {
+  if (!headers || headers.length === 0) return;
+
+  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
+  const existingHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const needsUpdate = headers.some((header, index) => existingHeaders[index] !== header);
+
+  if (needsUpdate) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
-  
-  Logger.log(`[Sheets] Đã lưu ${rows.length} bài vào TIN_TUC`);
+
+  sheet.getRange(1, 1, 1, headers.length)
+    .setBackground('#c0392b')
+    .setFontColor('white')
+    .setFontWeight('bold');
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, headers.length);
 }
 
 /**
- * Lấy danh sách người đăng ký theo kênh và chủ đề
+ * Lưu các bài viết đã xử lý vào sheet TIN_TUC.
+ */
+function saveArticlesToSheet(articles) {
+  if (!articles || articles.length === 0) return 0;
+
+  const sheet = getSheet_('TIN_TUC');
+  const today = new Date();
+
+  const rows = articles.map(a => [
+    today,
+    a.title || '',
+    a.summary || '',
+    a.category || 'Khác',
+    a.priority || 'Bình thường',
+    a.message || '',
+    a.source || '',
+    a.link || '',
+    Array.isArray(a.keywords) ? a.keywords.join(', ') : (a.keywords || ''),
+    'Chưa'
+  ]);
+
+  appendRows_(sheet, rows);
+  Logger.log(`[Sheets] Đã lưu ${rows.length} bài vào TIN_TUC`);
+  return rows.length;
+}
+
+function appendRows_(sheet, rows) {
+  if (!rows || rows.length === 0) return;
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length)
+    .setValues(rows);
+}
+
+/**
+ * Lấy danh sách người đăng ký theo kênh và chủ đề.
  */
 function getSubscribers(channel, topic) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('DANG_KY');
-  
+  const sheet = getSheet_('DANG_KY');
+
   if (sheet.getLastRow() <= 1) return [];
-  
+
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  
+  const channelFilter = channel ? channel.toString().toLowerCase() : '';
+
   return data.filter(row => {
-    const userChannel = row[4]; // Kênh nhận
-    const userTopics = row[3];  // Chủ đề quan tâm
-    const status = row[7];      // Trạng thái
-    
+    const userChannel = (row[4] || '').toString().toLowerCase();
+    const userTopics = (row[3] || 'Tất cả').toString();
+    const status = (row[7] || 'Hoạt động').toString();
+
     if (status !== 'Hoạt động') return false;
-    if (channel && !userChannel.toString().toLowerCase().includes(channel.toLowerCase())) return false;
-    if (topic && userTopics !== 'Tất cả' && !userTopics.toString().includes(topic)) return false;
-    
+    if (channelFilter && !userChannel.includes(channelFilter)) return false;
+    if (topic && userTopics !== 'Tất cả' && !userTopics.includes(topic)) return false;
+
     return true;
   }).map(row => ({
     email: row[0],
@@ -131,52 +155,67 @@ function getSubscribers(channel, topic) {
 }
 
 /**
- * Thêm người đăng ký mới
+ * Thêm người đăng ký mới.
  */
 function addSubscriber(data) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('DANG_KY');
-  
-  // Check trùng email
+  const email = normalizeEmail_(data && data.email);
+  const name = cleanValue_(data && data.name);
+
+  if (!email || !isValidEmail_(email)) {
+    return { success: false, message: 'Email không hợp lệ' };
+  }
+
+  const sheet = getSheet_('DANG_KY');
+
   if (sheet.getLastRow() > 1) {
-    const emails = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().flat();
-    if (emails.includes(data.email)) {
+    const emails = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1)
+      .getValues()
+      .flat()
+      .map(normalizeEmail_);
+
+    if (emails.includes(email)) {
       return { success: false, message: 'Email đã đăng ký trước đó' };
     }
   }
-  
+
   sheet.appendRow([
-    data.email,
-    data.name,
-    data.organization,
-    data.topics || 'Tất cả',
-    data.channel || 'Email',
-    data.telegramUsername || '',
+    email,
+    name || email,
+    cleanValue_(data.organization),
+    cleanValue_(data.topics) || 'Tất cả',
+    cleanValue_(data.channel) || 'Email',
+    cleanValue_(data.telegramUsername),
     new Date(),
     'Hoạt động'
   ]);
-  
-  return { success: true, message: 'Đăng ký thành công!' };
+
+  return {
+    success: true,
+    message: 'Đăng ký thành công!',
+    subscriber: {
+      email,
+      name: name || email,
+      organization: cleanValue_(data.organization),
+      topics: cleanValue_(data.topics) || 'Tất cả',
+      channel: cleanValue_(data.channel) || 'Email',
+      telegramUsername: cleanValue_(data.telegramUsername)
+    }
+  };
 }
 
 /**
- * Lấy bài viết của ngày hôm nay
+ * Lấy bài viết của ngày hôm nay.
  */
 function getTodayArticles() {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('TIN_TUC');
-  
+  const sheet = getSheet_('TIN_TUC');
+
   if (sheet.getLastRow() <= 1) return [];
-  
+
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  
+
   return data
-    .filter(row => {
-      const rowDate = new Date(row[0]);
-      rowDate.setHours(0, 0, 0, 0);
-      return rowDate.getTime() === today.getTime();
-    })
+    .filter(row => isSameDay_(row[0], today))
     .map(row => ({
       date: row[0],
       title: row[1],
@@ -191,19 +230,18 @@ function getTodayArticles() {
 }
 
 /**
- * Lấy câu hỏi quiz ngẫu nhiên
+ * Lấy câu hỏi quiz ngẫu nhiên.
  */
 function getRandomQuiz(count = 1) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('QUIZ');
-  
+  const sheet = getSheet_('QUIZ');
+
   if (sheet.getLastRow() <= 1) return [];
-  
+
+  const limit = Math.max(1, Number(count) || 1);
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  
-  // Trộn ngẫu nhiên
-  const shuffled = data.sort(() => Math.random() - 0.5);
-  
-  return shuffled.slice(0, count).map(row => ({
+  const shuffled = shuffleRows_(data);
+
+  return shuffled.slice(0, limit).map(row => ({
     id: row[0],
     question: row[1],
     options: {
@@ -212,53 +250,55 @@ function getRandomQuiz(count = 1) {
       C: row[4],
       D: row[5]
     },
-    correct: row[6],
+    correct: (row[6] || '').toString().trim().toUpperCase(),
     explanation: row[7],
     category: row[8]
   }));
 }
 
 /**
- * Lưu kết quả làm quiz
+ * Lưu kết quả làm quiz.
  */
 function saveQuizResult(data) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('QUIZ_RESULT');
+  const sheet = getSheet_('QUIZ_RESULT');
+  const details = data.details || data.answers || {};
+
   sheet.appendRow([
     new Date(),
-    data.user,
-    data.organization,
-    data.score,
-    data.total,
-    JSON.stringify(data.details || {})
+    cleanValue_(data.user) || 'Khách',
+    cleanValue_(data.organization),
+    Number(data.score) || 0,
+    Number(data.total) || 0,
+    JSON.stringify(details)
   ]);
 }
 
 /**
- * Cập nhật thống kê hàng ngày
+ * Cập nhật thống kê hàng ngày.
  */
 function updateDailyStats(stats) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('THONG_KE');
+  const sheet = getSheet_('THONG_KE');
   sheet.appendRow([
     new Date(),
-    stats.articlesCount || 0,
-    stats.emailsSent || 0,
+    Number(stats.articlesCount) || 0,
+    Number(stats.emailsSent) || 0,
     stats.openRate || '0%',
-    stats.webVisits || 0,
-    stats.quizAttempts || 0,
-    stats.newSubscribers || 0
+    Number(stats.webVisits) || 0,
+    Number(stats.quizAttempts) || 0,
+    Number(stats.newSubscribers) || 0
   ]);
 }
 
 /**
- * Lấy danh sách luận điểm phản bác
+ * Lấy danh sách luận điểm phản bác.
  */
 function getRebuttals(searchKeyword) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('PHAN_BAC');
-  
+  const sheet = getSheet_('PHAN_BAC');
+
   if (sheet.getLastRow() <= 1) return [];
-  
+
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  
+
   let results = data.map(row => ({
     date: row[0],
     topic: row[1],
@@ -267,29 +307,65 @@ function getRebuttals(searchKeyword) {
     evidence: row[4],
     sources: row[5]
   }));
-  
+
   if (searchKeyword) {
-    const kw = searchKeyword.toLowerCase();
-    results = results.filter(r => 
-      r.topic.toLowerCase().includes(kw) || 
-      r.rebuttal.toLowerCase().includes(kw)
+    const keyword = searchKeyword.toString().toLowerCase();
+    results = results.filter(item =>
+      (item.topic || '').toString().toLowerCase().includes(keyword) ||
+      (item.rebuttal || '').toString().toLowerCase().includes(keyword)
     );
   }
-  
+
   return results;
 }
 
 /**
- * Lưu luận điểm phản bác mới
+ * Lưu luận điểm phản bác mới.
  */
 function saveRebuttal(data) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('PHAN_BAC');
+  const sheet = getSheet_('PHAN_BAC');
   sheet.appendRow([
     new Date(),
-    data.topic,
-    data.wrongClaim,
-    data.rebuttal,
-    (data.evidence || []).join('\n'),
-    (data.sources || []).join('\n')
+    cleanValue_(data.topic),
+    cleanValue_(data.wrongClaim),
+    cleanValue_(data.rebuttal),
+    Array.isArray(data.evidence) ? data.evidence.join('\n') : cleanValue_(data.evidence),
+    Array.isArray(data.sources) ? data.sources.join('\n') : cleanValue_(data.sources)
   ]);
+}
+
+function isSameDay_(value, targetDate) {
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date.getFullYear() === targetDate.getFullYear() &&
+    date.getMonth() === targetDate.getMonth() &&
+    date.getDate() === targetDate.getDate();
+}
+
+function shuffleRows_(rows) {
+  const copy = rows.slice();
+
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = copy[i];
+    copy[i] = copy[j];
+    copy[j] = temp;
+  }
+
+  return copy;
+}
+
+function normalizeEmail_(email) {
+  return cleanValue_(email).toLowerCase();
+}
+
+function cleanValue_(value) {
+  return value === undefined || value === null ? '' : value.toString().trim();
+}
+
+function isValidEmail_(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }

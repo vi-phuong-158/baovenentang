@@ -97,6 +97,7 @@ Trong Apps Script editor:
    - `05-telegram-bot.gs`
    - `06-email-brevo.gs`
    - `07-main.gs`
+   - `appsscript.json` (bật hiển thị manifest trong Project Settings nếu copy thủ công)
 
 4. **Copy nội dung từng file** từ thư mục `backend/` của dự án, paste vào file tương ứng
 
@@ -104,21 +105,23 @@ Trong Apps Script editor:
 
 ## BƯỚC 6: Cấu hình API Keys
 
-Mở file `01-config.gs`, điền các thông tin:
+Không điền API key trực tiếp vào file code. Trong Apps Script, vào **Project Settings** > **Script Properties** và thêm:
 
-```javascript
-const CONFIG = {
-  GEMINI_API_KEY: 'AIzaSy...',           // Bước 2
-  TELEGRAM_TOKEN: '7123456789:AAH...',   // Bước 3
-  TELEGRAM_CHANNEL: '@trandiadso_phutho', // Bước 3
-  BREVO_API_KEY: 'xkeysib-...',          // Bước 4
-  SENDER_EMAIL: 'no-reply@yourdomain.vn', // Email đã verify Brevo
-  SHEET_ID: '1abc...xyz',                // Bước 1
-  // ...
-};
+```text
+SHEET_ID=1abc...xyz
+GEMINI_API_KEY=AIzaSy...
+TELEGRAM_TOKEN=7123456789:AAH...
+TELEGRAM_CHANNEL=@trandiadso_phutho
+BREVO_API_KEY=xkeysib-...
+SENDER_EMAIL=no-reply@yourdomain.vn
+SENDER_NAME=Trận Địa Số - Phú Thọ
+ADMIN_EMAIL=admin@yourdomain.vn
+MAX_ARTICLES_PER_DAY=10
+MAX_ARTICLES_TELEGRAM=5
+RUN_HOUR=6
 ```
 
-Click **Save** (Ctrl+S)
+Sau khi deploy Web App ở Bước 9, quay lại Script Properties để thêm `WEB_APP_URL`.
 
 ---
 
@@ -164,8 +167,8 @@ Click **Save** (Ctrl+S)
    - **Who has access:** Anyone
 4. Click **Deploy**
 5. Copy URL Web App (dạng: `https://script.google.com/macros/s/.../exec`)
-6. Quay lại file `01-config.gs`, dán URL vào `WEB_APP_URL`
-7. Save và chạy `setTelegramWebhook()` 1 lần
+6. Vào **Project Settings** > **Script Properties**, thêm/cập nhật `WEB_APP_URL`
+7. Chạy `setTelegramWebhook()` 1 lần
 
 ---
 
@@ -197,8 +200,8 @@ Kiểm tra:
 - [ ] Đã có Gemini API Key
 - [ ] Đã tạo Telegram Bot + Channel, bot là admin
 - [ ] Đã có Brevo API Key, verify sender
-- [ ] Đã copy 7 file code vào Apps Script
-- [ ] Đã điền đầy đủ thông tin trong `01-config.gs`
+- [ ] Đã copy 7 file code và `appsscript.json` vào Apps Script
+- [ ] Đã điền đầy đủ thông tin trong Script Properties
 - [ ] Chạy `setupSystem` thành công
 - [ ] Chạy `testRun` thấy bot gửi được tin Telegram
 - [ ] Đã deploy Web App, lấy URL

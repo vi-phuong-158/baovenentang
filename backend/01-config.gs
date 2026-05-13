@@ -1,72 +1,152 @@
 /**
  * ============================================================
- * TRẬN ĐỊA SỐ - File cấu hình
+ * TRẬN ĐỊA SỐ - Cấu hình Google Apps Script
  * ============================================================
- * QUAN TRỌNG: Điền đầy đủ các API key trước khi chạy script
- * Không chia sẻ file này công khai để bảo mật key
+ * Khuyến nghị triển khai:
+ * - Không điền API key trực tiếp trong file này.
+ * - Vào Apps Script > Project Settings > Script Properties.
+ * - Thêm các key theo mẫu trong hàm showConfigSetupInstructions().
  * ============================================================
  */
 
-const CONFIG = {
+const CONFIG_DEFAULTS = {
   // ===== Gemini AI =====
-  // Lấy tại: https://aistudio.google.com/app/apikey
-  GEMINI_API_KEY: 'DAN_GEMINI_API_KEY_VAO_DAY',
+  GEMINI_API_KEY: '',
   GEMINI_MODEL: 'gemini-2.0-flash',
-  
+
   // ===== Telegram Bot =====
-  // Tạo bot qua @BotFather trên Telegram, lấy token
-  TELEGRAM_TOKEN: 'DAN_TELEGRAM_BOT_TOKEN_VAO_DAY',
-  TELEGRAM_CHANNEL: '@trandiadso_phutho', // Tên channel của bạn
-  
+  TELEGRAM_TOKEN: '',
+  TELEGRAM_CHANNEL: '',
+
   // ===== Brevo Email =====
-  // Đăng ký tại: https://www.brevo.com/, lấy API key
-  BREVO_API_KEY: 'DAN_BREVO_API_KEY_VAO_DAY',
-  SENDER_EMAIL: 'no-reply@trandiadso.vn',
+  BREVO_API_KEY: '',
+  SENDER_EMAIL: '',
   SENDER_NAME: 'Trận Địa Số - Phú Thọ',
-  
+
   // ===== Google Sheets =====
-  // ID lấy từ URL của Google Sheet
-  SHEET_ID: 'DAN_GOOGLE_SHEET_ID_VAO_DAY',
-  
+  SHEET_ID: '',
+
   // ===== Web App URL =====
-  // URL của Web App sau khi deploy GAS
-  WEB_APP_URL: 'https://script.google.com/macros/s/.../exec',
-  
+  WEB_APP_URL: '',
+
   // ===== Cấu hình hoạt động =====
-  MAX_ARTICLES_PER_DAY: 10,    // Số bài tối đa xử lý mỗi ngày
-  MAX_ARTICLES_TELEGRAM: 5,    // Số tin tối đa gửi qua Telegram
-  RUN_HOUR: 6,                  // Giờ chạy hàng ngày (24h format)
-  
-  // ===== Email lãnh đạo nhận thông báo lỗi =====
-  ADMIN_EMAIL: 'vingocphuong@example.com'
+  MAX_ARTICLES_PER_DAY: 10,
+  MAX_ARTICLES_TELEGRAM: 5,
+  RUN_HOUR: 6,
+
+  // ===== Email admin nhận thông báo lỗi =====
+  ADMIN_EMAIL: ''
 };
+
+const CONFIG = loadConfig_();
+
+const REQUIRED_SHEET_CONFIG = ['SHEET_ID'];
+const REQUIRED_GEMINI_CONFIG = ['GEMINI_API_KEY'];
+const REQUIRED_TELEGRAM_CONFIG = ['TELEGRAM_TOKEN', 'TELEGRAM_CHANNEL'];
+const REQUIRED_BREVO_CONFIG = ['BREVO_API_KEY', 'SENDER_EMAIL'];
+
+/**
+ * Đọc cấu hình từ Script Properties, fallback sang CONFIG_DEFAULTS.
+ */
+function loadConfig_() {
+  let properties = {};
+
+  try {
+    properties = PropertiesService.getScriptProperties().getProperties();
+  } catch (e) {
+    Logger.log(`[Config] Không đọc được Script Properties: ${e}`);
+  }
+
+  return Object.keys(CONFIG_DEFAULTS).reduce((config, key) => {
+    const fallback = CONFIG_DEFAULTS[key];
+    const value = properties[key];
+    config[key] = value !== undefined && value !== ''
+      ? coerceConfigValue_(value, fallback)
+      : fallback;
+    return config;
+  }, {});
+}
+
+function coerceConfigValue_(value, fallback) {
+  if (typeof fallback === 'number') {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  }
+
+  return value;
+}
+
+function assertRequiredConfig_(keys) {
+  const missing = getMissingConfigKeys_(keys);
+  if (missing.length > 0) {
+    throw new Error(
+      `Thiếu cấu hình Script Properties: ${missing.join(', ')}. ` +
+      'Chạy showConfigSetupInstructions() để xem mẫu cấu hình.'
+    );
+  }
+}
+
+function hasRequiredConfig_(keys) {
+  return getMissingConfigKeys_(keys).length === 0;
+}
+
+function getMissingConfigKeys_(keys) {
+  return keys.filter(key => isBlank_(CONFIG[key]));
+}
+
+function isBlank_(value) {
+  return value === undefined || value === null || value.toString().trim() === '';
+}
+
+/**
+ * Chạy hàm này trong Apps Script để xem danh sách Script Properties cần điền.
+ */
+function showConfigSetupInstructions() {
+  const sample = {
+    SHEET_ID: 'ID_GOOGLE_SHEET',
+    GEMINI_API_KEY: 'AIza...',
+    TELEGRAM_TOKEN: '123456789:ABC...',
+    TELEGRAM_CHANNEL: '@ten_channel',
+    BREVO_API_KEY: 'xkeysib-...',
+    SENDER_EMAIL: 'email-da-verify@domain.vn',
+    SENDER_NAME: 'Trận Địa Số - Phú Thọ',
+    WEB_APP_URL: 'https://script.google.com/macros/s/.../exec',
+    ADMIN_EMAIL: 'admin@domain.vn',
+    MAX_ARTICLES_PER_DAY: '10',
+    MAX_ARTICLES_TELEGRAM: '5',
+    RUN_HOUR: '6'
+  };
+
+  Logger.log('Vào Apps Script > Project Settings > Script Properties và thêm các key sau:');
+  Logger.log(JSON.stringify(sample, null, 2));
+}
 
 // ===== Nguồn RSS =====
 const RSS_SOURCES = [
-  { 
-    url: 'https://nhandan.vn/rss/chinhtri-1.rss', 
+  {
+    url: 'https://nhandan.vn/rss/chinhtri-1.rss',
     name: 'Báo Nhân Dân',
-    priority: 1 
+    priority: 1
   },
-  { 
-    url: 'https://nhandan.vn/rss/phap-luat-2.rss', 
+  {
+    url: 'https://nhandan.vn/rss/phap-luat-2.rss',
     name: 'Báo Nhân Dân - Pháp luật',
-    priority: 1 
+    priority: 1
   },
-  { 
-    url: 'https://cand.com.vn/rss/Thoi-su-1.rss', 
+  {
+    url: 'https://cand.com.vn/rss/Thoi-su-1.rss',
     name: 'Báo CAND',
-    priority: 1 
+    priority: 1
   },
-  { 
-    url: 'https://baochinhphu.vn/rss/thoi-su.rss', 
+  {
+    url: 'https://baochinhphu.vn/rss/thoi-su.rss',
     name: 'Báo Chính phủ',
-    priority: 1 
+    priority: 1
   },
-  { 
-    url: 'https://vov.vn/rss/chinh-tri-105.rss', 
+  {
+    url: 'https://vov.vn/rss/chinh-tri-105.rss',
     name: 'VOV',
-    priority: 2 
+    priority: 2
   }
 ];
 

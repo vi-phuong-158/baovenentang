@@ -86,9 +86,9 @@ function filterByKeywords(articles) {
  */
 function removeDuplicates(articles) {
   const seen = new Set();
-  const sheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('TIN_TUC');
+  const sheet = getSheet_('TIN_TUC');
   
-  // Lấy các title đã có trong sheet (7 ngày gần nhất)
+  // Lấy các title đã có trong sheet để tránh gửi trùng nhiều lần.
   if (sheet.getLastRow() > 1) {
     const existingData = sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues();
     existingData.forEach(row => seen.add(row[0]));

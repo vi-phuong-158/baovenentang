@@ -11,8 +11,13 @@ const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
  * Gửi bản tin hàng ngày qua Telegram Channel
  */
 function sendTelegramDailyDigest(articles) {
-  if (articles.length === 0) {
+  if (!articles || articles.length === 0) {
     Logger.log('[Telegram] Không có bài để gửi');
+    return;
+  }
+
+  if (!hasRequiredConfig_(REQUIRED_TELEGRAM_CONFIG)) {
+    Logger.log('[Telegram] Bỏ qua gửi bản tin vì chưa cấu hình TELEGRAM_TOKEN hoặc TELEGRAM_CHANNEL');
     return;
   }
   
@@ -57,7 +62,7 @@ function buildTelegramDigest(articles) {
     normal.slice(0, 4).forEach(a => {
       const icon = CATEGORIES[a.category] || '📰';
       msg += `${icon} *${escapeMarkdown(a.title)}*\n`;
-      msg += `${escapeMarkdown(a.summary.substring(0, 200))}...\n`;
+      msg += `${escapeMarkdown((a.summary || '').substring(0, 200))}...\n`;
       msg += `[Đọc thêm](${a.link})\n\n`;
     });
   }
@@ -87,6 +92,8 @@ function buildTelegramDigest(articles) {
  * Gửi tin nhắn Telegram
  */
 function sendTelegramMessage(chatId, text, options = {}) {
+  assertRequiredConfig_(['TELEGRAM_TOKEN']);
+
   const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/sendMessage`;
   
   const payload = {
@@ -113,31 +120,16 @@ function sendTelegramMessage(chatId, text, options = {}) {
 }
 
 /**
- * Webhook xử lý lệnh từ người dùng Telegram
- * Setup: gọi setTelegramWebhook() 1 lần
- */
-function doPost(e) {
-  try {
-    const update = JSON.parse(e.postData.contents);
-    
-    if (update.message) {
-      handleTelegramMessage(update.message);
-    }
-    
-  } catch(error) {
-    Logger.log(`[Webhook] Lỗi: ${error}`);
-  }
-  
-  return ContentService.createTextOutput('OK');
-}
-
-/**
  * Xử lý lệnh từ người dùng
  */
 function handleTelegramMessage(message) {
   const chatId = message.chat.id;
-  const text = message.text || '';
-  const userName = message.from.first_name || 'Bạn';
+  const text = (message.text || '').trim();
+  const userName = (message.from && message.from.first_name) || 'Bạn';
+
+  if (handlePendingQuizAnswer_(chatId, text, userName)) {
+    return;
+  }
   
   // Phân tích lệnh
   if (text.startsWith('/start')) {
@@ -205,6 +197,57 @@ function handleQuizCommand(chatId) {
 }
 
 /**
+ * Xử lý câu trả lời A/B/C/D cho câu quiz đang chờ.
+ */
+function handlePendingQuizAnswer_(chatId, text, userName) {
+  if (!/^[ABCD]$/i.test(text)) return false;
+
+  const key = `quiz_${chatId}`;
+  const properties = PropertiesService.getScriptProperties();
+  const rawQuiz = properties.getProperty(key);
+
+  if (!rawQuiz) return false;
+
+  const answer = text.toUpperCase();
+  let quiz;
+
+  try {
+    quiz = JSON.parse(rawQuiz);
+  } catch (e) {
+    properties.deleteProperty(key);
+    Logger.log(`[Quiz] Không đọc được state quiz ${chatId}: ${e}`);
+    return false;
+  }
+
+  properties.deleteProperty(key);
+
+  const correct = (quiz.correct || '').toString().trim().toUpperCase();
+  const isCorrect = answer === correct;
+  const resultIcon = isCorrect ? '✅' : '❌';
+  const resultText = isCorrect ? 'Chính xác!' : `Chưa đúng. Đáp án đúng là ${correct}.`;
+
+  const msg = `${resultIcon} *${resultText}*\n\n` +
+    `${quiz.explanation ? `📌 ${escapeMarkdown(quiz.explanation)}\n\n` : ''}` +
+    `Gõ /quiz để làm câu tiếp theo.`;
+
+  saveQuizResult({
+    user: userName || `Telegram ${chatId}`,
+    organization: 'Telegram',
+    score: isCorrect ? 1 : 0,
+    total: 1,
+    details: {
+      questionId: quiz.id,
+      question: quiz.question,
+      answer,
+      correct
+    }
+  });
+
+  sendTelegramMessage(chatId, msg);
+  return true;
+}
+
+/**
  * Lệnh /phanbac
  */
 function handleRebuttalCommand(chatId, text) {
@@ -268,10 +311,27 @@ function handleHelpCommand(chatId) {
  * Cài đặt webhook (chạy 1 lần khi setup)
  */
 function setTelegramWebhook() {
-  const webhookUrl = CONFIG.WEB_APP_URL; // URL Web App đã deploy
+  assertRequiredConfig_(REQUIRED_TELEGRAM_CONFIG);
+
+  if (isBlank_(CONFIG.WEB_APP_URL)) {
+    throw new Error('Thiếu WEB_APP_URL. Hãy deploy Web App rồi lưu URL vào Script Properties.');
+  }
+
+  const webhookUrl = encodeURIComponent(CONFIG.WEB_APP_URL);
   const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/setWebhook?url=${webhookUrl}`;
   
-  const response = UrlFetchApp.fetch(url);
+  const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  Logger.log(`[Webhook] ${response.getContentText()}`);
+}
+
+/**
+ * Gỡ webhook khi cần debug bằng getUpdates.
+ */
+function deleteTelegramWebhook() {
+  assertRequiredConfig_(['TELEGRAM_TOKEN']);
+
+  const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/deleteWebhook`;
+  const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
   Logger.log(`[Webhook] ${response.getContentText()}`);
 }
 
