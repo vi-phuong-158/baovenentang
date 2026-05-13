@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trận Địa Số - Bảo vệ nền tảng tư tưởng của Đảng</title>
+  <meta name="description" content="Nền tảng bản tin tự động về bảo vệ nền tảng tư tưởng của Đảng - Công an tỉnh Phú Thọ">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  
+  <!-- Header -->
+  <header class="header">
+    <nav class="navbar">
+      <a href="#" class="logo">
+        <span class="logo-icon">🛡️</span>
+        <span class="logo-text">TRẬN ĐỊA SỐ</span>
+      </a>
+      <ul class="nav-menu" id="navMenu">
+        <li><a href="#home" class="nav-link active">Trang chủ</a></li>
+        <li><a href="#today" class="nav-link">Bản tin hôm nay</a></li>
+        <li><a href="#quiz" class="nav-link">Kiểm tra nhận thức</a></li>
+        <li><a href="#rebuttal" class="nav-link">Thư viện phản bác</a></li>
+        <li><a href="#subscribe" class="nav-link btn-cta">Đăng ký</a></li>
+      </ul>
+      <button class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="hero-bg"></div>
+    <div class="hero-container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i class="fas fa-shield-alt"></i>
+          <span>Phục vụ công tác bảo vệ nền tảng tư tưởng</span>
+        </div>
+        <h1 class="hero-title">
+          Thông tin đúng<br>
+          <span class="gradient-text">Tư tưởng vững</span><br>
+          Trận địa số vững chắc
+        </h1>
+        <p class="hero-subtitle">
+          Nền tảng bản tin tự động tổng hợp từ các báo chính thống, ứng dụng AI 
+          để bảo vệ nền tảng tư tưởng của Đảng từ cơ sở.
+        </p>
+        <div class="hero-actions">
+          <a href="#subscribe" class="btn btn-primary">
+            <i class="fas fa-bell"></i> Đăng ký nhận tin
+          </a>
+          <a href="https://t.me/trandiadso_phutho" target="_blank" class="btn btn-secondary">
+            <i class="fab fa-telegram"></i> Theo dõi Telegram
+          </a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <div class="stat-number" id="statArticles">0</div>
+            <div class="stat-label">Tin đã đăng</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="statSubscribers">0</div>
+            <div class="stat-label">Người đăng ký</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="statQuizzes">0</div>
+            <div class="stat-label">Lượt làm Quiz</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="floating-card card-1">
+          <i class="fas fa-newspaper"></i>
+          <span>Tin chính thống</span>
+        </div>
+        <div class="floating-card card-2">
+          <i class="fas fa-robot"></i>
+          <span>AI tóm tắt</span>
+        </div>
+        <div class="floating-card card-3">
+          <i class="fab fa-telegram"></i>
+          <span>Gửi Telegram</span>
+        </div>
+        <div class="floating-card card-4">
+          <i class="fas fa-envelope"></i>
+          <span>Email cá nhân hóa</span>
+        </div>
+        <div class="hero-shield">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Tính năng nổi bật</h2>
+        <p class="section-subtitle">Hệ thống tự động hoàn toàn, không cần thao tác hàng ngày</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📰</div>
+          <h3>Tin tổng hợp tự động</h3>
+          <p>AI tự động kéo và tóm tắt tin từ Báo Nhân Dân, CAND, Báo Chính phủ mỗi ngày lúc 6h sáng</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>Quiz nhận thức</h3>
+          <p>Hệ thống câu hỏi trắc nghiệm về Nghị quyết, chính sách, lịch sử Đảng giúp ôn tập hiệu quả</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📚</div>
+          <h3>Thư viện phản bác</h3>
+          <p>Kho luận điểm phản bác các quan điểm sai trái, thù địch trên không gian mạng</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Đa kênh phân phối</h3>
+          <p>Nhận tin qua Telegram (nhanh, miễn phí) hoặc Email (chi tiết, có chọn lọc chủ đề)</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Cá nhân hóa</h3>
+          <p>Đăng ký chỉ nhận tin về chủ đề bạn quan tâm: An ninh, Chính trị, Pháp luật...</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3>Thi đua đơn vị</h3>
+          <p>Bảng xếp hạng các đơn vị có nhiều người tham gia tích cực nhất</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Today News -->
+  <section class="today-news" id="today">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Bản tin hôm nay</h2>
+        <p class="section-subtitle">Tin tức chính thống chọn lọc tự động bằng AI</p>
+      </div>
+      <div class="news-grid" id="newsGrid">
+        <div class="loading-spinner">
+          <i class="fas fa-spinner fa-spin"></i> Đang tải tin tức...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quiz Section -->
+  <section class="quiz-section" id="quiz">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Kiểm tra nhận thức</h2>
+        <p class="section-subtitle">Trắc nghiệm về Nghị quyết, chính sách, lịch sử Đảng</p>
+      </div>
+      <div class="quiz-container" id="quizContainer">
+        <div class="quiz-start">
+          <div class="quiz-icon">🧠</div>
+          <h3>Sẵn sàng kiểm tra?</h3>
+          <p>10 câu hỏi - 5 phút - Đánh giá ngay kết quả</p>
+          <button class="btn btn-primary" onclick="startQuiz()">
+            <i class="fas fa-play"></i> Bắt đầu làm bài
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rebuttal Library -->
+  <section class="rebuttal-section" id="rebuttal">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Thư viện phản bác</h2>
+        <p class="section-subtitle">Tra cứu luận điểm đúng đắn phản bác các quan điểm sai trái</p>
+      </div>
+      <div class="rebuttal-search">
+        <input type="text" id="rebuttalSearch" placeholder="🔍 Tìm kiếm theo chủ đề..." class="search-input">
+        <button class="btn btn-primary" onclick="searchRebuttals()">Tìm</button>
+      </div>
+      <div class="rebuttal-list" id="rebuttalList">
+        <div class="empty-state">
+          <i class="fas fa-search"></i>
+          <p>Nhập từ khóa để tra cứu luận điểm phản bác</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subscribe -->
+  <section class="subscribe-section" id="subscribe">
+    <div class="container">
+      <div class="subscribe-card">
+        <div class="subscribe-left">
+          <div class="subscribe-badge">📩 ĐĂNG KÝ MIỄN PHÍ</div>
+          <h2>Nhận bản tin hàng ngày<br>vào hộp thư của bạn</h2>
+          <p>Mỗi sáng 6h30, bạn sẽ nhận được bản tin tổng hợp các thông tin quan trọng được AI chọn lọc.</p>
+          <ul class="subscribe-benefits">
+            <li><i class="fas fa-check"></i> Tin chính thống, đã được kiểm chứng</li>
+            <li><i class="fas fa-check"></i> Cá nhân hóa theo chủ đề quan tâm</li>
+            <li><i class="fas fa-check"></i> Hoàn toàn miễn phí, có thể hủy bất kỳ lúc nào</li>
+          </ul>
+        </div>
+        <div class="subscribe-right">
+          <form id="subscribeForm" class="subscribe-form">
+            <div class="form-group">
+              <label>Họ và tên</label>
+              <input type="text" name="name" required placeholder="Nguyễn Văn A">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" name="email" required placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+              <label>Đơn vị công tác</label>
+              <input type="text" name="organization" placeholder="Phòng PA01">
+            </div>
+            <div class="form-group">
+              <label>Chủ đề quan tâm</label>
+              <select name="topics" required>
+                <option value="Tất cả">Tất cả chủ đề</option>
+                <option value="Chính trị - Tư tưởng">Chính trị - Tư tưởng</option>
+                <option value="An ninh - Trật tự">An ninh - Trật tự</option>
+                <option value="Pháp luật">Pháp luật</option>
+                <option value="Kinh tế - Phát triển">Kinh tế - Phát triển</option>
+                <option value="Chuyển đổi số">Chuyển đổi số</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+              <i class="fas fa-paper-plane"></i> Đăng ký ngay
+            </button>
+            <div id="subscribeMessage" class="form-message"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="footer-logo">
+            <span class="logo-icon">🛡️</span>
+            <span>TRẬN ĐỊA SỐ</span>
+          </div>
+          <p>Nền tảng bản tin tự động phục vụ công tác bảo vệ nền tảng tư tưởng của Đảng từ cơ sở.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Liên kết nhanh</h4>
+          <ul>
+            <li><a href="#home">Trang chủ</a></li>
+            <li><a href="#today">Bản tin hôm nay</a></li>
+            <li><a href="#quiz">Kiểm tra nhận thức</a></li>
+            <li><a href="#rebuttal">Thư viện phản bác</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Kết nối</h4>
+          <ul>
+            <li><a href="https://t.me/trandiadso_phutho" target="_blank"><i class="fab fa-telegram"></i> Telegram Channel</a></li>
+            <li><a href="mailto:contact@trandiadso.vn"><i class="fas fa-envelope"></i> Email liên hệ</a></li>
+            <li><a href="#"><i class="fas fa-globe"></i> Tài liệu hướng dẫn</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Đơn vị chủ quản</h4>
+          <p>Phòng An ninh đối ngoại<br>Công an tỉnh Phú Thọ</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Trận Địa Số. Thiết kế bởi <strong>Vi Ngọc Phương</strong> - PA01 Công an tỉnh Phú Thọ.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

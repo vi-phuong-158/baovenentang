@@ -1,0 +1,368 @@
+/**
+ * ============================================================
+ * MAIN ENTRY POINT
+ * - runDailyNewsBot(): Chạy tự động mỗi sáng (qua Trigger)
+ * - doGet/doPost: Web App API cho frontend gọi
+ * ============================================================
+ */
+
+/**
+ * 🎯 HÀM CHÍNH - Chạy tự động mỗi 6h sáng
+ * Quy trình: Crawl → Filter → AI → Save → Send
+ */
+function runDailyNewsBot() {
+  const startTime = new Date();
+  Logger.log('═══════════════════════════════════');
+  Logger.log('🚀 TRẬN ĐỊA SỐ - Bắt đầu chu trình hàng ngày');
+  Logger.log(`Thời gian: ${startTime.toLocaleString('vi-VN')}`);
+  Logger.log('═══════════════════════════════════');
+  
+  try {
+    // Bước 1: Crawl RSS từ các báo
+    Logger.log('\n📥 BƯỚC 1: Crawl RSS');
+    const rawArticles = fetchAllRSS();
+    
+    if (rawArticles.length === 0) {
+      Logger.log('⚠️ Không có bài viết nào từ RSS');
+      return;
+    }
+    
+    // Bước 2: Lọc theo từ khóa
+    Logger.log('\n🔍 BƯỚC 2: Lọc theo từ khóa');
+    const filtered = filterByKeywords(rawArticles);
+    
+    // Bước 3: Loại bài trùng
+    Logger.log('\n🔄 BƯỚC 3: Loại bài trùng');
+    const unique = removeDuplicates(filtered);
+    
+    if (unique.length === 0) {
+      Logger.log('ℹ️ Không có bài mới nào hôm nay');
+      return;
+    }
+    
+    // Bước 4: Sắp xếp ưu tiên
+    const sorted = sortArticles(unique);
+    
+    // Bước 5: AI tóm tắt và phân loại
+    Logger.log('\n🤖 BƯỚC 4: Gemini AI xử lý');
+    const enriched = summarizeWithGemini(sorted);
+    
+    // Bước 6: Lưu vào Sheets
+    Logger.log('\n💾 BƯỚC 5: Lưu vào Sheets');
+    saveArticlesToSheet(enriched);
+    
+    // Bước 7: Gửi Telegram
+    Logger.log('\n📱 BƯỚC 6: Gửi Telegram');
+    const topArticles = enriched.slice(0, CONFIG.MAX_ARTICLES_TELEGRAM);
+    sendTelegramDailyDigest(topArticles);
+    
+    // Bước 8: Gửi Email
+    Logger.log('\n📧 BƯỚC 7: Gửi Email');
+    sendDailyEmailDigest(enriched);
+    
+    // Bước 9: Cập nhật thống kê
+    Logger.log('\n📊 BƯỚC 8: Cập nhật thống kê');
+    updateDailyStats({
+      articlesCount: enriched.length,
+      emailsSent: getSubscribers('Email').length,
+      newSubscribers: 0
+    });
+    
+    const duration = (new Date() - startTime) / 1000;
+    Logger.log(`\n✅ HOÀN THÀNH! Thời gian: ${duration}s`);
+    Logger.log('═══════════════════════════════════');
+    
+  } catch(error) {
+    Logger.log(`\n❌ LỖI: ${error}`);
+    Logger.log(error.stack);
+    notifyAdminError(error);
+  }
+}
+
+/**
+ * Gửi email báo lỗi cho admin
+ */
+function notifyAdminError(error) {
+  try {
+    sendEmailViaBrevo({
+      toEmail: CONFIG.ADMIN_EMAIL,
+      toName: 'Admin',
+      subject: '❌ Trận Địa Số - Lỗi hệ thống',
+      htmlContent: `<h2>Lỗi xảy ra trong runDailyNewsBot</h2>
+        <p><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</p>
+        <p><strong>Lỗi:</strong> ${error.toString()}</p>
+        <pre>${error.stack || ''}</pre>`
+    });
+  } catch(e) {
+    Logger.log('Không thể gửi email báo lỗi');
+  }
+}
+
+// ============================================================
+// WEB APP API - Cho phép frontend gọi qua HTTP
+// ============================================================
+
+/**
+ * GET request - Trả về dữ liệu (tin tức, quiz, phản bác)
+ */
+function doGet(e) {
+  const action = e.parameter.action || 'home';
+  let result;
+  
+  try {
+    switch(action) {
+      case 'today':
+        result = { success: true, data: getTodayArticles() };
+        break;
+        
+      case 'quiz':
+        const count = parseInt(e.parameter.count) || 10;
+        result = { success: true, data: getRandomQuiz(count) };
+        break;
+        
+      case 'rebuttals':
+        const keyword = e.parameter.keyword || '';
+        result = { success: true, data: getRebuttals(keyword) };
+        break;
+        
+      case 'stats':
+        result = { success: true, data: getStatistics() };
+        break;
+        
+      default:
+        result = { 
+          success: true, 
+          message: 'Trận Địa Số API',
+          version: '1.0',
+          endpoints: ['today', 'quiz', 'rebuttals', 'stats']
+        };
+    }
+  } catch(error) {
+    result = { success: false, error: error.toString() };
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * POST request - Nhận dữ liệu (đăng ký, kết quả quiz, webhook Telegram)
+ */
+function doPost(e) {
+  let result;
+  
+  try {
+    // Kiểm tra nếu là webhook Telegram
+    const contents = e.postData.contents;
+    const data = JSON.parse(contents);
+    
+    if (data.update_id) {
+      // Telegram webhook
+      if (data.message) {
+        handleTelegramMessage(data.message);
+      }
+      return ContentService.createTextOutput('OK');
+    }
+    
+    // API call thường
+    const action = data.action || e.parameter.action;
+    
+    switch(action) {
+      case 'subscribe':
+        result = addSubscriber(data);
+        if (result.success) {
+          sendWelcomeEmail(data);
+        }
+        break;
+        
+      case 'submit_quiz':
+        saveQuizResult(data);
+        result = { success: true, message: 'Đã lưu kết quả' };
+        break;
+        
+      case 'contact':
+        // Gửi email liên hệ về admin
+        result = { success: true };
+        break;
+        
+      default:
+        result = { success: false, error: 'Action không hợp lệ' };
+    }
+    
+  } catch(error) {
+    result = { success: false, error: error.toString() };
+  }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Lấy thống kê tổng quan
+ */
+function getStatistics() {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  
+  const tinTucSheet = ss.getSheetByName('TIN_TUC');
+  const dangKySheet = ss.getSheetByName('DANG_KY');
+  const quizSheet = ss.getSheetByName('QUIZ_RESULT');
+  
+  return {
+    totalArticles: Math.max(0, tinTucSheet.getLastRow() - 1),
+    totalSubscribers: Math.max(0, dangKySheet.getLastRow() - 1),
+    totalQuizAttempts: Math.max(0, quizSheet.getLastRow() - 1),
+    lastUpdate: new Date().toLocaleString('vi-VN')
+  };
+}
+
+// ============================================================
+// SETUP - Chạy 1 lần khi bắt đầu
+// ============================================================
+
+/**
+ * 🛠️ SETUP - Chạy hàm này 1 lần để khởi tạo hệ thống
+ */
+function setupSystem() {
+  Logger.log('🛠️ Bắt đầu setup hệ thống...');
+  
+  // 1. Tạo cấu trúc sheets
+  initializeSheets();
+  
+  // 2. Tạo trigger chạy hàng ngày
+  setupDailyTrigger();
+  
+  // 3. Setup Telegram webhook (nếu đã có Web App URL)
+  if (CONFIG.WEB_APP_URL && !CONFIG.WEB_APP_URL.includes('...')) {
+    setTelegramWebhook();
+  }
+  
+  Logger.log('✅ Setup hoàn tất!');
+  Logger.log('📌 Tiếp theo:');
+  Logger.log('   1. Deploy Web App (Deploy > New deployment > Web app)');
+  Logger.log('   2. Copy URL Web App vào CONFIG.WEB_APP_URL');
+  Logger.log('   3. Chạy setTelegramWebhook() để kích hoạt bot');
+  Logger.log('   4. Test bằng cách chạy testRun()');
+}
+
+/**
+ * Tạo trigger chạy tự động hàng ngày
+ */
+function setupDailyTrigger() {
+  // Xóa trigger cũ
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'runDailyNewsBot') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+  
+  // Tạo trigger mới
+  ScriptApp.newTrigger('runDailyNewsBot')
+    .timeBased()
+    .everyDays(1)
+    .atHour(CONFIG.RUN_HOUR)
+    .create();
+  
+  Logger.log(`✅ Đã tạo trigger chạy lúc ${CONFIG.RUN_HOUR}h hàng ngày`);
+}
+
+/**
+ * 🧪 TEST - Chạy thử để kiểm tra hệ thống
+ */
+function testRun() {
+  Logger.log('🧪 Bắt đầu test...');
+  
+  try {
+    // Test 1: Kéo RSS
+    Logger.log('\n--- Test 1: RSS Crawler ---');
+    const articles = fetchAllRSS();
+    Logger.log(`Kéo được ${articles.length} bài`);
+    
+    if (articles.length > 0) {
+      Logger.log(`Bài đầu: ${articles[0].title}`);
+    }
+    
+    // Test 2: Gemini
+    Logger.log('\n--- Test 2: Gemini AI ---');
+    const filtered = filterByKeywords(articles.slice(0, 3));
+    if (filtered.length > 0) {
+      const summary = summarizeWithGemini(filtered);
+      Logger.log(`Tóm tắt: ${JSON.stringify(summary[0])}`);
+    }
+    
+    // Test 3: Telegram (chỉ gửi 1 tin test)
+    Logger.log('\n--- Test 3: Telegram ---');
+    if (filtered.length > 0) {
+      sendTelegramMessage(
+        CONFIG.TELEGRAM_CHANNEL, 
+        '🧪 *Test*: Đây là tin nhắn kiểm tra từ Trận Địa Số'
+      );
+    }
+    
+    Logger.log('\n✅ Test hoàn tất!');
+    
+  } catch(e) {
+    Logger.log(`❌ Lỗi test: ${e}`);
+  }
+}
+
+/**
+ * Tạo dữ liệu mẫu cho Quiz và Phản bác (chạy 1 lần)
+ */
+function seedSampleData() {
+  // Sample Quiz
+  const quizSheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('QUIZ');
+  const sampleQuizzes = [
+    [
+      'Q001',
+      'Đại hội đại biểu toàn quốc lần thứ XIV của Đảng Cộng sản Việt Nam dự kiến tổ chức vào năm nào?',
+      '2024', '2025', '2026', '2027',
+      'C',
+      'Đại hội XIV dự kiến tổ chức đầu năm 2026',
+      'Chính trị'
+    ],
+    [
+      'Q002',
+      'Văn kiện nào quan trọng nhất trong việc bảo vệ nền tảng tư tưởng của Đảng?',
+      'Nghị quyết 35-NQ/TW',
+      'Nghị quyết 04-NQ/TW',
+      'Nghị quyết 26-NQ/TW',
+      'Nghị quyết 06-NQ/TW',
+      'A',
+      'Nghị quyết 35-NQ/TW ngày 22/10/2018 của Bộ Chính trị về tăng cường bảo vệ nền tảng tư tưởng của Đảng',
+      'Tư tưởng'
+    ],
+    [
+      'Q003',
+      'Ai là Tổng Bí thư đầu tiên của Đảng Cộng sản Việt Nam?',
+      'Trần Phú',
+      'Hồ Chí Minh',
+      'Lê Hồng Phong',
+      'Trường Chinh',
+      'A',
+      'Đồng chí Trần Phú là Tổng Bí thư đầu tiên (1930)',
+      'Lịch sử Đảng'
+    ]
+  ];
+  
+  sampleQuizzes.forEach(q => quizSheet.appendRow(q));
+  
+  // Sample Phản bác
+  const rebuttalSheet = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('PHAN_BAC');
+  const sampleRebuttals = [
+    [
+      new Date(),
+      'Vai trò lãnh đạo của Đảng',
+      'Một số quan điểm cho rằng cần "đa nguyên đa đảng" để có dân chủ',
+      'Đảng Cộng sản Việt Nam là lực lượng duy nhất có đủ uy tín, năng lực và bản lĩnh chính trị để lãnh đạo cách mạng. Lịch sử đã chứng minh, dưới sự lãnh đạo của Đảng, dân tộc ta đã giành độc lập, thống nhất và phát triển. Đa đảng không đồng nghĩa với dân chủ thực chất.',
+      'Hiến pháp 2013 - Điều 4\nThực tiễn 95 năm lãnh đạo của Đảng\nNghị quyết Trung ương 4 khóa XII',
+      'Báo Nhân Dân, Tạp chí Cộng sản'
+    ]
+  ];
+  
+  sampleRebuttals.forEach(r => rebuttalSheet.appendRow(r));
+  
+  Logger.log('✅ Đã tạo dữ liệu mẫu');
+}
