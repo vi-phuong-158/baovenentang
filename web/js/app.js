@@ -3,7 +3,7 @@
    ============================================================ */
 
 // ===== CẤU HÌNH API =====
-const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg/exec';
 // ⚠️ Thay YOUR_DEPLOYMENT_ID bằng ID Web App đã deploy từ Google Apps Script
 
 // ===== STATE QUẢN LÝ QUIZ =====
@@ -29,12 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMobileMenu() {
   const toggle = document.getElementById('menuToggle');
   const menu = document.getElementById('navMenu');
-  
+
   if (toggle && menu) {
     toggle.addEventListener('click', () => {
       menu.classList.toggle('show');
     });
-    
+
     // Đóng menu khi click vào item
     menu.querySelectorAll('a').forEach(a => {
       a.addEventListener('click', () => menu.classList.remove('show'));
@@ -61,18 +61,18 @@ function initSmoothScroll() {
 function initActiveNav() {
   const sections = document.querySelectorAll('section[id]');
   const navLinks = document.querySelectorAll('.nav-link');
-  
+
   window.addEventListener('scroll', () => {
     let current = '';
     const scrollPos = window.scrollY + 150;
-    
+
     sections.forEach(section => {
-      if (scrollPos >= section.offsetTop && 
-          scrollPos < section.offsetTop + section.offsetHeight) {
+      if (scrollPos >= section.offsetTop &&
+        scrollPos < section.offsetTop + section.offsetHeight) {
         current = section.id;
       }
     });
-    
+
     navLinks.forEach(link => {
       link.classList.remove('active');
       if (link.getAttribute('href') === `#${current}`) {
@@ -85,11 +85,11 @@ function initActiveNav() {
 // ===== TẢI TIN HÔM NAY =====
 async function loadTodayNews() {
   const container = document.getElementById('newsGrid');
-  
+
   try {
     const response = await fetch(`${API_URL}?action=today`);
     const result = await response.json();
-    
+
     if (!result.success || !result.data || result.data.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -98,10 +98,10 @@ async function loadTodayNews() {
         </div>`;
       return;
     }
-    
+
     container.innerHTML = result.data.map(article => createNewsCard(article)).join('');
-    
-  } catch(error) {
+
+  } catch (error) {
     console.error('Lỗi tải tin:', error);
     container.innerHTML = `
       <div class="empty-state">
@@ -114,7 +114,7 @@ async function loadTodayNews() {
 function createNewsCard(article) {
   const isImportant = article.priority === 'Quan trọng';
   const date = new Date(article.date).toLocaleDateString('vi-VN');
-  
+
   return `
     <div class="news-card ${isImportant ? 'important' : ''}">
       <div class="news-meta">
@@ -136,13 +136,13 @@ async function loadStats() {
   try {
     const response = await fetch(`${API_URL}?action=stats`);
     const result = await response.json();
-    
+
     if (result.success && result.data) {
       animateCounter('statArticles', result.data.totalArticles);
       animateCounter('statSubscribers', result.data.totalSubscribers);
       animateCounter('statQuizzes', result.data.totalQuizAttempts);
     }
-  } catch(error) {
+  } catch (error) {
     console.error('Lỗi tải thống kê:', error);
   }
 }
@@ -150,12 +150,12 @@ async function loadStats() {
 function animateCounter(elementId, target) {
   const element = document.getElementById(elementId);
   if (!element) return;
-  
+
   let current = 0;
   const step = Math.max(1, Math.floor(target / 50));
   const duration = 1500;
   const interval = duration / (target / step || 1);
-  
+
   const timer = setInterval(() => {
     current += step;
     if (current >= target) {
@@ -173,11 +173,11 @@ async function startQuiz() {
     <div class="loading-spinner">
       <i class="fas fa-spinner fa-spin"></i> Đang tải câu hỏi...
     </div>`;
-  
+
   try {
     const response = await fetch(`${API_URL}?action=quiz&count=10`);
     const result = await response.json();
-    
+
     if (!result.success || !result.data || result.data.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -185,15 +185,15 @@ async function startQuiz() {
         </div>`;
       return;
     }
-    
+
     quizState.questions = result.data;
     quizState.currentIndex = 0;
     quizState.answers = [];
     quizState.score = 0;
-    
+
     showQuestion();
-    
-  } catch(error) {
+
+  } catch (error) {
     console.error('Lỗi tải quiz:', error);
     container.innerHTML = `<p>Không tải được câu hỏi.</p>`;
   }
@@ -205,7 +205,7 @@ function showQuestion() {
   const total = quizState.questions.length;
   const current = quizState.currentIndex + 1;
   const progress = (current / total) * 100;
-  
+
   container.innerHTML = `
     <div class="quiz-question">
       <div class="quiz-progress">
@@ -229,10 +229,10 @@ function showQuestion() {
 function selectAnswer(answer) {
   const q = quizState.questions[quizState.currentIndex];
   const isCorrect = answer === q.correct;
-  
+
   if (isCorrect) quizState.score++;
   quizState.answers.push({ question: q.question, answer, correct: q.correct });
-  
+
   // Hiển thị đúng/sai
   const options = document.querySelectorAll('.option');
   options.forEach(btn => {
@@ -241,7 +241,7 @@ function selectAnswer(answer) {
     if (key === q.correct) btn.classList.add('correct');
     else if (key === answer) btn.classList.add('wrong');
   });
-  
+
   setTimeout(() => {
     quizState.currentIndex++;
     if (quizState.currentIndex < quizState.questions.length) {
@@ -257,7 +257,7 @@ function showQuizResult() {
   const total = quizState.questions.length;
   const score = quizState.score;
   const percentage = Math.round((score / total) * 100);
-  
+
   let message, emoji;
   if (percentage >= 80) {
     message = 'Xuất sắc! Nhận thức rất tốt!';
@@ -269,7 +269,7 @@ function showQuizResult() {
     message = 'Cần ôn tập thêm. Cố gắng nhé!';
     emoji = '📚';
   }
-  
+
   container.innerHTML = `
     <div class="quiz-result">
       <div style="font-size:80px;">${emoji}</div>
@@ -280,16 +280,18 @@ function showQuizResult() {
         <i class="fas fa-redo"></i> Làm lại
       </button>
     </div>`;
-  
+
   // Lưu kết quả
   saveQuizResult({ score, total, percentage });
 }
 
 async function saveQuizResult(data) {
   try {
-    await fetch(API_URL, {
+    const response = await fetch(API_URL, {
       method: 'POST',
-      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
       body: JSON.stringify({
         action: 'submit_quiz',
         user: 'Khách',
@@ -297,7 +299,12 @@ async function saveQuizResult(data) {
         ...data
       })
     });
-  } catch(e) {
+
+    const result = await response.json();
+    if (!result.success) {
+      console.error('Lỗi từ server:', result.error);
+    }
+  } catch (e) {
     console.error('Không lưu được kết quả:', e);
   }
 }
@@ -315,16 +322,16 @@ function initRebuttalSearch() {
 async function searchRebuttals() {
   const keyword = document.getElementById('rebuttalSearch').value.trim();
   const list = document.getElementById('rebuttalList');
-  
+
   list.innerHTML = `
     <div class="loading-spinner">
       <i class="fas fa-spinner fa-spin"></i> Đang tìm kiếm...
     </div>`;
-  
+
   try {
     const response = await fetch(`${API_URL}?action=rebuttals&keyword=${encodeURIComponent(keyword)}`);
     const result = await response.json();
-    
+
     if (!result.success || !result.data || result.data.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
@@ -333,10 +340,10 @@ async function searchRebuttals() {
         </div>`;
       return;
     }
-    
+
     list.innerHTML = result.data.map(r => createRebuttalCard(r)).join('');
-    
-  } catch(error) {
+
+  } catch (error) {
     console.error('Lỗi tìm phản bác:', error);
     list.innerHTML = `<p>Không tải được dữ liệu.</p>`;
   }
@@ -370,12 +377,12 @@ function createRebuttalCard(r) {
 function initSubscribeForm() {
   const form = document.getElementById('subscribeForm');
   if (!form) return;
-  
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const messageEl = document.getElementById('subscribeMessage');
     const submitBtn = form.querySelector('button[type="submit"]');
-    
+
     // Lấy dữ liệu
     const formData = new FormData(form);
     const data = {
@@ -386,27 +393,37 @@ function initSubscribeForm() {
       topics: formData.get('topics'),
       channel: 'Email'
     };
-    
+
     // Disable nút
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
-    
+
     try {
-      await fetch(API_URL, {
+      const response = await fetch(API_URL, {
         method: 'POST',
-        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
         body: JSON.stringify(data)
       });
-      
-      messageEl.className = 'form-message success';
-      messageEl.textContent = '✅ Đăng ký thành công! Kiểm tra email của bạn nhé.';
-      form.reset();
-      
-    } catch(error) {
+
+      const result = await response.json();
+
+      if (result.success) {
+        messageEl.className = 'form-message success';
+        messageEl.textContent = '✅ Đăng ký thành công! Kiểm tra email của bạn nhé.';
+        form.reset();
+      } else {
+        messageEl.className = 'form-message error';
+        messageEl.textContent = '❌ ' + (result.error || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+
+    } catch (error) {
+      console.error('Lỗi đăng ký:', error);
       messageEl.className = 'form-message error';
-      messageEl.textContent = '❌ Có lỗi xảy ra. Vui lòng thử lại.';
+      messageEl.textContent = '❌ Không thể kết nối tới máy chủ. Vui lòng thử lại sau.';
     }
-    
+
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Đăng ký ngay';
   });
