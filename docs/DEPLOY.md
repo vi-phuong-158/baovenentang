@@ -59,7 +59,7 @@ Làm theo hướng dẫn, chọn các option mặc định.
 
 ### ⚠️ QUAN TRỌNG: Cập nhật API URL
 
-Mở file `web/js/app.js`, tìm dòng:
+Mở file `web/js/app.js` và `web/js/troly35.js`, tìm dòng:
 
 ```javascript
 const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
@@ -139,6 +139,7 @@ Tương tự Vercel, kết nối GitHub repo, chọn folder `web/`.
 - [ ] Truy cập URL Web App, trang chủ hiện đúng
 - [ ] Section "Bản tin hôm nay" load được dữ liệu (nếu đã có tin)
 - [ ] Test Quiz: bấm Bắt đầu → hiện câu hỏi
+- [ ] Test Trợ lý 35: mở `/troly35`, nhập mã nội bộ, thử 3 chế độ
 - [ ] Test Đăng ký: điền form → nhận email welcome
 - [ ] Mobile responsive: test trên điện thoại
 - [ ] Console không có lỗi đỏ (F12 > Console)

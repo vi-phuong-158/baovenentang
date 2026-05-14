@@ -89,7 +89,7 @@ Trong Apps Script editor:
 
 1. Xóa file `Code.gs` mặc định
 2. Click dấu **+** > **Script** để tạo file mới
-3. Tạo 7 file với tên đúng (Click chuột phải > Rename):
+3. Tạo 8 script file và manifest với tên đúng (Click chuột phải > Rename):
    - `01-config.gs`
    - `02-rss-crawler.gs`
    - `03-gemini-ai.gs`
@@ -97,6 +97,7 @@ Trong Apps Script editor:
    - `05-telegram-bot.gs`
    - `06-email-brevo.gs`
    - `07-main.gs`
+   - `08-troly35.gs`
    - `appsscript.json` (bật hiển thị manifest trong Project Settings nếu copy thủ công)
 
 4. **Copy nội dung từng file** từ thư mục `backend/` của dự án, paste vào file tương ứng
@@ -110,6 +111,14 @@ Không điền API key trực tiếp vào file code. Trong Apps Script, vào **P
 ```text
 SHEET_ID=1abc...xyz
 GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2
+PINECONE_API_KEY=pcsk_...
+PINECONE_INDEX_HOST=https://your-index-host.svc....
+PINECONE_NAMESPACE=troly35
+TROLY35_ACCESS_CODE_SHA256=...
+TROLY35_DAILY_LIMIT=50
+TROLY35_SAVE_FULL_INPUT=false
 TELEGRAM_TOKEN=7123456789:AAH...
 TELEGRAM_CHANNEL=@trandiadso_phutho
 BREVO_API_KEY=xkeysib-...
@@ -139,7 +148,12 @@ Sau khi deploy Web App ở Bước 9, quay lại Script Properties để thêm `
 6. Nếu thấy `✅ Setup hoàn tất!` là OK
 
 ### Kiểm tra:
-- Quay lại Google Sheets, sẽ thấy 6 sheet mới được tạo: `TIN_TUC`, `DANG_KY`, `THONG_KE`, `PHAN_BAC`, `QUIZ`, `QUIZ_RESULT`
+- Quay lại Google Sheets, sẽ thấy các sheet mới được tạo: `TIN_TUC`, `DANG_KY`, `THONG_KE`, `PHAN_BAC`, `PHAN_BAC_KHO`, `TROLY35_HISTORY`, `QUIZ`, `QUIZ_RESULT`
+
+### Thiết lập mã truy cập Trợ lý 35:
+1. Trong Apps Script, chạy `makeTroLy35AccessCodeHash('MA_NOI_BO_ANH_CHON')`
+2. Copy chuỗi hash trong log vào Script Property `TROLY35_ACCESS_CODE_SHA256`
+3. Không chia sẻ hash; người dùng chỉ nhập mã gốc trên trang `troly35.html`
 
 ---
 
@@ -180,6 +194,28 @@ Chạy function `seedSampleData` 1 lần để có sẵn:
 
 Sau này anh có thể vào Google Sheets để thêm thủ công các câu hỏi và luận điểm.
 
+### Dữ liệu Trợ lý 35:
+
+Sau khi có dữ liệu trong `PHAN_BAC`, chạy:
+
+```text
+seedTroLy35KnowledgeFromPhanBac()
+```
+
+Hoặc copy toàn bộ nội dung `docs/phanbac-sample-data.csv` và chạy:
+
+```text
+importTroLy35KnowledgeCsv(`DÁN_NỘI_DUNG_CSV_Ở_ĐÂY`)
+```
+
+Sau đó kiểm tra `PHAN_BAC_KHO`, để các dòng hợp lệ có `Trạng thái duyệt = Đã duyệt`, rồi chạy:
+
+```text
+syncTroLy35KnowledgeToPinecone()
+```
+
+Pinecone index cần là dense index dimension `768`, metric `cosine`.
+
 ---
 
 ## BƯỚC 11: Cài đặt chạy tự động hàng ngày
@@ -200,9 +236,11 @@ Kiểm tra:
 - [ ] Đã có Gemini API Key
 - [ ] Đã tạo Telegram Bot + Channel, bot là admin
 - [ ] Đã có Brevo API Key, verify sender
-- [ ] Đã copy 7 file code và `appsscript.json` vào Apps Script
+- [ ] Đã copy 8 file code và `appsscript.json` vào Apps Script
 - [ ] Đã điền đầy đủ thông tin trong Script Properties
+- [ ] Đã cấu hình Pinecone và hash mã truy cập Trợ lý 35
 - [ ] Chạy `setupSystem` thành công
+- [ ] Chạy `syncTroLy35KnowledgeToPinecone` thành công nếu dùng Trợ lý 35
 - [ ] Chạy `testRun` thấy bot gửi được tin Telegram
 - [ ] Đã deploy Web App, lấy URL
 - [ ] Đã cài Telegram Webhook

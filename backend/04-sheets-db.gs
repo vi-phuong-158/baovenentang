@@ -22,6 +22,17 @@ const SHEET_HEADERS = {
     'Ngày tạo', 'Chủ đề', 'Luận điệu sai trái',
     'Luận điểm phản bác', 'Bằng chứng', 'Nguồn'
   ],
+  PHAN_BAC_KHO: [
+    'ID', 'Chủ đề', 'Luận điệu sai trái', 'Phản bác chính',
+    'Dẫn chứng JSON', 'Từ khóa', 'Nguồn', 'Độ ưu tiên',
+    'Trạng thái duyệt', 'Pinecone ID', 'Ngày cập nhật'
+  ],
+  TROLY35_HISTORY: [
+    'Thời gian', 'Request ID', 'Chế độ', 'Chủ đề', 'Độ nguy hiểm',
+    'Input preview', 'Full input', 'Source URL', 'Analysis JSON',
+    'Result JSON', 'Knowledge JSON', 'Rating', 'Ghi chú',
+    'Trạng thái', 'Lỗi'
+  ],
   QUIZ: [
     'ID', 'Câu hỏi', 'Đáp án A', 'Đáp án B',
     'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích', 'Chủ đề'

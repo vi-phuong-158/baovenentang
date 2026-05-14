@@ -24,6 +24,7 @@ Tạo/copy các file trong thư mục này lên Apps Script:
 05-telegram-bot.gs
 06-email-brevo.gs
 07-main.gs
+08-troly35.gs
 appsscript.json
 ```
 
@@ -36,6 +37,14 @@ Không điền API key trực tiếp vào source. Vào `Project Settings > Scrip
 ```text
 SHEET_ID=...
 GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2
+PINECONE_API_KEY=...
+PINECONE_INDEX_HOST=https://your-index-host.svc....
+PINECONE_NAMESPACE=troly35
+TROLY35_ACCESS_CODE_SHA256=...
+TROLY35_DAILY_LIMIT=50
+TROLY35_SAVE_FULL_INPUT=false
 TELEGRAM_TOKEN=...
 TELEGRAM_CHANNEL=@ten_channel
 BREVO_API_KEY=...
@@ -69,6 +78,8 @@ THONG_KE
 PHAN_BAC
 QUIZ
 QUIZ_RESULT
+PHAN_BAC_KHO
+TROLY35_HISTORY
 ```
 
 và tạo trigger chạy `runDailyNewsBot()` hằng ngày theo `RUN_HOUR`.
@@ -99,11 +110,25 @@ GET  ?action=quiz&count=10
 GET  ?action=rebuttals&keyword=...
 POST { "action": "subscribe", ... }
 POST { "action": "submit_quiz", ... }
+POST { "action": "troly35_run", "accessCode": "...", "mode": "rebuttal|fact_check|article_writer", "content": "...", "sourceUrl": "...", "topic": "..." }
+POST { "action": "troly35_rate", "accessCode": "...", "requestId": "...", "rating": 1-5, "note": "..." }
+POST { "action": "troly35_history", "accessCode": "...", "limit": 20 }
+POST { "action": "troly35_trends", "accessCode": "...", "windowDays": 7|30 }
 ```
 
-## 6. Cập nhật frontend
+## 6. Thiết lập Trợ lý 35
 
-Trong `web/js/app.js`, thay:
+1. Tạo Pinecone dense index dimension `768`, metric `cosine`.
+2. Điền `PINECONE_API_KEY` và `PINECONE_INDEX_HOST` vào Script Properties.
+3. Chạy `makeTroLy35AccessCodeHash('MA_NOI_BO')`, copy hash vào `TROLY35_ACCESS_CODE_SHA256`.
+4. Chạy `seedSampleData()` hoặc `seedTroLy35KnowledgeFromPhanBac()` để đổ dữ liệu từ `PHAN_BAC` sang `PHAN_BAC_KHO`. Nếu muốn import trực tiếp CSV mẫu, copy nội dung `docs/phanbac-sample-data.csv` và chạy `importTroLy35KnowledgeCsv(\`...\`)`.
+5. Kiểm tra các dòng trong `PHAN_BAC_KHO` có `Trạng thái duyệt = Đã duyệt`.
+6. Chạy `syncTroLy35KnowledgeToPinecone()` để vector hóa dữ liệu đã duyệt.
+7. Chạy `testTroLy35Setup()` để kiểm tra cấu hình.
+
+## 7. Cập nhật frontend
+
+Trong `web/js/app.js` và `web/js/troly35.js`, thay:
 
 ```javascript
 const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';

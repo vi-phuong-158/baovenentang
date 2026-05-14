@@ -6,6 +6,10 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg/exec';
 // ⚠️ Thay YOUR_DEPLOYMENT_ID bằng ID Web App đã deploy từ Google Apps Script
 
+function icon(name, size = 18, stroke = 1.75) {
+  return window.TDSIcon ? window.TDSIcon(name, { size, stroke }) : '';
+}
+
 // ===== STATE QUẢN LÝ QUIZ =====
 const quizState = {
   questions: [],
@@ -16,6 +20,7 @@ const quizState = {
 
 // ===== KHỞI TẠO =====
 document.addEventListener('DOMContentLoaded', () => {
+  initMotion();
   initMobileMenu();
   initSmoothScroll();
   initActiveNav();
@@ -83,6 +88,56 @@ function initActiveNav() {
 }
 
 // ===== TẢI TIN HÔM NAY =====
+// ===== MOTION =====
+let motionObserver;
+
+function initMotion() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  document.body.classList.add('motion-ready');
+  prepareMotionItems(document.querySelectorAll([
+    '.section-header',
+    '.feature-card',
+    '.quiz-container',
+    '.rebuttal-search',
+    '.subscribe-card'
+  ].join(',')));
+}
+
+function prepareMotionItems(items) {
+  if (!items || !items.length) return;
+
+  const observer = getMotionObserver();
+  Array.from(items).forEach((item, index) => {
+    item.classList.add('reveal-on-scroll');
+    item.style.setProperty('--reveal-delay', `${Math.min(index * 70, 280)}ms`);
+
+    if (observer) {
+      observer.observe(item);
+    } else {
+      item.classList.add('is-visible');
+    }
+  });
+}
+
+function getMotionObserver() {
+  if (!('IntersectionObserver' in window)) return null;
+  if (motionObserver) return motionObserver;
+
+  motionObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      motionObserver.unobserve(entry.target);
+    });
+  }, {
+    threshold: 0.16,
+    rootMargin: '0px 0px -8% 0px'
+  });
+
+  return motionObserver;
+}
+
 async function loadTodayNews() {
   const container = document.getElementById('newsGrid');
 
@@ -93,19 +148,20 @@ async function loadTodayNews() {
     if (!result.success || !result.data || result.data.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <i class="fas fa-newspaper"></i>
+          <span class="empty-icon">${icon('news', 58)}</span>
           <p>Chưa có tin nào cho hôm nay. Bản tin tự động cập nhật lúc 6h sáng mỗi ngày.</p>
         </div>`;
       return;
     }
 
     container.innerHTML = result.data.map(article => createNewsCard(article)).join('');
+    prepareMotionItems(container.querySelectorAll('.news-card'));
 
   } catch (error) {
     console.error('Lỗi tải tin:', error);
     container.innerHTML = `
       <div class="empty-state">
-        <i class="fas fa-exclamation-triangle"></i>
+        <span class="empty-icon">${icon('alert', 58)}</span>
         <p>Không tải được tin. Vui lòng thử lại sau.</p>
       </div>`;
   }
@@ -126,7 +182,7 @@ function createNewsCard(article) {
       <h3 class="news-title">${escapeHTML(article.title)}</h3>
       <p class="news-summary">${escapeHTML(article.summary)}</p>
       <a href="${article.link}" target="_blank" class="news-link">
-        Đọc đầy đủ <i class="fas fa-arrow-right"></i>
+        Đọc đầy đủ ${icon('arrow-right', 16, 2)}
       </a>
     </div>`;
 }
@@ -171,7 +227,7 @@ async function startQuiz() {
   const container = document.getElementById('quizContainer');
   container.innerHTML = `
     <div class="loading-spinner">
-      <i class="fas fa-spinner fa-spin"></i> Đang tải câu hỏi...
+      <span class="spinner-icon">${icon('refresh', 22)}</span> Đang tải câu hỏi...
     </div>`;
 
   try {
@@ -258,26 +314,26 @@ function showQuizResult() {
   const score = quizState.score;
   const percentage = Math.round((score / total) * 100);
 
-  let message, emoji;
+  let message, resultIcon;
   if (percentage >= 80) {
     message = 'Xuất sắc! Nhận thức rất tốt!';
-    emoji = '🏆';
+    resultIcon = 'trophy';
   } else if (percentage >= 60) {
     message = 'Tốt! Bạn đã đạt yêu cầu.';
-    emoji = '🎉';
+    resultIcon = 'award';
   } else {
     message = 'Cần ôn tập thêm. Cố gắng nhé!';
-    emoji = '📚';
+    resultIcon = 'book';
   }
 
   container.innerHTML = `
     <div class="quiz-result">
-      <div style="font-size:80px;">${emoji}</div>
+      <div class="quiz-result-icon icon-chip yellow xl">${icon(resultIcon, 38, 1.8)}</div>
       <div class="result-score">${score}/${total}</div>
       <div class="result-message">${message}</div>
       <p style="color:#666;margin-bottom:30px;">Tỷ lệ: ${percentage}%</p>
       <button class="btn btn-primary" onclick="startQuiz()">
-        <i class="fas fa-redo"></i> Làm lại
+        ${icon('refresh', 18)} Làm lại
       </button>
     </div>`;
 
@@ -325,7 +381,7 @@ async function searchRebuttals() {
 
   list.innerHTML = `
     <div class="loading-spinner">
-      <i class="fas fa-spinner fa-spin"></i> Đang tìm kiếm...
+      <span class="spinner-icon">${icon('refresh', 22)}</span> Đang tìm kiếm...
     </div>`;
 
   try {
@@ -335,13 +391,14 @@ async function searchRebuttals() {
     if (!result.success || !result.data || result.data.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <i class="fas fa-search"></i>
+          <span class="empty-icon">${icon('search', 58)}</span>
           <p>Không tìm thấy luận điểm phù hợp${keyword ? ` cho "${keyword}"` : ''}.</p>
         </div>`;
       return;
     }
 
     list.innerHTML = result.data.map(r => createRebuttalCard(r)).join('');
+    prepareMotionItems(list.querySelectorAll('.rebuttal-card'));
 
   } catch (error) {
     console.error('Lỗi tìm phản bác:', error);
@@ -352,22 +409,22 @@ async function searchRebuttals() {
 function createRebuttalCard(r) {
   return `
     <div class="rebuttal-card">
-      <h3 class="rebuttal-topic">📌 ${escapeHTML(r.topic)}</h3>
+      <h3 class="rebuttal-topic"><span class="title-icon">${icon('flag', 18, 2)}</span> ${escapeHTML(r.topic)}</h3>
       <div class="rebuttal-section-block">
         <div class="rebuttal-label label-wrong">
-          <i class="fas fa-times-circle"></i> Luận điệu sai trái
+          ${icon('x-circle', 16, 2)} Luận điệu sai trái
         </div>
         <div class="rebuttal-content">${escapeHTML(r.wrongClaim)}</div>
       </div>
       <div class="rebuttal-section-block">
         <div class="rebuttal-label label-correct">
-          <i class="fas fa-check-circle"></i> Luận điểm phản bác
+          ${icon('check-circle', 16, 2)} Luận điểm phản bác
         </div>
         <div class="rebuttal-content">${escapeHTML(r.rebuttal)}</div>
       </div>
       ${r.evidence ? `
       <div class="rebuttal-section-block">
-        <div class="rebuttal-label">📋 Bằng chứng</div>
+        <div class="rebuttal-label">${icon('clipboard', 16, 2)} Bằng chứng</div>
         <div class="rebuttal-content">${escapeHTML(r.evidence).replace(/\n/g, '<br>')}</div>
       </div>` : ''}
     </div>`;
@@ -396,7 +453,7 @@ function initSubscribeForm() {
 
     // Disable nút
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+    submitBtn.innerHTML = `<span class="spinner-icon">${icon('refresh', 18)}</span> Đang gửi...`;
 
     try {
       const response = await fetch(API_URL, {
@@ -411,21 +468,21 @@ function initSubscribeForm() {
 
       if (result.success) {
         messageEl.className = 'form-message success';
-        messageEl.textContent = '✅ Đăng ký thành công! Kiểm tra email của bạn nhé.';
+        messageEl.textContent = 'Đăng ký thành công. Kiểm tra email của bạn nhé.';
         form.reset();
       } else {
         messageEl.className = 'form-message error';
-        messageEl.textContent = '❌ ' + (result.error || 'Có lỗi xảy ra. Vui lòng thử lại.');
+        messageEl.textContent = result.error || 'Có lỗi xảy ra. Vui lòng thử lại.';
       }
 
     } catch (error) {
       console.error('Lỗi đăng ký:', error);
       messageEl.className = 'form-message error';
-      messageEl.textContent = '❌ Không thể kết nối tới máy chủ. Vui lòng thử lại sau.';
+      messageEl.textContent = 'Không thể kết nối tới máy chủ. Vui lòng thử lại sau.';
     }
 
     submitBtn.disabled = false;
-    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Đăng ký ngay';
+    submitBtn.innerHTML = `${icon('send', 18)} Đăng ký ngay`;
   });
 }
 

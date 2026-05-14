@@ -13,6 +13,7 @@ const CONFIG_DEFAULTS = {
   // ===== Gemini AI =====
   GEMINI_API_KEY: '',
   GEMINI_MODEL: 'gemini-2.0-flash',
+  GEMINI_EMBEDDING_MODEL: 'gemini-embedding-2',
 
   // ===== Telegram Bot =====
   TELEGRAM_TOKEN: '',
@@ -25,6 +26,16 @@ const CONFIG_DEFAULTS = {
 
   // ===== Google Sheets =====
   SHEET_ID: '',
+
+  // ===== Pinecone RAG cho Trợ lý 35 =====
+  PINECONE_API_KEY: '',
+  PINECONE_INDEX_HOST: '',
+  PINECONE_NAMESPACE: 'troly35',
+
+  // ===== Trợ lý 35 =====
+  TROLY35_ACCESS_CODE_SHA256: '',
+  TROLY35_DAILY_LIMIT: 50,
+  TROLY35_SAVE_FULL_INPUT: false,
 
   // ===== Web App URL =====
   WEB_APP_URL: '',
@@ -42,6 +53,8 @@ const CONFIG = loadConfig_();
 
 const REQUIRED_SHEET_CONFIG = ['SHEET_ID'];
 const REQUIRED_GEMINI_CONFIG = ['GEMINI_API_KEY'];
+const REQUIRED_PINECONE_CONFIG = ['PINECONE_API_KEY', 'PINECONE_INDEX_HOST'];
+const REQUIRED_TROLY35_CONFIG = ['GEMINI_API_KEY', 'PINECONE_API_KEY', 'PINECONE_INDEX_HOST', 'TROLY35_ACCESS_CODE_SHA256'];
 const REQUIRED_TELEGRAM_CONFIG = ['TELEGRAM_TOKEN', 'TELEGRAM_CHANNEL'];
 const REQUIRED_BREVO_CONFIG = ['BREVO_API_KEY', 'SENDER_EMAIL'];
 
@@ -71,6 +84,10 @@ function coerceConfigValue_(value, fallback) {
   if (typeof fallback === 'number') {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
+  }
+
+  if (typeof fallback === 'boolean') {
+    return ['true', '1', 'yes', 'y', 'on'].includes(value.toString().trim().toLowerCase());
   }
 
   return value;
@@ -105,6 +122,14 @@ function showConfigSetupInstructions() {
   const sample = {
     SHEET_ID: 'ID_GOOGLE_SHEET',
     GEMINI_API_KEY: 'AIza...',
+    GEMINI_MODEL: 'gemini-2.0-flash',
+    GEMINI_EMBEDDING_MODEL: 'gemini-embedding-2',
+    PINECONE_API_KEY: 'pcsk_...',
+    PINECONE_INDEX_HOST: 'https://your-index-xxxx.svc.aped-xxxx.pinecone.io',
+    PINECONE_NAMESPACE: 'troly35',
+    TROLY35_ACCESS_CODE_SHA256: 'sha256_cua_ma_truy_cap_noi_bo',
+    TROLY35_DAILY_LIMIT: '50',
+    TROLY35_SAVE_FULL_INPUT: 'false',
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
     BREVO_API_KEY: 'xkeysib-...',

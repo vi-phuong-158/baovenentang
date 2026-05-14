@@ -5,21 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trận Địa Số - Bảo vệ nền tảng tư tưởng của Đảng</title>
   <meta name="description" content="Nền tảng bản tin tự động về bảo vệ nền tảng tư tưởng của Đảng - Công an tỉnh Phú Thọ">
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  
+
   <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-  
+
   <!-- Header -->
   <header class="header">
     <nav class="navbar">
       <a href="#" class="logo">
-        <span class="logo-icon">🛡️</span>
+        <span class="logo-icon" data-icon="shield-check" data-size="28" data-stroke="2"></span>
         <span class="logo-text">TRẬN ĐỊA SỐ</span>
       </a>
       <ul class="nav-menu" id="navMenu">
@@ -27,10 +26,11 @@
         <li><a href="#today" class="nav-link">Bản tin hôm nay</a></li>
         <li><a href="#quiz" class="nav-link">Kiểm tra nhận thức</a></li>
         <li><a href="#rebuttal" class="nav-link">Thư viện phản bác</a></li>
+        <li><a href="troly35.html" class="nav-link">Trợ lý 35</a></li>
         <li><a href="#subscribe" class="nav-link btn-cta">Đăng ký</a></li>
       </ul>
-      <button class="menu-toggle" id="menuToggle">
-        <i class="fas fa-bars"></i>
+      <button class="menu-toggle" id="menuToggle" aria-label="Mở menu">
+        <span data-icon="menu" data-size="24"></span>
       </button>
     </nav>
   </header>
@@ -41,7 +41,7 @@
     <div class="hero-container">
       <div class="hero-content">
         <div class="hero-badge">
-          <i class="fas fa-shield-alt"></i>
+          <span data-icon="shield-check" data-size="18" data-stroke="2"></span>
           <span>Phục vụ công tác bảo vệ nền tảng tư tưởng</span>
         </div>
         <h1 class="hero-title">
@@ -50,15 +50,18 @@
           Trận địa số vững chắc
         </h1>
         <p class="hero-subtitle">
-          Nền tảng bản tin tự động tổng hợp từ các báo chính thống, ứng dụng AI 
+          Nền tảng bản tin tự động tổng hợp từ các báo chính thống, ứng dụng AI
           để bảo vệ nền tảng tư tưởng của Đảng từ cơ sở.
         </p>
         <div class="hero-actions">
           <a href="#subscribe" class="btn btn-primary">
-            <i class="fas fa-bell"></i> Đăng ký nhận tin
+            <span data-icon="bell" data-size="18"></span> Đăng ký nhận tin
+          </a>
+          <a href="troly35.html" class="btn btn-secondary">
+            <span data-icon="sparkles" data-size="18"></span> Mở Trợ lý 35
           </a>
           <a href="https://t.me/trandiadso_phutho" target="_blank" class="btn btn-secondary">
-            <i class="fab fa-telegram"></i> Theo dõi Telegram
+            <span data-icon="telegram" data-size="18"></span> Theo dõi Telegram
           </a>
         </div>
         <div class="hero-stats">
@@ -77,24 +80,24 @@
         </div>
       </div>
       <div class="hero-visual">
-        <div class="floating-card card-1">
-          <i class="fas fa-newspaper"></i>
+        <div class="floating-card glass card-1">
+          <span class="icon-chip red" data-icon="news" data-size="20"></span>
           <span>Tin chính thống</span>
         </div>
-        <div class="floating-card card-2">
-          <i class="fas fa-robot"></i>
+        <div class="floating-card glass card-2">
+          <span class="icon-chip yellow" data-icon="sparkles" data-size="20"></span>
           <span>AI tóm tắt</span>
         </div>
-        <div class="floating-card card-3">
-          <i class="fab fa-telegram"></i>
+        <div class="floating-card glass card-3">
+          <span class="icon-chip ok" data-icon="telegram" data-size="20"></span>
           <span>Gửi Telegram</span>
         </div>
-        <div class="floating-card card-4">
-          <i class="fas fa-envelope"></i>
+        <div class="floating-card glass card-4">
+          <span class="icon-chip blue" data-icon="mail" data-size="20"></span>
           <span>Email cá nhân hóa</span>
         </div>
-        <div class="hero-shield">
-          <i class="fas fa-shield-alt"></i>
+        <div class="hero-shield glass-red">
+          <span data-icon="shield-check" data-size="104" data-stroke="1.5"></span>
         </div>
       </div>
     </div>
@@ -109,34 +112,34 @@
       </div>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">📰</div>
+          <div class="feature-icon icon-chip red xl" data-icon="news" data-size="30"></div>
           <h3>Tin tổng hợp tự động</h3>
           <p>AI tự động kéo và tóm tắt tin từ Báo Nhân Dân, CAND, Báo Chính phủ mỗi ngày lúc 6h sáng</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🧠</div>
+          <div class="feature-icon icon-chip yellow xl" data-icon="target" data-size="30"></div>
           <h3>Quiz nhận thức</h3>
           <p>Hệ thống câu hỏi trắc nghiệm về Nghị quyết, chính sách, lịch sử Đảng giúp ôn tập hiệu quả</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📚</div>
+          <div class="feature-icon icon-chip red xl" data-icon="book" data-size="30"></div>
           <h3>Thư viện phản bác</h3>
           <p>Kho luận điểm phản bác các quan điểm sai trái, thù địch trên không gian mạng</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📱</div>
+          <div class="feature-icon icon-chip blue xl" data-icon="message" data-size="30"></div>
           <h3>Đa kênh phân phối</h3>
           <p>Nhận tin qua Telegram (nhanh, miễn phí) hoặc Email (chi tiết, có chọn lọc chủ đề)</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">⚡</div>
+          <div class="feature-icon icon-chip yellow xl" data-icon="sparkles" data-size="30"></div>
           <h3>Cá nhân hóa</h3>
           <p>Đăng ký chỉ nhận tin về chủ đề bạn quan tâm: An ninh, Chính trị, Pháp luật...</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🏆</div>
-          <h3>Thi đua đơn vị</h3>
-          <p>Bảng xếp hạng các đơn vị có nhiều người tham gia tích cực nhất</p>
+          <div class="feature-icon icon-chip ink xl" data-icon="shield-check" data-size="30"></div>
+          <h3>Trợ lý 35</h3>
+          <p>Công cụ nội bộ hỗ trợ phân tích, thẩm định nhanh và soạn bản nháp có dẫn chứng để cán bộ rà soát</p>
         </div>
       </div>
     </div>
@@ -151,7 +154,7 @@
       </div>
       <div class="news-grid" id="newsGrid">
         <div class="loading-spinner">
-          <i class="fas fa-spinner fa-spin"></i> Đang tải tin tức...
+          <span class="spinner-icon" data-icon="refresh" data-size="22"></span> Đang tải tin tức...
         </div>
       </div>
     </div>
@@ -166,11 +169,11 @@
       </div>
       <div class="quiz-container" id="quizContainer">
         <div class="quiz-start">
-          <div class="quiz-icon">🧠</div>
+          <div class="quiz-icon icon-chip yellow xl" data-icon="target" data-size="38"></div>
           <h3>Sẵn sàng kiểm tra?</h3>
           <p>10 câu hỏi - 5 phút - Đánh giá ngay kết quả</p>
           <button class="btn btn-primary" onclick="startQuiz()">
-            <i class="fas fa-play"></i> Bắt đầu làm bài
+            <span data-icon="play" data-size="18"></span> Bắt đầu làm bài
           </button>
         </div>
       </div>
@@ -185,12 +188,17 @@
         <p class="section-subtitle">Tra cứu luận điểm đúng đắn phản bác các quan điểm sai trái</p>
       </div>
       <div class="rebuttal-search">
-        <input type="text" id="rebuttalSearch" placeholder="🔍 Tìm kiếm theo chủ đề..." class="search-input">
-        <button class="btn btn-primary" onclick="searchRebuttals()">Tìm</button>
+        <div class="search-shell">
+          <span data-icon="search" data-size="18"></span>
+          <input type="text" id="rebuttalSearch" placeholder="Tìm kiếm theo chủ đề..." class="search-input">
+        </div>
+        <button class="btn btn-primary" onclick="searchRebuttals()">
+          <span data-icon="search" data-size="18"></span> Tìm
+        </button>
       </div>
       <div class="rebuttal-list" id="rebuttalList">
         <div class="empty-state">
-          <i class="fas fa-search"></i>
+          <span class="empty-icon" data-icon="search" data-size="58"></span>
           <p>Nhập từ khóa để tra cứu luận điểm phản bác</p>
         </div>
       </div>
@@ -202,13 +210,15 @@
     <div class="container">
       <div class="subscribe-card">
         <div class="subscribe-left">
-          <div class="subscribe-badge">📩 ĐĂNG KÝ MIỄN PHÍ</div>
+          <div class="subscribe-badge">
+            <span data-icon="mail" data-size="16"></span> ĐĂNG KÝ MIỄN PHÍ
+          </div>
           <h2>Nhận bản tin hàng ngày<br>vào hộp thư của bạn</h2>
           <p>Mỗi sáng 6h30, bạn sẽ nhận được bản tin tổng hợp các thông tin quan trọng được AI chọn lọc.</p>
           <ul class="subscribe-benefits">
-            <li><i class="fas fa-check"></i> Tin chính thống, đã được kiểm chứng</li>
-            <li><i class="fas fa-check"></i> Cá nhân hóa theo chủ đề quan tâm</li>
-            <li><i class="fas fa-check"></i> Hoàn toàn miễn phí, có thể hủy bất kỳ lúc nào</li>
+            <li><span data-icon="check" data-size="15"></span> Tin chính thống, đã được kiểm chứng</li>
+            <li><span data-icon="check" data-size="15"></span> Cá nhân hóa theo chủ đề quan tâm</li>
+            <li><span data-icon="check" data-size="15"></span> Hoàn toàn miễn phí, có thể hủy bất kỳ lúc nào</li>
           </ul>
         </div>
         <div class="subscribe-right">
@@ -237,7 +247,7 @@
               </select>
             </div>
             <button type="submit" class="btn btn-primary btn-full">
-              <i class="fas fa-paper-plane"></i> Đăng ký ngay
+              <span data-icon="send" data-size="18"></span> Đăng ký ngay
             </button>
             <div id="subscribeMessage" class="form-message"></div>
           </form>
@@ -252,7 +262,7 @@
       <div class="footer-grid">
         <div class="footer-col">
           <div class="footer-logo">
-            <span class="logo-icon">🛡️</span>
+            <span class="logo-icon" data-icon="shield-check" data-size="28" data-stroke="2"></span>
             <span>TRẬN ĐỊA SỐ</span>
           </div>
           <p>Nền tảng bản tin tự động phục vụ công tác bảo vệ nền tảng tư tưởng của Đảng từ cơ sở.</p>
@@ -264,14 +274,15 @@
             <li><a href="#today">Bản tin hôm nay</a></li>
             <li><a href="#quiz">Kiểm tra nhận thức</a></li>
             <li><a href="#rebuttal">Thư viện phản bác</a></li>
+            <li><a href="troly35.html">Trợ lý 35</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>Kết nối</h4>
           <ul>
-            <li><a href="https://t.me/trandiadso_phutho" target="_blank"><i class="fab fa-telegram"></i> Telegram Channel</a></li>
-            <li><a href="mailto:contact@trandiadso.vn"><i class="fas fa-envelope"></i> Email liên hệ</a></li>
-            <li><a href="#"><i class="fas fa-globe"></i> Tài liệu hướng dẫn</a></li>
+            <li><a href="https://t.me/trandiadso_phutho" target="_blank"><span data-icon="telegram" data-size="16"></span> Telegram Channel</a></li>
+            <li><a href="mailto:contact@trandiadso.vn"><span data-icon="mail" data-size="16"></span> Email liên hệ</a></li>
+            <li><a href="#"><span data-icon="globe" data-size="16"></span> Tài liệu hướng dẫn</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -285,6 +296,7 @@
     </div>
   </footer>
 
+  <script src="js/icons.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

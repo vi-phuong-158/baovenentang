@@ -142,7 +142,8 @@ function doGet(e) {
           success: true, 
           message: 'Trận Địa Số API',
           version: '1.0',
-          endpoints: ['today', 'quiz', 'rebuttals', 'stats']
+          endpoints: ['today', 'quiz', 'rebuttals', 'stats'],
+          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends']
         };
     }
   } catch(error) {
@@ -184,6 +185,22 @@ function doPost(e) {
       case 'submit_quiz':
         saveQuizResult(data);
         result = { success: true, message: 'Đã lưu kết quả' };
+        break;
+
+      case 'troly35_run':
+        result = handleTroLy35Run(data);
+        break;
+
+      case 'troly35_rate':
+        result = handleTroLy35Rate(data);
+        break;
+
+      case 'troly35_history':
+        result = handleTroLy35History(data);
+        break;
+
+      case 'troly35_trends':
+        result = handleTroLy35Trends(data);
         break;
         
       case 'contact':
@@ -288,6 +305,8 @@ function setupDailyTrigger() {
 function logMissingOptionalConfig_() {
   const checks = [
     { name: 'Gemini AI', keys: REQUIRED_GEMINI_CONFIG },
+    { name: 'Pinecone RAG', keys: REQUIRED_PINECONE_CONFIG },
+    { name: 'Trợ lý 35', keys: REQUIRED_TROLY35_CONFIG },
     { name: 'Telegram', keys: REQUIRED_TELEGRAM_CONFIG.concat(['WEB_APP_URL']) },
     { name: 'Brevo Email', keys: REQUIRED_BREVO_CONFIG.concat(['ADMIN_EMAIL']) }
   ];
@@ -399,6 +418,8 @@ function seedSampleData() {
   ];
   
   sampleRebuttals.forEach(r => rebuttalSheet.appendRow(r));
+
+  seedTroLy35KnowledgeFromPhanBac();
   
   Logger.log('✅ Đã tạo dữ liệu mẫu');
 }

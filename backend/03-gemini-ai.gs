@@ -94,22 +94,28 @@ Trả về mảng JSON kết quả:`;
 /**
  * Gọi Gemini API
  */
-function callGeminiAPI(prompt) {
+function callGeminiAPI(prompt, responseJsonSchema) {
   assertRequiredConfig_(REQUIRED_GEMINI_CONFIG);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-  
+
+  const generationConfig = {
+    temperature: 0.3,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 8192,
+    responseMimeType: 'application/json'
+  };
+
+  if (responseJsonSchema) {
+    generationConfig.responseJsonSchema = responseJsonSchema;
+  }
+
   const payload = {
     contents: [{
       parts: [{ text: prompt }]
     }],
-    generationConfig: {
-      temperature: 0.3,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 8192,
-      responseMimeType: 'application/json'
-    }
+    generationConfig
   };
   
   const response = UrlFetchApp.fetch(url, {
