@@ -20,12 +20,12 @@ function runDailyNewsBot() {
   try {
     assertRequiredConfig_(REQUIRED_SHEET_CONFIG.concat(REQUIRED_GEMINI_CONFIG));
 
-    // Bước 1: Crawl RSS từ các báo
-    Logger.log('\n📥 BƯỚC 1: Crawl RSS');
-    const rawArticles = fetchAllRSS();
+    // Bước 1: Crawl tin từ RSS và các nguồn HTML đã cấu hình
+    Logger.log('\n📥 BƯỚC 1: Crawl nguồn tin');
+    const rawArticles = fetchAllNewsSources();
     
     if (rawArticles.length === 0) {
-      Logger.log('⚠️ Không có bài viết nào từ RSS');
+      Logger.log('⚠️ Không có bài viết nào từ các nguồn đã cấu hình');
       return;
     }
     
@@ -326,9 +326,9 @@ function testRun() {
   Logger.log('🧪 Bắt đầu test...');
   
   try {
-    // Test 1: Kéo RSS
-    Logger.log('\n--- Test 1: RSS Crawler ---');
-    const articles = fetchAllRSS();
+    // Test 1: Kéo nguồn tin
+    Logger.log('\n--- Test 1: News Sources Crawler ---');
+    const articles = fetchAllNewsSources();
     Logger.log(`Kéo được ${articles.length} bài`);
     
     if (articles.length > 0) {

@@ -37,6 +37,16 @@ const CONFIG_DEFAULTS = {
   TROLY35_DAILY_LIMIT: 50,
   TROLY35_SAVE_FULL_INPUT: false,
 
+  // ===== Scrape Tạp chí Cộng sản cho Trợ lý 35 =====
+  TCCS_BASE_URL: 'https://www.tapchicongsan.org.vn',
+  TCCS_SECTION_PATH: '/dau-tranh-phan-bac-cac-luan-dieu-sai-trai-thu-dich',
+  TCCS_MAX_ARTICLES_PER_RUN: 5,
+  TCCS_REQUEST_DELAY_MS: 2500,
+
+  // ===== Crawl nguồn HTML không có RSS =====
+  HTML_SOURCE_MAX_ARTICLES_PER_SOURCE: 5,
+  HTML_SOURCE_REQUEST_DELAY_MS: 1500,
+
   // ===== Web App URL =====
   WEB_APP_URL: '',
 
@@ -130,6 +140,12 @@ function showConfigSetupInstructions() {
     TROLY35_ACCESS_CODE_SHA256: 'sha256_cua_ma_truy_cap_noi_bo',
     TROLY35_DAILY_LIMIT: '50',
     TROLY35_SAVE_FULL_INPUT: 'false',
+    TCCS_BASE_URL: 'https://www.tapchicongsan.org.vn',
+    TCCS_SECTION_PATH: '/dau-tranh-phan-bac-cac-luan-dieu-sai-trai-thu-dich',
+    TCCS_MAX_ARTICLES_PER_RUN: '5',
+    TCCS_REQUEST_DELAY_MS: '2500',
+    HTML_SOURCE_MAX_ARTICLES_PER_SOURCE: '5',
+    HTML_SOURCE_REQUEST_DELAY_MS: '1500',
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
     BREVO_API_KEY: 'xkeysib-...',
@@ -159,19 +175,106 @@ const RSS_SOURCES = [
     priority: 1
   },
   {
-    url: 'https://cand.com.vn/rss/Thoi-su-1.rss',
+    url: 'https://cand.com.vn/rssfeed/',
     name: 'Báo CAND',
     priority: 1
   },
   {
-    url: 'https://baochinhphu.vn/rss/thoi-su.rss',
+    url: 'https://baochinhphu.vn/home.rss',
     name: 'Báo Chính phủ',
     priority: 1
   },
   {
-    url: 'https://vov.vn/rss/chinh-tri-105.rss',
-    name: 'VOV',
+    url: 'https://vietnamnet.vn/rss/chinh-tri.rss',
+    name: 'Vietnamnet - Chính trị',
     priority: 2
+  },
+  {
+    url: 'https://huongsenviet.com/feed/',
+    name: 'Hương Sen Việt',
+    priority: 2
+  }
+];
+
+// ===== Nguồn HTML không có RSS =====
+const HTML_SOURCES = [
+  {
+    url: 'https://tuyengiaodanvan.vn/vn',
+    listUrls: [
+      'https://tuyengiaodanvan.vn/vn',
+      'https://tuyengiaodanvan.vn/vn/van-ban',
+      'https://tuyengiaodanvan.vn/vn/bao-ve-nen-tang-tu-tuong-cua-dang'
+    ],
+    name: 'Ban Tuyên giáo và Dân vận Trung ương',
+    priority: 1,
+    extractEmbeddedArticles: true,
+    skipLinkCrawler: true,
+    articleUrlPatterns: [
+      /^https:\/\/tuyengiaodanvan\.vn\/vn\/(?!van-ban(?:\/|$)|$)[^?#]+/i,
+      /^https:\/\/tuyengiaodanvan\.vn\/(?!api\/v1\/upload|categories\/|_next\/|favicon)[^?#]+-[0-9a-f]{12,}[^?#]*$/i
+    ],
+    excludeUrlPatterns: [
+      /\.(?:pdf|docx?|xlsx?|pptx?)(?:\?|$)/i,
+      /\/api\/v1\/upload/i,
+      /(?:jpg|jpeg|png|gif|webp)-[0-9a-f]{12,}/i,
+      /\/login|\/dang-nhap|\/search|\/tim-kiem/i
+    ]
+  },
+  {
+    url: 'https://congan.phutho.gov.vn/',
+    listUrls: [
+      'https://congan.phutho.gov.vn/'
+    ],
+    name: 'Công an tỉnh Phú Thọ',
+    priority: 1,
+    articleUrlPatterns: [
+      /^https:\/\/congan\.phutho\.gov\.vn\/article\/[^?#]+/i
+    ],
+    excludeUrlPatterns: [
+      /\.(?:pdf|docx?|xlsx?|pptx?)(?:\?|$)/i
+    ],
+    contentPatterns: [
+      /<div[^>]+class=["'][^"']*(?:news-detail|article-detail|content-detail|detail-content|entry-content|post-content)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
+      /<article[^>]*>([\s\S]*?)<\/article>/gi
+    ]
+  },
+  {
+    url: 'https://huongsenviet.com/',
+    listUrls: [
+      'https://huongsenviet.com/'
+    ],
+    name: 'Hương Sen Việt',
+    priority: 2,
+    articleUrlPatterns: [
+      /^https:\/\/huongsenviet\.com\/(?!category\/|tag\/|author\/|page\/|wp-|wp\/|feed\/|$)[^?#]+\/$/i
+    ],
+    excludeUrlPatterns: [
+      /\.(?:pdf|docx?|xlsx?|pptx?)(?:\?|$)/i,
+      /\/wp-admin|\/wp-content|\/wp-json|\/xmlrpc\.php/i
+    ],
+    contentPatterns: [
+      /<div[^>]+class=["'][^"']*(?:td-post-content|entry-content|post-content|article-content)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
+      /<article[^>]*>([\s\S]*?)<\/article>/gi
+    ]
+  },
+  {
+    url: 'https://lyluanchinhtri.vn/',
+    listUrls: [
+      'https://lyluanchinhtri.vn/',
+      'https://lyluanchinhtri.vn/bao-ve-nen-tang-tu-tuong-cua-dang'
+    ],
+    name: 'Tạp chí Lý luận chính trị',
+    priority: 1,
+    articleUrlPatterns: [
+      /^https:\/\/lyluanchinhtri\.vn\/[^\/?#]+-\d+\.html(?:\?.*)?$/i
+    ],
+    excludeUrlPatterns: [
+      /\.(?:pdf|docx?|xlsx?|pptx?)(?:\?|$)/i
+    ],
+    contentPatterns: [
+      /<div[^>]+class=["'][^"']*(?:article-content|detail-content|entry-content|post-content|content-detail)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
+      /<article[^>]*>([\s\S]*?)<\/article>/gi
+    ]
   }
 ];
 

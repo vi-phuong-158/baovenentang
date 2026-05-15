@@ -27,6 +27,20 @@ const SHEET_HEADERS = {
     'Dẫn chứng JSON', 'Từ khóa', 'Nguồn', 'Độ ưu tiên',
     'Trạng thái duyệt', 'Pinecone ID', 'Ngày cập nhật'
   ],
+  TCCS_ARTICLES: [
+    'ID', 'Tiêu đề', 'Chủ đề', 'URL nguồn', 'Tác giả',
+    'Ngày đăng', 'Số từ', 'Số chunk', 'Trạng thái',
+    'Scraped At', 'Ghi chú'
+  ],
+  TCCS_CHUNKS: [
+    'Chunk ID', 'Article ID', 'Tiêu đề', 'Chủ đề', 'Section Type',
+    'Nội dung embedding', 'Nội dung gốc', 'Chunk Index', 'Word Count',
+    'Source URL', 'Content Hash', 'Trạng thái duyệt', 'Pinecone ID',
+    'Indexed At', 'Notes'
+  ],
+  TCCS_SCRAPE_LOG: [
+    'Thời gian', 'Action', 'URL', 'Trạng thái', 'Message'
+  ],
   TROLY35_HISTORY: [
     'Thời gian', 'Request ID', 'Chế độ', 'Chủ đề', 'Độ nguy hiểm',
     'Input preview', 'Full input', 'Source URL', 'Analysis JSON',

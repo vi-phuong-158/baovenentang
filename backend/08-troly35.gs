@@ -12,6 +12,7 @@ const TROLY35_MODES = {
 };
 
 const TROLY35_EMBEDDING_DIMENSION = 768;
+const TROLY35_EMBEDDING_MAX_CHARS = 12000;
 const TROLY35_MAX_INPUT_CHARS = 6000;
 const TROLY35_TOP_K = 5;
 
@@ -661,7 +662,9 @@ function troLy35SearchKnowledge_(analysis, content, topicHint) {
   try {
     const vector = troLy35EmbedText_(queryText);
     const pineconeMatches = troLy35QueryPinecone_(vector, TROLY35_TOP_K);
-    const results = pineconeMatches.map(troLy35KnowledgeFromPineconeMatch_);
+    const results = pineconeMatches
+      .map(troLy35KnowledgeFromPineconeMatch_)
+      .filter(item => item && item.id);
     if (results.length > 0) return results;
   } catch (error) {
     Logger.log(`[Trợ lý 35] Pinecone lỗi, fallback Sheets keyword: ${error}`);
@@ -678,7 +681,7 @@ function troLy35EmbedText_(text) {
   const payload = {
     model: `models/${model}`,
     content: {
-      parts: [{ text: text.substring(0, 6000) }]
+      parts: [{ text: text.substring(0, TROLY35_EMBEDDING_MAX_CHARS) }]
     },
     outputDimensionality: TROLY35_EMBEDDING_DIMENSION
   };
@@ -769,8 +772,9 @@ function troLy35SearchKnowledgeInSheets_(analysis, content, topicHint, limit) {
     .map(item => cleanValue_(item).toLowerCase())
     .filter(Boolean);
   const topic = cleanValue_(analysis.chu_de || topicHint).toLowerCase();
+  const maxResults = limit || TROLY35_TOP_K;
 
-  return troLy35GetKnowledgeRows_()
+  const knowledgeResults = troLy35GetKnowledgeRows_()
     .filter(troLy35IsApprovedKnowledge_)
     .map(item => {
       const haystack = [
@@ -792,9 +796,16 @@ function troLy35SearchKnowledgeInSheets_(analysis, content, topicHint, limit) {
       return { ...item, score };
     })
     .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit || TROLY35_TOP_K)
     .map(troLy35KnowledgeForApi_);
+
+  const tccsResults = typeof tccsSearchChunksInSheets_ === 'function'
+    ? tccsSearchChunksInSheets_(analysis, content, topicHint, maxResults)
+    : [];
+
+  return knowledgeResults
+    .concat(tccsResults)
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, maxResults);
 }
 
 function troLy35SearchOfficialNews_(analysis) {
@@ -865,6 +876,29 @@ function troLy35IsApprovedKnowledge_(item) {
 
 function troLy35KnowledgeFromPineconeMatch_(match) {
   const meta = match.metadata || {};
+
+  if (meta.source_type === 'tccs_chunk' || meta.source === 'tccs') {
+    if (typeof tccsKnowledgeFromPineconeMatch_ === 'function') {
+      return tccsKnowledgeFromPineconeMatch_(match);
+    }
+
+    return {
+      id: meta.tccs_chunk_id || match.id,
+      chuDe: meta.topic || meta.chu_de || '',
+      luanDiemSaiTrai: 'Tư liệu bài viết chính thống từ Tạp chí Cộng sản',
+      phanBacChinh: meta.preview || '',
+      danChung: {
+        title: meta.title || '',
+        source_url: meta.source_url || '',
+        section_type: meta.section_type || ''
+      },
+      tuKhoa: meta.keywords || '',
+      nguon: meta.source_url || 'Tạp chí Cộng sản',
+      score: match.score || 0,
+      source: 'tccs_pinecone'
+    };
+  }
+
   return {
     id: meta.knowledge_id || match.id,
     chuDe: meta.chu_de || '',

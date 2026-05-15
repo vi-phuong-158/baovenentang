@@ -12,6 +12,7 @@ Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an t
   - `06-email-brevo.gs`: Gửi thông báo/email digest qua Brevo API.
   - `07-main.gs`: Điểm khởi đầu (Entry points: `doGet`, `doPost`, `runDailyNewsBot`).
   - `08-troly35.gs`: Logic cốt lõi của Trợ lý 35 (RAG, Pinecone integration).
+  - `09-tccs-scraper.gs`: Scrape Tạp chí Cộng sản, lưu toàn văn và tạo chunk chọn lọc động bằng AI paragraph plan để đồng bộ vào Pinecone.
 - **Frontend (Static Web):**
   - Đặt tại `/web`, deploy trên Vercel.
   - Sử dụng Vanilla JS (`app.js`, `troly35.js`) kết hợp CSS hiện đại.
@@ -29,6 +30,13 @@ Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an t
 - `seedTroLy35KnowledgeFromPhanBac()`: Chuyển dữ liệu từ Sheet `PHAN_BAC` sang kho tri thức `PHAN_BAC_KHO`.
 - `syncTroLy35KnowledgeToPinecone()`: Vector hóa và đồng bộ dữ liệu đã duyệt lên Pinecone.
 - `testTroLy35Setup()`: Kiểm tra kết nối Gemini và Pinecone.
+- `testTccsSingleUrl('URL')`: Kiểm tra extract/chunk plan động một bài Tạp chí Cộng sản.
+- `runTccsSaveLeninArticlePlannedDraft()`: Lưu toàn văn và các chunk chọn lọc draft cho bài Lenin đang dùng để test.
+- `runTccsSaveLeninArticleCoreDraft()`: Alias tương thích, trỏ sang chunk plan động.
+- `runTccsScrapeDrafts(2)`: Lưu bài/chunk chọn lọc TCCS mới vào staging Sheets, mặc định chạy lô nhỏ để tránh timeout Apps Script.
+- `syncTccsApprovedChunksToPinecone()`: Vector hóa chunk TCCS đã duyệt.
+- `generatePhanBacFromTccs(3)`: Tự động sinh entry PHAN_BAC_KHO từ toàn văn bài TCCS đã scrape (tối đa N bài/lần, tránh timeout). Entry sinh ra có status "Chờ duyệt", cần admin duyệt trước khi sync Pinecone.
+- `reviewPendingPhanBac()`: Xem danh sách entry PHAN_BAC_KHO đang chờ duyệt.
 
 ### Telegram & Webhook
 - `setTelegramWebhook()`: Kích hoạt Webhook để Bot Telegram có thể nhận tin nhắn.
