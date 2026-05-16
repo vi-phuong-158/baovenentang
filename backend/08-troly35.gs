@@ -176,7 +176,8 @@ function handleTroLy35Run(data) {
   troLy35RequireAccess_(data && data.accessCode);
 
   const mode = troLy35NormalizeMode_(data && data.mode);
-  const content = cleanValue_(data && data.content).substring(0, TROLY35_MAX_INPUT_CHARS);
+  const rawContent = cleanValue_(data && data.content).substring(0, TROLY35_MAX_INPUT_CHARS);
+  const content = troLy35NormalizeRequestInput_(rawContent);
   const sourceUrl = cleanValue_(data && data.sourceUrl).substring(0, 500);
   const topicHint = cleanValue_(data && data.topic).substring(0, 160);
 
@@ -521,6 +522,42 @@ function makeTroLy35AccessCodeHash(accessCode) {
   return hash;
 }
 
+function setTroLy35AccessCode(accessCode) {
+  const cleanCode = cleanValue_(accessCode);
+  if (cleanCode.length < 6) {
+    throw new Error('Mã truy cập nên dài tối thiểu 6 ký tự.');
+  }
+
+  const hash = troLy35Hash_(cleanCode);
+  PropertiesService.getScriptProperties().setProperty('TROLY35_ACCESS_CODE_SHA256', hash);
+  Logger.log('Đã cập nhật TROLY35_ACCESS_CODE_SHA256. Người dùng đăng nhập bằng mã gốc vừa nhập, không nhập chuỗi hash.');
+  return hash;
+}
+
+function setTroLy35AccessCodeFromTemporaryProperty() {
+  const properties = PropertiesService.getScriptProperties();
+  const temporaryCode = cleanValue_(properties.getProperty('TROLY35_NEW_ACCESS_CODE'));
+  if (!temporaryCode) {
+    throw new Error('Chưa có Script Property TROLY35_NEW_ACCESS_CODE. Hãy tạo key này với mã nội bộ mới, chạy hàm, rồi hệ thống sẽ tự xóa key tạm.');
+  }
+
+  const hash = setTroLy35AccessCode(temporaryCode);
+  properties.deleteProperty('TROLY35_NEW_ACCESS_CODE');
+  Logger.log('Đã xóa Script Property tạm TROLY35_NEW_ACCESS_CODE. Từ giờ đăng nhập bằng mã gốc vừa đặt.');
+  return hash;
+}
+
+function verifyTroLy35AccessCode(accessCode) {
+  try {
+    troLy35RequireAccess_(accessCode);
+    Logger.log('Mã truy cập hợp lệ.');
+    return true;
+  } catch (error) {
+    Logger.log(`Mã truy cập không hợp lệ: ${error}`);
+    return false;
+  }
+}
+
 function testTroLy35Setup() {
   Logger.log('--- Test cấu hình Trợ lý 35 ---');
   initializeSheets();
@@ -549,8 +586,8 @@ ${content}
 """
 
 Trả về JSON đúng schema. Quy tắc bắt buộc:
-1. Chỉ phân tích dựa trên nội dung đã cho, không suy diễn ngoài dữ kiện.
-2. Nếu không thấy luận điệu sai trái rõ ràng, đặt co_luan_dieu_sai_trai=false và giải thích ngắn trong muc_tieu_chinh_tri.
+1. Nếu nội dung là yêu cầu phản bác một quan điểm (VD: "phản bác quan điểm cho rằng X", "bác bỏ luận điểm X", "chứng minh sai X"...), hãy trích xuất luận điểm X cần phản bác, đặt co_luan_dieu_sai_trai=true, và ghi luận điểm đó vào luan_diem_sai. Phân tích luận điểm X như thể đó là nội dung cần phản hồi.
+2. Nếu không thấy luận điệu sai trái rõ ràng và không phải yêu cầu phản bác, đặt co_luan_dieu_sai_trai=false và giải thích ngắn trong muc_tieu_chinh_tri.
 3. chu_de phải chọn gần nhất trong danh sách: ${topicList}.
 4. do_nguy_hiem là số nguyên 1-5.
 5. Thêm canh_bao_an_toan nếu nội dung có nguy cơ nhạy cảm, thiếu nguồn hoặc cần người duyệt.`;
@@ -586,7 +623,7 @@ function troLy35GenerateRebuttalDraft_(content, analysis, knowledge) {
     };
   }
 
-  const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết thận trọng, có căn cứ, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
+  const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết tự tin, có lập luận rõ ràng, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
 
 NỘI DUNG GỐC:
 """
@@ -600,10 +637,10 @@ TƯ LIỆU RAG ĐÃ DUYỆT:
 ${troLy35KnowledgePrompt_(knowledge)}
 
 Yêu cầu:
-1. Chỉ dùng số liệu/dẫn chứng có trong tư liệu hoặc nêu rõ "cần kiểm chứng thêm".
-2. Không bịa nguồn, không bịa số liệu.
+1. Chỉ dùng số liệu/dẫn chứng có trong tư liệu. Nếu thiếu căn cứ cụ thể, KHÔNG nhúng disclaimer vào phien_ban_day_du — hãy ghi riêng vào ghi_chu.
+2. Không bịa nguồn, không bịa số liệu. Viết phien_ban_day_du mạch lạc, dứt khoát, không thêm chú thích ngoặc đơn vào cuối.
 3. Tạo 3 phiên bản: phản bác đầy đủ, comment ngắn, tóm tắt nhanh.
-4. Luôn thêm nhãn: "Bản nháp cần người dùng rà soát trước khi sử dụng."
+4. Đặt nhãn kiểm duyệt vào nhan_kiem_duyet, không nhúng vào nội dung chính.
 5. Trả về JSON đúng schema.`;
 
   return troLy35CallGeminiJson_(prompt, TROLY35_REBUTTAL_SCHEMA);
@@ -1144,6 +1181,29 @@ function troLy35GuessTopic_(text) {
 function troLy35Stringify_(value, maxChars) {
   const text = JSON.stringify(value || {});
   return text.length > maxChars ? text.substring(0, maxChars - 3) + '...' : text;
+}
+
+// Nếu người dùng gõ yêu cầu phản bác ("phản bác quan điểm cho rằng X"),
+// trích xuất luận điểm X và đóng gói lại thành nội dung sai trái trực tiếp
+// để pipeline phân tích xử lý đúng.
+function troLy35NormalizeRequestInput_(content) {
+  const META_PATTERNS = [
+    /^(?:hãy\s+)?phản\s*bác\s+(?:quan\s*điểm\s+)?(?:cho\s+rằng\s+)?(.+)/i,
+    /^(?:hãy\s+)?bác\s*bỏ\s+(?:(?:luận\s*)?điểm\s+)?(?:cho\s+rằng\s+)?(.+)/i,
+    /^(?:hãy\s+)?chứng\s*minh\s+(?:rằng\s+)?(.+?)\s+(?:là\s+)?(?:sai|không\s+đúng|không\s+chính\s+xác)/i,
+    /^(?:hãy\s+)?viết\s+(?:bài\s+)?phản\s*bác\s+(?:(?:về\s+)?(?:luận\s*điểm|quan\s*điểm)\s+)?(?:cho\s+rằng\s+)?(.+)/i,
+    /^(?:hãy\s+)?(?:giúp\s+(?:tôi\s+)?)?phản\s*bác\s+(.+)/i
+  ];
+
+  for (const pattern of META_PATTERNS) {
+    const match = content.match(pattern);
+    if (match && match[1] && match[1].trim().length >= 10) {
+      const claim = match[1].trim().replace(/[.!?]+$/, '');
+      return `Có ý kiến cho rằng: "${claim}". Đây là quan điểm sai trái cần phản bác.`;
+    }
+  }
+
+  return content;
 }
 
 function troLy35EmptyTrend_(windowDays) {

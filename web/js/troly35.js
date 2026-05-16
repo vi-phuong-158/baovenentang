@@ -20,11 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initMotion();
   initMobileMenu();
   initAccessPanel();
-  initModeTabs();
-  initResultTabs();
-  initForm();
+  // initModeTabs();
+  // initResultTabs();
+  initChatForm();
   initCopyButtons();
-  initRating();
+  // initRating();
   initTrends();
 });
 
@@ -114,238 +114,126 @@ function initAccessPanel() {
   });
 }
 
-function initModeTabs() {
-  document.querySelectorAll('.mode-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.mode-tab').forEach(item => item.classList.remove('active'));
-      tab.classList.add('active');
-      troly35State.mode = tab.dataset.mode;
-      document.getElementById('troly35Mode').value = troly35State.mode;
-      updateModeCopy(troly35State.mode);
-    });
+function initChatForm() {
+  const form = document.getElementById('chatForm');
+  const input = document.getElementById('chatInput');
+  const clearBtn = document.getElementById('clearChatBtn');
+  const chatMessages = document.getElementById('chatMessages');
+
+  if (!form) return;
+
+  // Auto-resize textarea
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = (input.scrollHeight) + 'px';
   });
-}
 
-function updateModeCopy(mode) {
-  const label = document.getElementById('contentLabel');
-  const input = document.getElementById('contentInput');
-  const topic = document.getElementById('topicInput');
-
-  const config = {
-    rebuttal: {
-      label: 'Nội dung bài viết/bình luận',
-      placeholder: 'Dán nội dung cần phân tích. Nếu có link MXH, hãy dán nội dung kèm theo vì bản đầu không tự scrape nền tảng.',
-      topic: 'VD: Tự do ngôn luận, Nhân quyền, Chủ quyền biển đảo'
-    },
-    fact_check: {
-      label: 'Nội dung cần thẩm định',
-      placeholder: 'Dán tin tức, nhận định hoặc đoạn trích cần thẩm định nhanh.',
-      topic: 'VD: Nguồn tin, lĩnh vực hoặc chủ đề cần kiểm chứng'
-    },
-    article_writer: {
-      label: 'Chủ đề và thông điệp chính',
-      placeholder: 'Nhập chủ đề, thông điệp chính, đối tượng độc giả và yêu cầu độ dài mong muốn.',
-      topic: 'VD: Bảo vệ nền tảng tư tưởng, chuyển đổi số, đoàn kết dân tộc'
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.dispatchEvent(new Event('submit'));
     }
-  }[mode];
-
-  label.textContent = config.label;
-  input.placeholder = config.placeholder;
-  topic.placeholder = config.topic;
-}
-
-function initResultTabs() {
-  document.querySelectorAll('.result-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.result-tab').forEach(item => item.classList.remove('active'));
-      document.querySelectorAll('.result-panel').forEach(panel => panel.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById(tab.dataset.panel).classList.add('active');
-    });
   });
-}
-
-function initForm() {
-  const form = document.getElementById('troly35Form');
-  const clearBtn = document.getElementById('clearBtn');
 
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    await runTroLy35();
+    const text = input.value.trim();
+    if (!text) return;
+    
+    await runTroLy35Chat(text);
   });
 
-  clearBtn.addEventListener('click', () => {
-    document.getElementById('contentInput').value = '';
-    document.getElementById('sourceUrl').value = '';
-    document.getElementById('topicInput').value = '';
-    setInlineMessage('runMessage', '', 'neutral');
-    document.getElementById('resultCard').classList.add('is-hidden');
-  });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      // Keep only the first welcome message
+      const welcomeMsg = chatMessages.firstElementChild.cloneNode(true);
+      chatMessages.innerHTML = '';
+      chatMessages.appendChild(welcomeMsg);
+    });
+  }
 }
 
-async function runTroLy35() {
+function appendMessage(role, htmlContent) {
+  const chatMessages = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-message ${role}-message`;
+  
+  const iconName = role === 'user' ? 'user' : 'bot';
+  
+  div.innerHTML = `
+    <div class="message-avatar">
+      ${icon(iconName, 20)}
+    </div>
+    <div class="message-content">
+      ${htmlContent}
+    </div>
+  `;
+  
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return div;
+}
+
+async function runTroLy35Chat(text) {
   const accessCode = getAccessCode();
-  const mode = document.getElementById('troly35Mode').value;
-  const content = document.getElementById('contentInput').value.trim();
-  const sourceUrl = document.getElementById('sourceUrl').value.trim();
-  const topic = document.getElementById('topicInput').value.trim();
-  const runBtn = document.getElementById('runBtn');
-
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('sendBtn');
+  
   if (!accessCode) {
-    setInlineMessage('runMessage', 'Vui lòng nhập mã truy cập nội bộ.', 'error');
+    appendMessage('assistant', '<p class="error-text">Vui lòng nhập mã truy cập nội bộ ở cột bên trái.</p>');
     return;
   }
 
-  if (content.length < 20) {
-    setInlineMessage('runMessage', 'Nội dung cần tối thiểu 20 ký tự.', 'error');
-    return;
-  }
-
-  if (/^https?:\/\/\S+$/i.test(content)) {
-    setInlineMessage('runMessage', 'Bản đầu chưa tự lấy nội dung từ link. Vui lòng dán nội dung kèm theo.', 'error');
-    return;
-  }
-
-  setLoading(runBtn, true);
-  setInlineMessage('runMessage', 'Đang phân tích, tìm dẫn chứng và soạn bản nháp...', 'neutral');
+  // Add user message
+  appendMessage('user', `<p>${escapeHTML(text).replace(/\\n/g, '<br>')}</p>`);
+  input.value = '';
+  input.style.height = 'auto';
+  
+  // Disable input while loading
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = `<span class="spinner-icon">${icon('refresh', 18)}</span>`;
+  
+  const loadingMsg = appendMessage('assistant', '<p><span class="spinner-icon" style="margin-right: 8px;">' + icon('refresh', 16) + '</span>Đang phân tích và tìm kiếm tri thức...</p>');
 
   try {
     const result = await postApi('troly35_run', {
       accessCode,
-      mode,
-      content,
-      sourceUrl,
-      topic
+      mode: 'rebuttal', // Mặc định chạy rebuttal để lấy response phong phú
+      content: text,
+      sourceUrl: '',
+      topic: ''
     });
 
     if (!result.success) {
       throw new Error(result.error || 'Không xử lý được yêu cầu.');
     }
 
-    renderResult(result, mode);
-    setInlineMessage('runMessage', 'Đã tạo bản nháp. Vui lòng rà soát trước khi sử dụng.', 'success');
+    // Format response
+    let responseHtml = formatText(result.result.phien_ban_day_du || result.result.nhan_dinh_chinh || 'Đã phân tích xong.');
+    
+    // Chỉ hiển thị cảnh báo khi mức nguy hiểm cao (>=4) — canh_bao_an_toan là tín hiệu nội bộ
+    if (result.analysis && result.analysis.do_nguy_hiem >= 4 &&
+        result.analysis.canh_bao_an_toan && result.analysis.canh_bao_an_toan.length > 0) {
+      responseHtml += `<div style="margin-top: 12px; padding: 10px; background: rgba(244,194,13,0.1); border-left: 3px solid var(--gold); font-size: 13px;">
+        <strong>Lưu ý:</strong> ${escapeHTML(result.analysis.canh_bao_an_toan.join(', '))}
+      </div>`;
+    }
+
+    loadingMsg.querySelector('.message-content').innerHTML = responseHtml;
     loadTrends();
   } catch (error) {
-    setInlineMessage('runMessage', error.message || 'Có lỗi xảy ra.', 'error');
+    loadingMsg.querySelector('.message-content').innerHTML = `<p class="error-text">Lỗi: ${escapeHTML(error.message || 'Có lỗi xảy ra.')}</p>`;
   } finally {
-    setLoading(runBtn, false);
+    input.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = `${icon('send', 18)}`;
+    input.focus();
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 }
 
-function renderResult(payload, mode) {
-  troly35State.requestId = payload.requestId || '';
-  troly35State.rating = 0;
-  updateStars();
-
-  const result = payload.result || {};
-  const analysis = payload.analysis || {};
-  const knowledge = payload.knowledge || [];
-
-  const resultCard = document.getElementById('resultCard');
-  resultCard.classList.remove('is-hidden');
-  resultCard.classList.remove('result-enter');
-  void resultCard.offsetWidth;
-  resultCard.classList.add('result-enter');
-  document.getElementById('requestIdLabel').textContent = troly35State.requestId;
-  document.getElementById('resultModeLabel').textContent = modeLabel(mode);
-  document.getElementById('resultTitle').textContent = result.tieu_de || 'Bản nháp Trợ lý 35';
-  document.getElementById('analysisStrip').innerHTML = renderAnalysis(analysis);
-
-  const view = buildResultView(result, mode);
-  document.getElementById('fullContent').innerHTML = formatText(view.full);
-  document.getElementById('shortContent').innerHTML = formatText(view.short);
-  document.getElementById('summaryContent').innerHTML = renderList(view.summary);
-  document.getElementById('referencesContent').innerHTML = renderReferences(result, knowledge);
-
-  document.querySelectorAll('.result-tab').forEach(item => item.classList.remove('active'));
-  document.querySelectorAll('.result-panel').forEach(item => item.classList.remove('active'));
-  document.querySelector('.result-tab[data-panel="fullPanel"]').classList.add('active');
-  document.getElementById('fullPanel').classList.add('active');
-}
-
-function buildResultView(result, mode) {
-  if (mode === 'fact_check') {
-    return {
-      full: [
-        `Mức đánh giá: ${result.muc_danh_gia || 'Chưa rõ'}`,
-        `Độ tin cậy: ${result.do_tin_cay || 0}/100`,
-        '',
-        result.nhan_dinh_chinh || '',
-        '',
-        result.khuyen_nghi_xu_ly || '',
-        '',
-        result.ghi_chu || '',
-        result.nhan_kiem_duyet || ''
-      ].join('\n'),
-      short: result.khuyen_nghi_xu_ly || result.nhan_dinh_chinh || '',
-      summary: result.diem_can_kiem_chung || []
-    };
-  }
-
-  if (mode === 'article_writer') {
-    return {
-      full: [
-        result.tieu_de || '',
-        '',
-        result.mo_ta_ngan || '',
-        '',
-        result.bai_viet || '',
-        '',
-        result.ghi_chu || '',
-        result.nhan_kiem_duyet || ''
-      ].join('\n'),
-      short: result.caption_mxh || '',
-      summary: result.dan_y || []
-    };
-  }
-
-  return {
-    full: [
-      result.phien_ban_day_du || '',
-      '',
-      result.ghi_chu || '',
-      result.nhan_kiem_duyet || ''
-    ].join('\n'),
-    short: result.phien_ban_comment || '',
-    summary: result.phien_ban_tom_tat || []
-  };
-}
-
-function renderAnalysis(analysis) {
-  const danger = Number(analysis.do_nguy_hiem) || 0;
-  const claims = Array.isArray(analysis.luan_diem_sai) ? analysis.luan_diem_sai.length : 0;
-  const warnings = Array.isArray(analysis.canh_bao_an_toan) ? analysis.canh_bao_an_toan.length : 0;
-
-  return `
-    <span><strong>Chủ đề:</strong> ${escapeHTML(analysis.chu_de || 'Chưa phân loại')}</span>
-    <span><strong>Độ nguy hiểm:</strong> ${danger}/5</span>
-    <span><strong>Luận điểm:</strong> ${claims}</span>
-    <span><strong>Cảnh báo:</strong> ${warnings}</span>
-  `;
-}
-
-function renderReferences(result, knowledge) {
-  const resultEvidence = result.dan_chung_su_dung || result.bang_chung_doi_chieu || [];
-  const evidenceHtml = Array.isArray(resultEvidence) && resultEvidence.length
-    ? `<h3>Dẫn chứng đã dùng</h3>${resultEvidence.map(item => `
-        <div class="reference-item">
-          <strong>${escapeHTML(item.loai || item.nguon || 'Nguồn')}</strong>
-          <p>${escapeHTML(item.noi_dung || '')}</p>
-          ${item.nguon ? `<small>${escapeHTML(item.nguon)}</small>` : ''}
-        </div>`).join('')}`
-    : '<div class="mini-empty">Không có dẫn chứng riêng trong kết quả.</div>';
-
-  const knowledgeHtml = Array.isArray(knowledge) && knowledge.length
-    ? `<h3>Tư liệu RAG</h3>${knowledge.map(item => `
-        <div class="reference-item">
-          <strong>${escapeHTML(item.chuDe || item.id || 'Tư liệu')}</strong>
-          <p>${escapeHTML(item.phanBacChinh || item.luanDiemSaiTrai || '')}</p>
-          <small>${escapeHTML(item.nguon || '')}${item.score ? ` · score ${Number(item.score).toFixed(3)}` : ''}</small>
-        </div>`).join('')}`
-    : '<div class="mini-empty">Pinecone không trả về tư liệu phù hợp.</div>';
-
-  return evidenceHtml + knowledgeHtml;
-}
 
 function initCopyButtons() {
   document.querySelectorAll('[data-copy-target]').forEach(button => {
