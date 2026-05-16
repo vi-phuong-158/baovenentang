@@ -38,7 +38,7 @@ function App() {
     <>
       <header className="top">
         <div className="title-block">
-          <h1>Wireframes — Trận Địa Số</h1>
+          <h1>Wireframes — Trợ lý 35</h1>
           <div className="sub">5 màn hình · {SCREENS.reduce((a, s) => a + s.count, 0)} phương án · mobile-first · lo-fi</div>
         </div>
         <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>

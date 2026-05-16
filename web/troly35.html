@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trợ lý 35 - Trận Địa Số</title>
+  <title>Trợ lý 35 - Trợ lý 35</title>
   <meta name="description" content="Trợ lý 35 hỗ trợ phân tích, thẩm định và soạn bản nháp phản hồi có dẫn chứng.">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +17,7 @@
     <nav class="navbar">
       <a href="index.html" class="logo">
         <span class="logo-icon" data-icon="shield-check" data-size="28" data-stroke="2"></span>
-        <span class="logo-text">TRẬN ĐỊA SỐ</span>
+        <span class="logo-text">TRỢ LÝ 35</span>
       </a>
       <ul class="nav-menu" id="navMenu">
         <li><a href="index.html#home" class="nav-link">Trang chủ</a></li>
@@ -78,116 +78,40 @@
             </section>
           </aside>
 
-          <section class="troly35-main">
-            <form id="troly35Form" class="tool-card tool-card-large surface-floating">
-              <div class="mode-tabs" role="tablist" aria-label="Chế độ Trợ lý 35">
-                <button type="button" class="mode-tab active" data-mode="rebuttal">
-                  <span data-icon="shield-check" data-size="18"></span> Phản bác
-                </button>
-                <button type="button" class="mode-tab" data-mode="fact_check">
-                  <span data-icon="search" data-size="18"></span> Thẩm định
-                </button>
-                <button type="button" class="mode-tab" data-mode="article_writer">
-                  <span data-icon="edit" data-size="18"></span> Viết bài
-                </button>
-              </div>
-
-              <input type="hidden" id="troly35Mode" value="rebuttal">
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="topicInput">Chủ đề gợi ý</label>
-                  <input type="text" id="topicInput" placeholder="VD: Tự do ngôn luận, Nhân quyền, Chủ quyền biển đảo">
+          <section class="troly35-main chat-mode">
+            <div class="chat-container tool-card tool-card-large surface-floating">
+              <div class="chat-header">
+                <div class="chat-title">
+                  <span data-icon="sparkles" data-size="20"></span>
+                  <h2>Trợ lý 35 AI Chat</h2>
                 </div>
-                <div class="form-group">
-                  <label for="sourceUrl">Nguồn URL</label>
-                  <input type="url" id="sourceUrl" placeholder="https://...">
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="contentInput" id="contentLabel">Nội dung bài viết/bình luận</label>
-                <textarea id="contentInput" rows="12" placeholder="Dán nội dung cần phân tích. Nếu có link MXH, hãy dán nội dung kèm theo vì bản đầu không tự scrape nền tảng."></textarea>
-              </div>
-
-              <div class="tool-actions">
-                <button class="btn btn-primary" type="submit" id="runBtn">
-                  <span data-icon="sparkles" data-size="18"></span> Chạy Trợ lý 35
-                </button>
-                <button class="btn btn-secondary" type="button" id="clearBtn">
-                  <span data-icon="eraser" data-size="18"></span> Xóa
+                <button type="button" class="btn btn-secondary" id="clearChatBtn" style="padding: 6px 12px; font-size: 13px;">
+                  <span data-icon="eraser" data-size="16"></span> Xóa
                 </button>
               </div>
 
-              <div id="runMessage" class="inline-message"></div>
-            </form>
-
-            <section class="tool-card tool-card-large result-card surface-floating is-hidden" id="resultCard">
-              <div class="result-header">
-                <div>
-                  <span class="result-kicker" id="resultModeLabel">Kết quả</span>
-                  <h2 id="resultTitle">Bản nháp Trợ lý 35</h2>
-                </div>
-                <div class="request-id" id="requestIdLabel"></div>
-              </div>
-
-              <div class="analysis-strip" id="analysisStrip"></div>
-
-              <div class="result-tabs" role="tablist">
-                <button class="result-tab active" type="button" data-panel="fullPanel">Đầy đủ</button>
-                <button class="result-tab" type="button" data-panel="shortPanel">Comment</button>
-                <button class="result-tab" type="button" data-panel="summaryPanel">Tóm tắt</button>
-                <button class="result-tab" type="button" data-panel="referencesPanel">Dẫn chứng</button>
-              </div>
-
-              <div class="result-panels">
-                <article class="result-panel active" id="fullPanel">
-                  <div class="panel-toolbar">
-                    <button class="icon-btn" type="button" data-copy-target="fullContent" title="Copy">
-                      <span data-icon="copy" data-size="18"></span>
-                    </button>
+              <div class="chat-messages" id="chatMessages">
+                <div class="chat-message assistant-message">
+                  <div class="message-avatar">
+                    <span data-icon="bot" data-size="20"></span>
                   </div>
-                  <div class="generated-content" id="fullContent"></div>
-                </article>
-
-                <article class="result-panel" id="shortPanel">
-                  <div class="panel-toolbar">
-                    <button class="icon-btn" type="button" data-copy-target="shortContent" title="Copy">
-                      <span data-icon="copy" data-size="18"></span>
-                    </button>
+                  <div class="message-content">
+                    <p>Xin chào! Tôi là Trợ lý 35. Hệ thống tri thức đã được cập nhật đầy đủ lên Pinecone.</p>
+                    <p>Bạn có câu hỏi nào hoặc cần tôi phân tích luận điệu gì hôm nay?</p>
                   </div>
-                  <div class="generated-content" id="shortContent"></div>
-                </article>
-
-                <article class="result-panel" id="summaryPanel">
-                  <div class="panel-toolbar">
-                    <button class="icon-btn" type="button" data-copy-target="summaryContent" title="Copy">
-                      <span data-icon="copy" data-size="18"></span>
-                    </button>
-                  </div>
-                  <div class="generated-content" id="summaryContent"></div>
-                </article>
-
-                <article class="result-panel" id="referencesPanel">
-                  <div class="generated-content references-list" id="referencesContent"></div>
-                </article>
-              </div>
-
-              <div class="rating-panel">
-                <span>Đánh giá chất lượng</span>
-                <div class="rating-stars" id="ratingStars" aria-label="Đánh giá sao">
-                  <button type="button" data-rating="1" title="1 sao"><span data-icon="star" data-size="18"></span></button>
-                  <button type="button" data-rating="2" title="2 sao"><span data-icon="star" data-size="18"></span></button>
-                  <button type="button" data-rating="3" title="3 sao"><span data-icon="star" data-size="18"></span></button>
-                  <button type="button" data-rating="4" title="4 sao"><span data-icon="star" data-size="18"></span></button>
-                  <button type="button" data-rating="5" title="5 sao"><span data-icon="star" data-size="18"></span></button>
                 </div>
-                <input type="text" id="ratingNote" placeholder="Ghi chú ngắn">
-                <button type="button" class="btn btn-secondary" id="sendRatingBtn">
-                  <span data-icon="send" data-size="18"></span> Gửi
-                </button>
               </div>
-            </section>
+
+              <div class="chat-input-area">
+                <form id="chatForm" class="chat-form">
+                  <textarea id="chatInput" rows="1" placeholder="Nhập câu hỏi hoặc dán nội dung cần phân tích..." required></textarea>
+                  <button type="submit" class="btn btn-primary send-btn" id="sendBtn" title="Gửi">
+                    <span data-icon="send" data-size="18"></span>
+                  </button>
+                </form>
+                <div class="chat-footer-text">Trợ lý AI có thể mắc lỗi. Vui lòng rà soát nội dung trước khi sử dụng.</div>
+              </div>
+            </div>
           </section>
         </div>
       </div>
@@ -197,7 +121,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-bottom">
-        <p>© 2026 Trận Địa Số. Trợ lý 35 là công cụ hỗ trợ nội bộ, không thay thế rà soát của con người.</p>
+        <p>© 2026 Trợ lý 35. Trợ lý 35 là công cụ hỗ trợ nội bộ, không thay thế rà soát của con người.</p>
       </div>
     </div>
   </footer>

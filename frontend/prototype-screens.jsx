@@ -1,4 +1,4 @@
-// Mobile screens for Trận Địa Số prototype
+// Mobile screens for Trợ lý 35 prototype
 // Router state managed in parent. Each screen receives (go) function.
 
 // ─── Brand strip used on most screens ─────────────────────────
@@ -7,7 +7,7 @@ function BrandStrip({ subtitle, right }) {
     <div className="brand-strip">
       <div className="mark"><Icon name="shield-check" size={20} stroke={2} /></div>
       <div className="grow">
-        <div className="name">TRẬN ĐỊA SỐ</div>
+        <div className="name">TRỢ LÝ 35</div>
         <div className="tag">{subtitle || "Thông tin đúng · Tư tưởng vững"}</div>
       </div>
       {right}

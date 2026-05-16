@@ -39,7 +39,7 @@ function HomeClassic() {
 function HomeNewsFirst() {
   return (
     <>
-      <PhoneTop title="TRẬN ĐỊA SỐ" right="13/05" sub="Thứ Hai · Bản tin sáng" />
+      <PhoneTop title="TRỢ LÝ 35" right="13/05" sub="Thứ Hai · Bản tin sáng" />
       <div className="stack" style={{ flex: 1, overflowY: "auto" }}>
         <div className="hand" style={{ fontSize: 13, fontWeight: 700 }}>
           🔴 Tin quan trọng hôm nay
@@ -84,7 +84,7 @@ function HomeMission() {
 function HomeStats() {
   return (
     <>
-      <PhoneTop title="TRẬN ĐỊA SỐ" right="LIVE" />
+      <PhoneTop title="TRỢ LÝ 35" right="LIVE" />
       <div className="stack" style={{ flex: 1 }}>
         <div style={{
           background: "var(--red)", color: "#fff",

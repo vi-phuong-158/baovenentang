@@ -1,4 +1,4 @@
-# 🛠️ HƯỚNG DẪN CÀI ĐẶT - TRẬN ĐỊA SỐ
+# 🛠️ HƯỚNG DẪN CÀI ĐẶT - TRỢ LÝ 35
 
 > Tài liệu này hướng dẫn từng bước để cài đặt hệ thống. Anh chỉ cần làm theo, không cần biết lập trình sâu.
 
@@ -18,7 +18,7 @@ Trước khi bắt đầu, anh cần có:
 ## BƯỚC 1: Tạo Google Sheets
 
 1. Truy cập [Google Sheets](https://sheets.google.com/)
-2. Tạo file mới, đặt tên: **"Trận Địa Số - Database"**
+2. Tạo file mới, đặt tên: **"Trợ lý 35 - Database"**
 3. **Quan trọng:** Copy ID từ URL:
    ```
    https://docs.google.com/spreadsheets/d/[ID_NÀY_LẤY_RA]/edit
@@ -43,14 +43,14 @@ Trước khi bắt đầu, anh cần có:
 
 1. Mở Telegram, tìm **@BotFather**
 2. Gõ lệnh `/newbot`
-3. Đặt tên bot (ví dụ: "Trận Địa Số PT")
+3. Đặt tên bot (ví dụ: "Trợ lý 35 PT")
 4. Đặt username bot (phải kết thúc bằng `bot`, VD: `trandiadso_pt_bot`)
 5. BotFather trả về **Bot Token**, copy lại
 
 ### Tạo Channel để bot gửi tin:
 
 1. Trong Telegram, tạo **Channel** mới (Channel chứ không phải Group)
-2. Đặt tên: "Trận Địa Số - Phú Thọ"
+2. Đặt tên: "Trợ lý 35 - Phú Thọ"
 3. Đặt username (ví dụ: `trandiadso_phutho`)
 4. **Thêm bot vừa tạo** vào channel và set quyền **Admin**
 5. Lưu lại username channel (có dấu `@` ở đầu)
@@ -63,7 +63,7 @@ Trước khi bắt đầu, anh cần có:
 2. Đăng ký tài khoản miễn phí
 3. Vào **SMTP & API** > **API Keys**
 4. Click **"Generate a new API key"**
-5. Đặt tên: "Trận Địa Số"
+5. Đặt tên: "Trợ lý 35"
 6. Copy API Key
 
 ### Verify Sender Email:
@@ -81,7 +81,7 @@ Trước khi bắt đầu, anh cần có:
 1. Vào Google Sheets vừa tạo ở Bước 1
 2. Menu **Extensions** > **Apps Script**
 3. Một cửa sổ mới mở ra, đây là code editor
-4. Đổi tên project: **"Trận Địa Số Backend"**
+4. Đổi tên project: **"Trợ lý 35 Backend"**
 
 ### Tạo các file code:
 
@@ -131,7 +131,7 @@ TELEGRAM_TOKEN=7123456789:AAH...
 TELEGRAM_CHANNEL=@trandiadso_phutho
 BREVO_API_KEY=xkeysib-...
 SENDER_EMAIL=no-reply@yourdomain.vn
-SENDER_NAME=Trận Địa Số - Phú Thọ
+SENDER_NAME=Trợ lý 35 - Phú Thọ
 ADMIN_EMAIL=admin@yourdomain.vn
 MAX_ARTICLES_PER_DAY=10
 MAX_ARTICLES_TELEGRAM=5
@@ -150,7 +150,7 @@ Sau khi deploy Web App ở Bước 9, quay lại Script Properties để thêm `
 4. Lần đầu chạy, Google sẽ hỏi quyền:
    - Click **"Review permissions"**
    - Chọn tài khoản Google
-   - Click **"Advanced"** > **"Go to Trận Địa Số (unsafe)"** (vì là script tự tạo)
+   - Click **"Advanced"** > **"Go to Trợ lý 35 (unsafe)"** (vì là script tự tạo)
    - Click **"Allow"**
 5. Đợi chạy xong, xem **Execution log** ở dưới
 6. Nếu thấy `✅ Setup hoàn tất!` là OK
@@ -184,7 +184,7 @@ Sau khi deploy Web App ở Bước 9, quay lại Script Properties để thêm `
 1. Trong Apps Script: **Deploy** > **New deployment**
 2. Click icon ⚙️ > Chọn **Web app**
 3. Cấu hình:
-   - **Description:** "Trận Địa Số API v1"
+   - **Description:** "Trợ lý 35 API v1"
    - **Execute as:** Me
    - **Who has access:** Anyone
 4. Click **Deploy**

@@ -16,7 +16,7 @@
 #### Cách thức:
 1. **Gửi tin nhắn cá nhân** (không spam):
    ```
-   "Chào anh/chị, em vừa làm xong dự án Trận Địa Số - 
+   "Chào anh/chị, em vừa làm xong dự án Trợ lý 35 - 
    bản tin tự động về bảo vệ nền tảng tư tưởng. 
    Mỗi sáng 6h30 sẽ có tổng hợp tin chính thống. 
    Mời anh/chị tham khảo: trandiadso.vn"
@@ -61,7 +61,7 @@
 ```
 🛡️ GIỚI THIỆU SẢN PHẨM SỐ MỚI
 
-📢 TRẬN ĐỊA SỐ - Nền tảng bản tin tự động đầu tiên 
+📢 TRỢ LÝ 35 - Nền tảng bản tin tự động đầu tiên 
 phục vụ bảo vệ nền tảng tư tưởng của Đảng tại Phú Thọ.
 
 ✨ Tính năng nổi bật:
@@ -82,7 +82,7 @@ phục vụ bảo vệ nền tảng tư tưởng của Đảng tại Phú Thọ.
 ### Mẫu Email gửi đồng nghiệp:
 
 ```
-Tiêu đề: Mời anh/chị trải nghiệm bản tin tự động Trận Địa Số
+Tiêu đề: Mời anh/chị trải nghiệm bản tin tự động Trợ lý 35
 
 Kính gửi anh/chị,
 
@@ -107,7 +107,7 @@ PA01 - Công an tỉnh Phú Thọ
 ### Mẫu Video Demo 60 giây (kịch bản):
 
 ```
-[0-5s] Logo Trận Địa Số + tagline "Thông tin đúng - Tư tưởng vững"
+[0-5s] Logo Trợ lý 35 + tagline "Thông tin đúng - Tư tưởng vững"
 
 [5-15s] Vấn đề: 
 "Mỗi sáng bạn mất 30 phút lướt báo? 
@@ -115,7 +115,7 @@ Khó nắm bắt tin chính thống quan trọng?
 Tin giả tràn lan trên mạng?"
 
 [15-30s] Giải pháp:
-"Trận Địa Số - AI tự động tổng hợp tin chính thống mỗi ngày
+"Trợ lý 35 - AI tự động tổng hợp tin chính thống mỗi ngày
 Chỉ cần đăng ký 1 lần, mỗi sáng 6h30 có bản tin trong inbox"
 
 [30-45s] Demo:
@@ -182,7 +182,7 @@ Tham gia trận địa số - bảo vệ nền tảng tư tưởng"
 #### Tiêu đề gợi ý:
 - *"Chuyển đổi số trong bảo vệ nền tảng tư tưởng của Đảng từ cơ sở - Bài học từ một mô hình thực tiễn ở Phú Thọ"*
 - *"Khi cán bộ trẻ ứng dụng AI để bảo vệ nền tảng tư tưởng - Câu chuyện từ Công an tỉnh Phú Thọ"*
-- *"Trận địa số: Mô hình tự động hóa thông tin tuyên truyền chính trị ở cấp cơ sở"*
+- *"Trợ lý 35: Mô hình tự động hóa thông tin tuyên truyền chính trị ở cấp cơ sở"*
 
 #### Cấu trúc bài viết (4000-6000 từ - chuẩn cuộc thi Tạp chí):
 
@@ -196,7 +196,7 @@ Tham gia trận địa số - bảo vệ nền tảng tư tưởng"
 - Nghị quyết 35-NQ/TW
 - Vai trò công nghệ AI trong tuyên truyền hiện đại
 
-**Phần 3: Mô hình thực tiễn "Trận Địa Số" (~2000 từ)**
+**Phần 3: Mô hình thực tiễn "Trợ lý 35" (~2000 từ)**
 - Bối cảnh ra đời
 - Mô tả kiến trúc, tính năng
 - Kết quả triển khai (số liệu thực tế: bao nhiêu đăng ký, bao nhiêu tin đã gửi...)

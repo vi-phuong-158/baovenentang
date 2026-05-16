@@ -96,7 +96,7 @@ Hiện nay, khi cán bộ, đoàn viên phát hiện bài viết/comment xuyên 
 | Tầng | Công nghệ | Chi phí/tháng |
 |------|-----------|---------------|
 | Frontend | HTML/CSS/JS thuần (giữ thống nhất hệ sinh thái) | 0đ |
-| Backend chính | Google Apps Script (mở rộng từ Trận Địa Số) | 0đ |
+| Backend chính | Google Apps Script (mở rộng từ Trợ lý 35) | 0đ |
 | AI sinh phản bác | Gemini 2.0 Flash (đã có) | ~100k |
 | Vector Search (RAG) | **Pinecone Free tier** (1 index, 100k vectors) | 0đ |
 | Embedding | Gemini text-embedding-004 (miễn phí) | 0đ |
@@ -709,7 +709,7 @@ Tôi sẽ build chi tiết phần này trong file `web/troly35.html` riêng bi�
 
 | Tháng | Việc cần làm |
 |-------|--------------|
-| 5/2026 | Triển khai Trận Địa Số cơ bản |
+| 5/2026 | Triển khai Trợ lý 35 cơ bản |
 | 6/2026 | Bắt đầu xây Trợ lý 35 (tuần 1-4) |
 | 7/2026 | Hoàn thiện Trợ lý 35 (tuần 5-8) |
 | 8/2026 | Đào tạo cán bộ sử dụng |
@@ -738,11 +738,11 @@ Soạn 1 email/báo cáo ngắn gửi lãnh đạo Phòng:
 
 ### ✅ Việc 2 (2 giờ): Tạo Google Sheet
 - Tạo sheet `PHAN_BAC_KHO` với 15 cột theo schema
-- Copy 20 luận điểm có sẵn từ `phanbac-sample-data.csv` của dự án Trận Địa Số
+- Copy 20 luận điểm có sẵn từ `phanbac-sample-data.csv` của dự án Trợ lý 35
 - Bắt đầu mở rộng từ đó
 
 ### ✅ Việc 3 (4 giờ): Build prototype
-- Mở rộng từ codebase Trận Địa Số
+- Mở rộng từ codebase Trợ lý 35
 - Thêm function `analyzeAndRebut()` 
 - Test với 5 input thực tế
 

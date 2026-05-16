@@ -1,0 +1,5 @@
+tools/.env
+*.env
+web/node_modules/
+web/dist/
+backend/.clasp.json

@@ -4,7 +4,7 @@ Backend này chạy hoàn toàn trên Google Apps Script và dùng Google Sheets
 
 ## 1. Tạo Google Sheet
 
-Tạo một Google Sheet mới, ví dụ `Trận Địa Số - Database`, rồi copy `SHEET_ID` trong URL:
+Tạo một Google Sheet mới, ví dụ `Trợ lý 35 - Database`, rồi copy `SHEET_ID` trong URL:
 
 ```text
 https://docs.google.com/spreadsheets/d/SHEET_ID/edit
@@ -57,7 +57,7 @@ TELEGRAM_TOKEN=...
 TELEGRAM_CHANNEL=@ten_channel
 BREVO_API_KEY=...
 SENDER_EMAIL=email-da-verify@domain.vn
-SENDER_NAME=Trận Địa Số - Phú Thọ
+SENDER_NAME=Trợ lý 35 - Phú Thọ
 WEB_APP_URL=https://script.google.com/macros/s/.../exec
 ADMIN_EMAIL=admin@domain.vn
 MAX_ARTICLES_PER_DAY=10

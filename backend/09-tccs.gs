@@ -1,9 +1,21 @@
 /**
  * ============================================================
- * MODULE: TCCS SCRAPER
- * Scrape Tạp chí Cộng sản thành kho chunk chọn lọc động cho Trợ lý 35.
+ * MODULE: TCCS PIPELINE
+ * Scrape Tạp chí Cộng sản + Sinh PHAN_BAC_KHO tự động.
+ * (Gộp từ 09-tccs-scraper.gs + 10-pbk-generator.gs)
+ *
+ * Workflow:
+ *   1. runTccsScrapeDrafts()              → scrape bài, tạo chunk động vào staging Sheets
+ *   2. syncTccsApprovedChunksToPinecone() → duyệt chunk lên Pinecone
+ *   3. generatePhanBacFromTccs()          → sinh entry PHAN_BAC_KHO từ toàn văn bài
+ *   4. Admin mở sheet PHAN_BAC_KHO, đổi "Chờ duyệt" → "Đã duyệt"
+ *   5. syncTroLy35KnowledgeToPinecone()   → đưa PBK lên Pinecone
  * ============================================================
  */
+
+// ============================================================
+// HẰNG SỐ - TCCS SCRAPER
+// ============================================================
 
 const TCCS_CHUNK_MIN_WORDS = 600;
 const TCCS_CHUNK_TARGET_WORDS = 700;
@@ -78,6 +90,45 @@ const TCCS_DYNAMIC_SECTION_TYPES = [
   'recommendation',
   'quote_material'
 ];
+
+// ============================================================
+// HẰNG SỐ - PBK GENERATOR
+// ============================================================
+
+const PBK_MAX_ARTICLES_PER_RUN = 3;
+
+const PBK_EXTRACTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    entries: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          chu_de: { type: 'string' },
+          luan_dieu_sai_trai: { type: 'string' },
+          phan_bac_chinh: { type: 'string' },
+          dan_chung: {
+            type: 'object',
+            properties: {
+              van_ban: { type: 'array', items: { type: 'string' } },
+              so_lieu: { type: 'array', items: { type: 'string' } },
+              trich_dan: { type: 'array', items: { type: 'string' } }
+            }
+          },
+          tu_khoa: { type: 'array', items: { type: 'string' } },
+          do_uu_tien: { type: 'integer' }
+        },
+        required: ['chu_de', 'luan_dieu_sai_trai', 'phan_bac_chinh', 'tu_khoa']
+      }
+    }
+  },
+  required: ['entries']
+};
+
+// ============================================================
+// PUBLIC: TCCS SCRAPER
+// ============================================================
 
 /**
  * Test một URL Tạp chí Cộng sản mà không ghi dữ liệu vào Sheets.
@@ -236,7 +287,7 @@ function runTccsScrapeDrafts(maxArticles) {
       chunks = chunks.filter(chunk => !existingHashes.has(chunk.contentHash));
       if (chunks.length === 0) {
         tccsWriteLog_('runTccsScrapeDrafts', articleRef.url, 'skip', 'Không có chunk mới sau khi deduplicate');
-        return;
+        continue;
       }
 
       const existingArticle = tccsFindArticleByUrl_(articleRef.url);
@@ -335,6 +386,113 @@ function syncTccsApprovedChunksToPinecone(maxRows) {
     upserted: vectors.length
   };
 }
+
+// ============================================================
+// PUBLIC: PBK GENERATOR
+// ============================================================
+
+/**
+ * Hàm chính: sinh entry PHAN_BAC_KHO từ bài TCCS đã scrape.
+ * Chạy sau khi đã có dữ liệu trong TCCS_ARTICLE_TEXTS.
+ * Mỗi lần chạy tối đa maxArticles bài để tránh timeout GAS.
+ */
+function generatePhanBacFromTccs(maxArticles) {
+  assertRequiredConfig_(REQUIRED_SHEET_CONFIG.concat(REQUIRED_GEMINI_CONFIG));
+
+  const limit = Math.max(1, Number(maxArticles) || PBK_MAX_ARTICLES_PER_RUN);
+  const processedIds = pbkGetProcessedArticleIds_();
+  const articleMeta = pbkGetArticleMeta_();
+
+  const textSheet = tccsGetSheet_('TCCS_ARTICLE_TEXTS');
+  if (textSheet.getLastRow() <= 1) {
+    Logger.log('[PBK] Chưa có dữ liệu TCCS_ARTICLE_TEXTS. Hãy chạy runTccsScrapeDrafts() trước.');
+    return { success: true, processed: 0, saved: 0 };
+  }
+
+  const toProcess = textSheet.getRange(2, 1, textSheet.getLastRow() - 1, textSheet.getLastColumn())
+    .getValues()
+    .filter(row => {
+      const articleId = cleanValue_(row[0]);
+      return articleId && !processedIds.has(articleId);
+    })
+    .slice(0, limit);
+
+  if (toProcess.length === 0) {
+    Logger.log('[PBK] Tất cả bài TCCS đã được xử lý rồi.');
+    return { success: true, processed: 0, saved: 0 };
+  }
+
+  Logger.log(`[PBK] Bắt đầu xử lý ${toProcess.length} bài TCCS → PHAN_BAC_KHO`);
+
+  let processed = 0;
+  let saved = 0;
+
+  toProcess.forEach((row, index) => {
+    const articleId = cleanValue_(row[0]);
+    const sourceUrl = cleanValue_(row[1]);
+    const fullText = cleanValue_(row[2]);
+    const meta = articleMeta[articleId] || {};
+    const title = meta.title || 'Bài viết Tạp chí Cộng sản';
+    const topic = meta.topic || 'Các vấn đề thời sự';
+
+    try {
+      Logger.log(`[PBK] Bài ${index + 1}/${toProcess.length}: ${title}`);
+      Utilities.sleep(2500);
+
+      const entries = pbkExtractFromArticle_(title, topic, sourceUrl, fullText);
+
+      if (entries.length === 0) {
+        Logger.log(`[PBK] Bài này không có luận điệu sai trái cụ thể, bỏ qua.`);
+        pbkMarkProcessed_(articleId);
+        processed++;
+        return;
+      }
+
+      const savedCount = pbkSaveEntries_(entries, articleId, title, sourceUrl);
+      processed++;
+      saved += savedCount;
+      Logger.log(`[PBK] Lưu ${savedCount} entry mới từ bài: ${title}`);
+    } catch (error) {
+      Logger.log(`[PBK] Lỗi bài ${articleId}: ${error}`);
+    }
+  });
+
+  Logger.log(`[PBK] Hoàn thành: ${processed} bài, ${saved} entry mới trong PHAN_BAC_KHO`);
+  Logger.log('[PBK] Bước tiếp: mở sheet PHAN_BAC_KHO, đổi "Chờ duyệt" → "Đã duyệt" cho entry hợp lệ.');
+  return { success: true, processed, saved };
+}
+
+/**
+ * Xem nhanh các entry đang chờ duyệt.
+ */
+function reviewPendingPhanBac() {
+  const sheet = getSheet_('PHAN_BAC_KHO');
+  if (sheet.getLastRow() <= 1) {
+    Logger.log('[PBK] Sheet PHAN_BAC_KHO chưa có dữ liệu.');
+    return;
+  }
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const pending = rows.filter(row => cleanValue_(row[8]) === 'Chờ duyệt');
+
+  Logger.log(`[PBK] === PHAN_BAC_KHO đang chờ duyệt: ${pending.length} entry ===`);
+  pending.slice(0, 10).forEach(row => {
+    Logger.log(`\nID: ${row[0]}`);
+    Logger.log(`Chủ đề: ${row[1]}`);
+    Logger.log(`Luận điệu: ${String(row[2]).substring(0, 150)}...`);
+    Logger.log(`Phản bác (preview): ${String(row[3]).substring(0, 100)}...`);
+    Logger.log(`Nguồn: ${String(row[6]).substring(0, 80)}`);
+    Logger.log('---');
+  });
+
+  if (pending.length > 10) {
+    Logger.log(`... và ${pending.length - 10} entry khác`);
+  }
+}
+
+// ============================================================
+// NỘI BỘ: TCCS SCRAPER
+// ============================================================
 
 function tccsFetchArticleList_() {
   const sectionPath = CONFIG.TCCS_SECTION_PATH || TCCS_DEFAULT_SECTION_PATH;
@@ -562,15 +720,9 @@ function tccsBuildFallbackChunkPlan_(paragraphs, context, method) {
     priority: 999
   }];
   const sectionOrder = [
-    'wrong_claim',
-    'counter_argument',
-    'theoretical_basis',
-    'legal_policy_basis',
-    'practical_evidence',
-    'historical_context',
-    'recommendation',
-    'quote_material',
-    'core_argument'
+    'wrong_claim', 'counter_argument', 'theoretical_basis',
+    'legal_policy_basis', 'practical_evidence', 'historical_context',
+    'recommendation', 'quote_material', 'core_argument'
   ];
   const usedKeys = { article_brief: true };
 
@@ -578,11 +730,8 @@ function tccsBuildFallbackChunkPlan_(paragraphs, context, method) {
     if (chunks.length >= maxChunks || usedKeys[sectionType]) return;
     const ranked = tccsRankParagraphsForSection_(paragraphs, sectionType);
     const indexes = tccsPickIndexesForWordTarget_(
-      paragraphs,
-      ranked,
-      TCCS_AI_CHUNK_MIN_WORDS,
-      TCCS_AI_CHUNK_MAX_WORDS,
-      TCCS_AI_CHUNK_TARGET_WORDS
+      paragraphs, ranked,
+      TCCS_AI_CHUNK_MIN_WORDS, TCCS_AI_CHUNK_MAX_WORDS, TCCS_AI_CHUNK_TARGET_WORDS
     );
     if (indexes.length === 0) return;
     chunks.push({
@@ -599,11 +748,8 @@ function tccsBuildFallbackChunkPlan_(paragraphs, context, method) {
       sectionType: 'core_argument',
       purpose: TCCS_SECTION_LABELS.core_argument,
       indexes: tccsPickIndexesForWordTarget_(
-        paragraphs,
-        tccsRankCoreParagraphs_(paragraphs),
-        TCCS_AI_CHUNK_MIN_WORDS,
-        TCCS_AI_CHUNK_MAX_WORDS,
-        TCCS_AI_CHUNK_TARGET_WORDS
+        paragraphs, tccsRankCoreParagraphs_(paragraphs),
+        TCCS_AI_CHUNK_MIN_WORDS, TCCS_AI_CHUNK_MAX_WORDS, TCCS_AI_CHUNK_TARGET_WORDS
       ),
       priority: 90
     });
@@ -762,11 +908,8 @@ function tccsBuildBriefIndexes_(paragraphs) {
     .filter(index => index >= 0 && index < paragraphs.length)
     .concat(tccsRankCoreParagraphs_(paragraphs));
   return tccsPickIndexesForWordTarget_(
-    paragraphs,
-    candidates,
-    TCCS_BRIEF_CHUNK_MIN_WORDS,
-    TCCS_BRIEF_CHUNK_MAX_WORDS,
-    TCCS_BRIEF_CHUNK_TARGET_WORDS
+    paragraphs, candidates,
+    TCCS_BRIEF_CHUNK_MIN_WORDS, TCCS_BRIEF_CHUNK_MAX_WORDS, TCCS_BRIEF_CHUNK_TARGET_WORDS
   );
 }
 
@@ -837,7 +980,7 @@ function tccsSectionKeywords_(sectionType) {
     practical_evidence: ['thực tiễn', 'thành tựu', 'kết quả', 'dẫn chứng', 'số liệu', 'minh chứng', 'đổi mới'],
     historical_context: ['lịch sử', 'bối cảnh', 'trước đây', 'sinh thời', 'quá trình', 'năm ', 'thời kỳ'],
     recommendation: ['một là', 'hai là', 'ba là', 'giải pháp', 'cần', 'cần phải', 'tiếp tục', 'tăng cường', 'nhiệm vụ'],
-    quote_material: ['“', '”', '"', 'trích', 'khẳng định', 'nhấn mạnh'],
+    quote_material: ['"', '"', '"', 'trích', 'khẳng định', 'nhấn mạnh'],
     core_argument: ['vì vậy', 'do đó', 'từ đó', 'khẳng định', 'cần phải', 'cho thấy']
   };
   return groups[sectionType] || groups.core_argument;
@@ -846,30 +989,16 @@ function tccsSectionKeywords_(sectionType) {
 function tccsNormalizeDynamicSectionType_(value) {
   const key = tccsNormalizeKey_(value);
   const aliases = {
-    article_brief: 'article_brief',
-    brief: 'article_brief',
-    summary: 'article_brief',
-    tom_luoc: 'article_brief',
-    core_argument: 'core_argument',
-    core: 'core_argument',
-    luan_diem_chinh: 'core_argument',
-    wrong_claim: 'wrong_claim',
-    luan_dieu_sai: 'wrong_claim',
-    counter_argument: 'counter_argument',
-    phan_bac: 'counter_argument',
-    luan_cu_phan_bac: 'counter_argument',
-    theoretical_basis: 'theoretical_basis',
-    co_so_ly_luan: 'theoretical_basis',
-    legal_policy_basis: 'legal_policy_basis',
-    co_so_phap_ly: 'legal_policy_basis',
-    practical_evidence: 'practical_evidence',
-    thuc_tien: 'practical_evidence',
-    historical_context: 'historical_context',
-    boi_canh: 'historical_context',
-    recommendation: 'recommendation',
-    giai_phap: 'recommendation',
-    quote_material: 'quote_material',
-    trich_dan: 'quote_material'
+    article_brief: 'article_brief', brief: 'article_brief', summary: 'article_brief', tom_luoc: 'article_brief',
+    core_argument: 'core_argument', core: 'core_argument', luan_diem_chinh: 'core_argument',
+    wrong_claim: 'wrong_claim', luan_dieu_sai: 'wrong_claim',
+    counter_argument: 'counter_argument', phan_bac: 'counter_argument', luan_cu_phan_bac: 'counter_argument',
+    theoretical_basis: 'theoretical_basis', co_so_ly_luan: 'theoretical_basis',
+    legal_policy_basis: 'legal_policy_basis', co_so_phap_ly: 'legal_policy_basis',
+    practical_evidence: 'practical_evidence', thuc_tien: 'practical_evidence',
+    historical_context: 'historical_context', boi_canh: 'historical_context',
+    recommendation: 'recommendation', giai_phap: 'recommendation',
+    quote_material: 'quote_material', trich_dan: 'quote_material'
   };
 
   if (aliases[key]) return aliases[key];
@@ -886,7 +1015,7 @@ function tccsNormalizeKey_(value) {
   return cleanValue_(value)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/đ/g, 'd')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
@@ -935,10 +1064,7 @@ ${numberedParagraphs}`;
   const schema = {
     type: 'object',
     properties: {
-      selected_paragraphs: {
-        type: 'array',
-        items: { type: 'number' }
-      },
+      selected_paragraphs: { type: 'array', items: { type: 'number' } },
       reason: { type: 'string' }
     },
     required: ['selected_paragraphs']
@@ -1001,9 +1127,8 @@ function tccsComposeCoreChunkText_(paragraphs, preferredIndexes) {
   });
 
   if (selected.length === 0) {
-    const fallbackText = tccsTrimTextToWordLimit_(paragraphs.join('\n\n'), TCCS_CORE_CHUNK_MAX_WORDS);
     return {
-      rawContent: fallbackText,
+      rawContent: tccsTrimTextToWordLimit_(paragraphs.join('\n\n'), TCCS_CORE_CHUNK_MAX_WORDS),
       selectedParagraphs: []
     };
   }
@@ -1098,7 +1223,6 @@ function tccsCreateChunks_(fullText, context) {
       units.push({ text: paragraph, forcedSplit: false });
       return;
     }
-
     tccsSplitLongParagraph_(paragraph).forEach(unit => units.push(unit));
   });
 
@@ -1111,47 +1235,29 @@ function tccsCreateChunks_(fullText, context) {
     const unitWords = tccsCountWords_(unit.text);
 
     if (currentWords === 0) {
-      current = [unit.text];
-      currentWords = unitWords;
-      currentForced = unit.forcedSplit;
-      return;
+      current = [unit.text]; currentWords = unitWords; currentForced = unit.forcedSplit; return;
     }
 
     if (currentWords + unitWords <= TCCS_CHUNK_MAX_WORDS) {
-      current.push(unit.text);
-      currentWords += unitWords;
-      currentForced = currentForced || unit.forcedSplit;
-      return;
+      current.push(unit.text); currentWords += unitWords; currentForced = currentForced || unit.forcedSplit; return;
     }
 
     if (currentWords >= TCCS_CHUNK_MIN_WORDS) {
       tccsPushChunk_(chunks, current, currentForced);
-      current = [unit.text];
-      currentWords = unitWords;
-      currentForced = unit.forcedSplit;
-      return;
+      current = [unit.text]; currentWords = unitWords; currentForced = unit.forcedSplit; return;
     }
 
     if (currentWords + unitWords <= TCCS_CHUNK_SOFT_MAX_WORDS) {
-      current.push(unit.text);
-      currentWords += unitWords;
-      currentForced = true;
+      current.push(unit.text); currentWords += unitWords; currentForced = true;
       tccsPushChunk_(chunks, current, currentForced);
-      current = [];
-      currentWords = 0;
-      currentForced = false;
-      return;
+      current = []; currentWords = 0; currentForced = false; return;
     }
 
     tccsPushChunk_(chunks, current, true);
-    current = [unit.text];
-    currentWords = unitWords;
-    currentForced = unit.forcedSplit;
+    current = [unit.text]; currentWords = unitWords; currentForced = unit.forcedSplit;
   });
 
-  if (currentWords > 0) {
-    tccsPushChunk_(chunks, current, currentForced);
-  }
+  if (currentWords > 0) tccsPushChunk_(chunks, current, currentForced);
 
   tccsRepairLastChunk_(chunks);
 
@@ -1160,23 +1266,14 @@ function tccsCreateChunks_(fullText, context) {
     const wordCount = tccsCountWords_(rawContent);
     const sectionType = tccsGuessSectionType_(rawContent);
     const status = chunk.needsReview || wordCount < TCCS_CHUNK_MIN_WORDS || wordCount > TCCS_CHUNK_MAX_WORDS
-      ? 'Needs Review'
-      : 'Draft';
+      ? 'Needs Review' : 'Draft';
     const content = tccsBuildEmbeddingContent_({
-      title: context.title,
-      topic: context.topic,
-      sectionType,
-      sourceUrl: context.sourceUrl,
-      rawContent
+      title: context.title, topic: context.topic,
+      sectionType, sourceUrl: context.sourceUrl, rawContent
     });
 
     return {
-      chunkIndex: index + 1,
-      sectionType,
-      rawContent,
-      content,
-      wordCount,
-      status,
+      chunkIndex: index + 1, sectionType, rawContent, content, wordCount, status,
       notes: status === 'Needs Review' ? 'Chunk ngoài khoảng 600-800 từ hoặc có fallback tách câu/từ.' : '',
       contentHash: tccsHash_(rawContent)
     };
@@ -1198,8 +1295,7 @@ function tccsSplitLongParagraph_(paragraph) {
     if (sentenceWords > TCCS_CHUNK_MAX_WORDS) {
       if (currentWords > 0) {
         units.push({ text: current.join(' '), forcedSplit: false });
-        current = [];
-        currentWords = 0;
+        current = []; currentWords = 0;
       }
       tccsSplitByWords_(sentence).forEach(text => units.push({ text, forcedSplit: true }));
       return;
@@ -1207,19 +1303,13 @@ function tccsSplitLongParagraph_(paragraph) {
 
     if (currentWords > 0 && currentWords + sentenceWords > TCCS_CHUNK_MAX_WORDS) {
       units.push({ text: current.join(' '), forcedSplit: false });
-      current = [sentence];
-      currentWords = sentenceWords;
-      return;
+      current = [sentence]; currentWords = sentenceWords; return;
     }
 
-    current.push(sentence);
-    currentWords += sentenceWords;
+    current.push(sentence); currentWords += sentenceWords;
   });
 
-  if (currentWords > 0) {
-    units.push({ text: current.join(' '), forcedSplit: false });
-  }
-
+  if (currentWords > 0) units.push({ text: current.join(' '), forcedSplit: false });
   return units;
 }
 
@@ -1231,11 +1321,9 @@ function tccsSplitSentences_(text) {
 function tccsSplitByWords_(text) {
   const words = cleanValue_(text).split(/\s+/).filter(Boolean);
   const chunks = [];
-
   for (let i = 0; i < words.length; i += TCCS_CHUNK_TARGET_WORDS) {
     chunks.push(words.slice(i, i + TCCS_CHUNK_TARGET_WORDS).join(' '));
   }
-
   return chunks;
 }
 
@@ -1273,17 +1361,9 @@ function tccsSaveArticle_(article, topic, chunks) {
   const status = validDrafts > 0 ? 'Draft' : 'Needs Review';
 
   sheet.appendRow([
-    articleId,
-    article.title,
-    topic,
-    article.sourceUrl,
-    article.author,
-    article.publishedDate,
-    tccsCountWords_(article.mainText),
-    chunks.length,
-    status,
-    new Date(),
-    ''
+    articleId, article.title, topic, article.sourceUrl, article.author,
+    article.publishedDate, tccsCountWords_(article.mainText), chunks.length,
+    status, new Date(), ''
   ]);
 
   tccsSaveArticleTextIfMissing_(articleId, article);
@@ -1305,32 +1385,16 @@ function tccsSaveArticleTextIfMissing_(articleId, article) {
   }
 
   sheet.appendRow([
-    articleId,
-    url,
-    article.mainText,
-    tccsCountWords_(article.mainText),
-    new Date()
+    articleId, url, article.mainText, tccsCountWords_(article.mainText), new Date()
   ]);
 }
 
 function tccsSaveChunks_(articleId, article, topic, chunks) {
   const sheet = tccsGetSheet_('TCCS_CHUNKS');
   const rows = chunks.map(chunk => [
-    `TCCS-C-${Utilities.getUuid()}`,
-    articleId,
-    article.title,
-    topic,
-    chunk.sectionType,
-    chunk.content,
-    chunk.rawContent,
-    chunk.chunkIndex,
-    chunk.wordCount,
-    article.sourceUrl,
-    chunk.contentHash,
-    chunk.status,
-    '',
-    '',
-    chunk.notes
+    `TCCS-C-${Utilities.getUuid()}`, articleId, article.title, topic,
+    chunk.sectionType, chunk.content, chunk.rawContent, chunk.chunkIndex, chunk.wordCount,
+    article.sourceUrl, chunk.contentHash, chunk.status, '', '', chunk.notes
   ]);
 
   appendRows_(sheet, rows);
@@ -1342,9 +1406,7 @@ function tccsGetExistingArticleUrls_() {
   if (sheet.getLastRow() <= 1) return new Set();
 
   const urls = sheet.getRange(2, 4, sheet.getLastRow() - 1, 1).getValues()
-    .flat()
-    .map(cleanValue_)
-    .filter(Boolean);
+    .flat().map(cleanValue_).filter(Boolean);
   return new Set(urls);
 }
 
@@ -1353,9 +1415,7 @@ function tccsGetExistingChunkHashes_() {
   if (sheet.getLastRow() <= 1) return new Set();
 
   const hashes = sheet.getRange(2, 11, sheet.getLastRow() - 1, 1).getValues()
-    .flat()
-    .map(cleanValue_)
-    .filter(Boolean);
+    .flat().map(cleanValue_).filter(Boolean);
   return new Set(hashes);
 }
 
@@ -1365,8 +1425,7 @@ function tccsGetExistingPlannedChunkUrls_() {
 
   const urls = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
     .filter(row => tccsIsDynamicChunkRow_(row))
-    .map(row => cleanValue_(row[9]))
-    .filter(Boolean);
+    .map(row => cleanValue_(row[9])).filter(Boolean);
   return new Set(urls);
 }
 
@@ -1377,10 +1436,7 @@ function tccsFindArticleByUrl_(articleUrl) {
   const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   for (let i = 0; i < rows.length; i++) {
     if (cleanValue_(rows[i][3]) === cleanValue_(articleUrl)) {
-      return {
-        rowIndex: i + 2,
-        articleId: cleanValue_(rows[i][0])
-      };
+      return { rowIndex: i + 2, articleId: cleanValue_(rows[i][0]) };
     }
   }
   return null;
@@ -1424,25 +1480,16 @@ function tccsSearchChunksInSheets_(analysis, content, topicHint, limit) {
   if (sheet.getLastRow() <= 1) return [];
 
   const keywords = [].concat(analysis.tu_khoa_chinh || [], troLy35ExtractKeywords_(content), topicHint || '')
-    .map(item => cleanValue_(item).toLowerCase())
-    .filter(Boolean);
+    .map(item => cleanValue_(item).toLowerCase()).filter(Boolean);
   const topic = cleanValue_(analysis.chu_de || topicHint).toLowerCase();
 
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
     .map((row, index) => tccsChunkRowToObject_(row, index + 2))
     .filter(item => tccsIsApprovedChunkStatus_(item.status))
     .map(item => {
-      const haystack = [
-        item.title,
-        item.topic,
-        item.sectionType,
-        item.rawContent,
-        item.sourceUrl
-      ].join(' ').toLowerCase();
+      const haystack = [item.title, item.topic, item.sectionType, item.rawContent, item.sourceUrl].join(' ').toLowerCase();
       let score = topic && item.topic.toLowerCase().includes(topic) ? 8 : 0;
-      keywords.forEach(keyword => {
-        if (keyword && haystack.includes(keyword)) score += 2;
-      });
+      keywords.forEach(keyword => { if (keyword && haystack.includes(keyword)) score += 2; });
       return { item, score };
     })
     .filter(item => item.score > 0)
@@ -1457,9 +1504,7 @@ function tccsKnowledgeFromPineconeMatch_(match) {
   const vectorId = cleanValue_(match.id);
   const chunk = tccsFindChunk_(chunkId, vectorId);
 
-  if (chunk) {
-    return tccsChunkToKnowledge_(chunk, match.score || 0, 'tccs_pinecone');
-  }
+  if (chunk) return tccsChunkToKnowledge_(chunk, match.score || 0, 'tccs_pinecone');
 
   return {
     id: chunkId || vectorId,
@@ -1491,50 +1536,36 @@ function tccsFindChunk_(chunkId, vectorId) {
       return tccsChunkRowToObject_(row, i + 2);
     }
   }
-
   return null;
 }
 
 function tccsChunkRowToObject_(row, rowIndex) {
   return {
     rowIndex,
-    chunkId: cleanValue_(row[0]),
-    articleId: cleanValue_(row[1]),
-    title: cleanValue_(row[2]),
-    topic: cleanValue_(row[3]),
-    sectionType: cleanValue_(row[4]),
-    content: cleanValue_(row[5]),
-    rawContent: cleanValue_(row[6]),
-    chunkIndex: Number(row[7]) || 0,
-    wordCount: Number(row[8]) || 0,
-    sourceUrl: cleanValue_(row[9]),
-    contentHash: cleanValue_(row[10]),
-    status: cleanValue_(row[11]),
-    pineconeId: cleanValue_(row[12]),
-    indexedAt: row[13],
-    notes: cleanValue_(row[14])
+    chunkId: cleanValue_(row[0]), articleId: cleanValue_(row[1]),
+    title: cleanValue_(row[2]), topic: cleanValue_(row[3]),
+    sectionType: cleanValue_(row[4]), content: cleanValue_(row[5]),
+    rawContent: cleanValue_(row[6]), chunkIndex: Number(row[7]) || 0,
+    wordCount: Number(row[8]) || 0, sourceUrl: cleanValue_(row[9]),
+    contentHash: cleanValue_(row[10]), status: cleanValue_(row[11]),
+    pineconeId: cleanValue_(row[12]), indexedAt: row[13], notes: cleanValue_(row[14])
   };
 }
 
 function tccsChunkToKnowledge_(chunk, score, source) {
   return {
-    id: chunk.chunkId,
-    chuDe: chunk.topic,
+    id: chunk.chunkId, chuDe: chunk.topic,
     luanDiemSaiTrai: 'Tư liệu bài viết chính thống từ Tạp chí Cộng sản',
     phanBacChinh: chunk.rawContent,
     danChung: {
-      title: chunk.title,
-      source_url: chunk.sourceUrl,
-      section_type: chunk.sectionType,
-      word_count: chunk.wordCount,
-      chunk_index: chunk.chunkIndex
+      title: chunk.title, source_url: chunk.sourceUrl,
+      section_type: chunk.sectionType, word_count: chunk.wordCount, chunk_index: chunk.chunkIndex
     },
     tuKhoa: typeof troLy35ExtractKeywords_ === 'function'
       ? troLy35ExtractKeywords_([chunk.title, chunk.topic, chunk.rawContent].join(' ')).join(', ')
       : '',
     nguon: tccsBuildSourceLabel_(chunk.title, chunk.sourceUrl),
-    score: score || 0,
-    source
+    score: score || 0, source
   };
 }
 
@@ -1565,9 +1596,7 @@ ${text.substring(0, 1800)}
 Chỉ chọn đúng một chủ đề gần nhất. Không tóm tắt, không diễn giải nội dung.`;
   const schema = {
     type: 'object',
-    properties: {
-      topic: { type: 'string' }
-    },
+    properties: { topic: { type: 'string' } },
     required: ['topic']
   };
 
@@ -1659,10 +1688,8 @@ function tccsExtractTitle_(html) {
 }
 
 function tccsCleanTitleCandidate_(value) {
-  const title = tccsHtmlToText_(value)
-    .replace(/\s+/g, ' ')
-    .trim();
-  const parts = title.split(/\s+[-\u2013|]\s+/);
+  const title = tccsHtmlToText_(value).replace(/\s+/g, ' ').trim();
+  const parts = title.split(/\s+[-–|]\s+/);
   if (parts.length > 1 && tccsIsGenericTitle_(parts[parts.length - 1])) {
     return parts.slice(0, -1).join(' - ').trim();
   }
@@ -1676,17 +1703,10 @@ function tccsIsUsefulTitle_(title) {
 }
 
 function tccsIsGenericTitle_(title) {
-  const key = cleanValue_(title)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-  return key === 'tap chi cong san' ||
-    key === 'tccs' ||
-    key === 'tap chi cong san dien tu' ||
-    key === 'tap chi cong san online';
+  const key = cleanValue_(title).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
+  return ['tap chi cong san', 'tccs', 'tap chi cong san dien tu', 'tap chi cong san online'].includes(key);
 }
 
 function tccsExtractAuthor_(html) {
@@ -1736,9 +1756,7 @@ function tccsExtractMainHtml_(html) {
     while ((match = pattern.exec(html)) !== null) {
       const text = tccsCleanArticleText_(tccsHtmlToText_(match[1]));
       const words = tccsCountWords_(text);
-      if (words >= 100) {
-        candidates.push({ html: match[1], words });
-      }
+      if (words >= 100) candidates.push({ html: match[1], words });
     }
   });
 
@@ -1759,10 +1777,8 @@ function tccsCleanArticleText_(text) {
     .replace(/Bài liên quan[\s\S]*$/i, '')
     .replace(/Đọc thêm[\s\S]*$/i, '')
     .replace(/^\s*Tags?:.*$/gmi, '')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n[ \t]+/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function tccsHtmlToText_(html) {
@@ -1782,12 +1798,8 @@ function tccsHtmlToText_(html) {
 
 function tccsDecodeHtmlEntities_(text) {
   return cleanValue_(text)
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
@@ -1813,9 +1825,7 @@ function tccsFetch_(url) {
   return UrlFetchApp.fetch(url, {
     muteHttpExceptions: true,
     followRedirects: true,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; TroLy35-TCCS-Scraper/1.0)'
-    }
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TroLy35-TCCS-Scraper/1.0)' }
   });
 }
 
@@ -1837,13 +1847,7 @@ function tccsGetSheet_(name) {
 function tccsWriteLog_(action, url, status, message) {
   try {
     const sheet = tccsGetSheet_('TCCS_SCRAPE_LOG');
-    sheet.appendRow([
-      new Date(),
-      action,
-      url || '',
-      status,
-      message || ''
-    ]);
+    sheet.appendRow([new Date(), action, url || '', status, message || '']);
   } catch (error) {
     Logger.log(`[TCCS Log] ${action} ${status}: ${message} (${error})`);
   }
@@ -1855,18 +1859,13 @@ function tccsBuildSourceLabel_(title, sourceUrl) {
 
 function tccsSafeVectorId_(chunkId) {
   return `tccs-${cleanValue_(chunkId)}`
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]/g, '-')
-    .substring(0, 120);
+    .toLowerCase().replace(/[^a-z0-9-_]/g, '-').substring(0, 120);
 }
 
 function tccsHash_(text) {
   const digest = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256,
-    cleanValue_(text),
-    Utilities.Charset.UTF_8
+    Utilities.DigestAlgorithm.SHA_256, cleanValue_(text), Utilities.Charset.UTF_8
   );
-
   return digest.map(byte => {
     const value = byte < 0 ? byte + 256 : byte;
     return value.toString(16).padStart(2, '0');
@@ -1875,4 +1874,115 @@ function tccsHash_(text) {
 
 function tccsCountWords_(text) {
   return cleanValue_(text).split(/\s+/).filter(Boolean).length;
+}
+
+// ============================================================
+// NỘI BỘ: PBK GENERATOR
+// ============================================================
+
+function pbkExtractFromArticle_(title, topic, sourceUrl, fullText) {
+  const topicList = TROLY35_TOPICS.join(' | ');
+  const text = fullText.substring(0, 8000);
+
+  const prompt = `Bạn là chuyên gia phân tích văn bản chính luận. Đọc bài từ Tạp chí Cộng sản và trích xuất các cặp "luận điệu sai trái → phản bác" thực sự có trong bài.
+
+QUY TẮC BẮT BUỘC:
+1. luan_dieu_sai_trai: viết đúng giọng của người phát tán trên mạng (cụ thể, không chung chung).
+   ✓ Đúng: "Đảng CS VN độc tài, người dân không được nói khác ý Đảng"
+   ✗ Sai: "luận điệu phủ nhận vai trò lãnh đạo của Đảng"
+2. phan_bac_chinh: tổng hợp lập luận phản bác từ bài, 200-400 từ, có cấu trúc rõ.
+3. dan_chung: CHỈ lấy những dẫn chứng THỰC SỰ có trong bài (số liệu, văn bản pháp lý, trích dẫn danh nhân). TUYỆT ĐỐI không bịa.
+4. tu_khoa: 4-6 từ/cụm từ người dùng hay gõ khi phát tán luận điệu này trên Facebook/TikTok.
+5. chu_de: chọn đúng 1 trong danh sách: ${topicList}
+6. do_uu_tien: 1-3 (3=phổ biến và nguy hiểm nhất).
+7. Tối đa 3 entries mỗi bài. Nếu bài là lý luận thuần túy không có luận điệu cụ thể, trả về entries=[].
+
+TIÊU ĐỀ: ${title}
+CHỦ ĐỀ: ${topic}
+NGUỒN: ${sourceUrl}
+
+NỘI DUNG BÀI:
+${text}`;
+
+  const result = troLy35CallGeminiJson_(prompt, PBK_EXTRACTION_SCHEMA);
+  const entries = Array.isArray(result && result.entries) ? result.entries : [];
+
+  return entries.filter(entry =>
+    cleanValue_(entry.luan_dieu_sai_trai).length >= 40 &&
+    cleanValue_(entry.phan_bac_chinh).length >= 150
+  );
+}
+
+function pbkSaveEntries_(entries, articleId, articleTitle, sourceUrl) {
+  if (!entries || entries.length === 0) return 0;
+
+  const sheet = getSheet_('PHAN_BAC_KHO');
+  const today = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd');
+  const idPrefix = `PBK-AUTO-${today}`;
+  const existingCount = Math.max(0, sheet.getLastRow() - 1);
+  const rows = [];
+
+  entries.forEach(entry => {
+    const id = `${idPrefix}-${existingCount + rows.length + 1}`;
+    const danChung = entry.dan_chung || {};
+    const tuKhoa = Array.isArray(entry.tu_khoa) ? entry.tu_khoa.join(', ') : '';
+    const nguon = `TCCS-ARTICLE-${articleId} | ${articleTitle} | ${sourceUrl}`.substring(0, 500);
+
+    rows.push([
+      id,
+      cleanValue_(entry.chu_de) || 'Các vấn đề thời sự',
+      cleanValue_(entry.luan_dieu_sai_trai).substring(0, 1000),
+      cleanValue_(entry.phan_bac_chinh).substring(0, 3000),
+      JSON.stringify(danChung).substring(0, 4000),
+      tuKhoa.substring(0, 500),
+      nguon,
+      Math.min(3, Math.max(1, Number(entry.do_uu_tien) || 2)),
+      'Chờ duyệt',
+      '',
+      new Date()
+    ]);
+  });
+
+  appendRows_(sheet, rows);
+  return rows.length;
+}
+
+function pbkGetProcessedArticleIds_() {
+  const sheet = getSheet_('PHAN_BAC_KHO');
+  if (sheet.getLastRow() <= 1) return new Set();
+
+  const ids = new Set();
+  sheet.getRange(2, 7, sheet.getLastRow() - 1, 1).getValues()
+    .flat().map(cleanValue_)
+    .forEach(nguon => {
+      const match = nguon.match(/TCCS-ARTICLE-(TCCS-A-[a-f0-9-]+)/);
+      if (match) ids.add(match[1]);
+    });
+
+  return ids;
+}
+
+function pbkMarkProcessed_(articleId) {
+  const sheet = getSheet_('PHAN_BAC_KHO');
+  sheet.appendRow([
+    `PBK-SKIP-${articleId.substring(0, 12)}`,
+    'SKIP', 'Bài không có luận điệu sai trái cụ thể',
+    '', '', '', `TCCS-ARTICLE-${articleId} | SKIP`, 0,
+    'Bỏ qua', '', new Date()
+  ]);
+}
+
+function pbkGetArticleMeta_() {
+  const sheet = tccsGetSheet_('TCCS_ARTICLES');
+  if (sheet.getLastRow() <= 1) return {};
+
+  const meta = {};
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues()
+    .forEach(row => {
+      const articleId = cleanValue_(row[0]);
+      if (articleId) {
+        meta[articleId] = { title: cleanValue_(row[1]), topic: cleanValue_(row[2]) };
+      }
+    });
+  return meta;
 }

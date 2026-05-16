@@ -1,10 +1,14 @@
 /**
  * ============================================================
- * MODULE: CRAWL HTML SOURCES
- * Bổ sung các trang không có RSS bằng cách đọc trang chuyên mục,
- * lấy URL bài viết, rồi trích xuất nội dung chính từ HTML.
+ * MODULE: NEWS CRAWLER
+ * Tự động kéo tin tức từ RSS và các nguồn HTML không có RSS.
+ * (Gộp từ 02-rss-crawler.gs + 10-html-crawler.gs)
  * ============================================================
  */
+
+// ============================================================
+// ENTRY POINT: Gộp cả hai nguồn
+// ============================================================
 
 function fetchAllNewsSources() {
   const rssArticles = fetchAllRSS();
@@ -14,6 +18,156 @@ function fetchAllNewsSources() {
   Logger.log(`[Sources] RSS: ${rssArticles.length}, HTML: ${htmlArticles.length}, tổng: ${allArticles.length}`);
   return allArticles;
 }
+
+// ============================================================
+// RSS CRAWLER
+// ============================================================
+
+/**
+ * Kéo tất cả tin từ các nguồn RSS đã cấu hình
+ * @return {Array} Mảng các bài viết thô
+ */
+function fetchAllRSS() {
+  const allArticles = [];
+
+  RSS_SOURCES.forEach(source => {
+    try {
+      Logger.log(`[RSS] Đang kéo từ: ${source.name}`);
+      const response = UrlFetchApp.fetch(source.url, {
+        muteHttpExceptions: true,
+        followRedirects: true
+      });
+
+      if (response.getResponseCode() !== 200) {
+        Logger.log(`[RSS] Lỗi ${response.getResponseCode()} từ ${source.name}`);
+        return;
+      }
+
+      const xmlText = response.getContentText('UTF-8');
+      const xml = XmlService.parse(xmlText);
+      const channel = xml.getRootElement().getChild('channel');
+
+      if (!channel) {
+        Logger.log(`[RSS] Không tìm thấy channel trong ${source.name}`);
+        return;
+      }
+
+      const items = channel.getChildren('item');
+      Logger.log(`[RSS] ${source.name}: ${items.length} bài`);
+
+      items.forEach(item => {
+        try {
+          const article = {
+            title: cleanText(item.getChildText('title')),
+            link: item.getChildText('link'),
+            description: cleanText(item.getChildText('description')),
+            pubDate: item.getChildText('pubDate'),
+            source: source.name,
+            sourcePriority: source.priority
+          };
+
+          if (isRecentArticle(article.pubDate)) {
+            allArticles.push(article);
+          }
+        } catch(e) {
+          Logger.log(`[RSS] Lỗi parse item: ${e}`);
+        }
+      });
+
+    } catch(error) {
+      Logger.log(`[RSS] Lỗi kéo ${source.name}: ${error}`);
+    }
+  });
+
+  Logger.log(`[RSS] Tổng cộng: ${allArticles.length} bài viết`);
+  return allArticles;
+}
+
+/**
+ * Lọc bài theo từ khóa quan tâm
+ * @param {Array} articles - Danh sách bài viết
+ * @return {Array} Bài đã lọc
+ */
+function filterByKeywords(articles) {
+  const filtered = articles.filter(article => {
+    const searchText = (article.title + ' ' + article.description).toLowerCase();
+    return KEYWORDS.some(kw => searchText.includes(kw.toLowerCase()));
+  });
+
+  Logger.log(`[Filter] Sau lọc từ khóa: ${filtered.length} bài`);
+  return filtered;
+}
+
+/**
+ * Loại bỏ các bài trùng lặp (theo title)
+ */
+function removeDuplicates(articles) {
+  const seen = new Set();
+  const sheet = getSheet_('TIN_TUC');
+
+  if (sheet.getLastRow() > 1) {
+    const existingData = sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues();
+    existingData.forEach(row => seen.add(row[0]));
+  }
+
+  const unique = articles.filter(a => {
+    if (seen.has(a.title)) return false;
+    seen.add(a.title);
+    return true;
+  });
+
+  Logger.log(`[Dedup] Sau loại trùng: ${unique.length} bài`);
+  return unique;
+}
+
+/**
+ * Sắp xếp bài theo độ ưu tiên nguồn và mới nhất
+ */
+function sortArticles(articles) {
+  return articles.sort((a, b) => {
+    if (a.sourcePriority !== b.sourcePriority) {
+      return a.sourcePriority - b.sourcePriority;
+    }
+    return new Date(b.pubDate) - new Date(a.pubDate);
+  });
+}
+
+/**
+ * Kiểm tra bài có phải trong 24h gần đây không
+ */
+function isRecentArticle(pubDateStr) {
+  if (!pubDateStr) return true;
+
+  try {
+    const pubDate = new Date(pubDateStr);
+    const now = new Date();
+    const diffHours = (now - pubDate) / (1000 * 60 * 60);
+    return diffHours <= 24;
+  } catch(e) {
+    return true;
+  }
+}
+
+/**
+ * Làm sạch text: loại bỏ HTML, CDATA, whitespace thừa
+ */
+function cleanText(text) {
+  if (!text) return '';
+  return text
+    .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ============================================================
+// HTML CRAWLER
+// ============================================================
 
 function fetchAllHtmlSources() {
   const allArticles = [];
@@ -281,7 +435,7 @@ function htmlExtractTitle_(html, fallbackTitle) {
 
 function htmlCleanTitle_(value) {
   const title = htmlCleanText_(htmlToText_(value));
-  const parts = title.split(/\s+[-\u2013|]\s+/);
+  const parts = title.split(/\s+[-–|]\s+/);
 
   if (parts.length > 1) {
     const tail = htmlNormalizeTextKey_(parts[parts.length - 1]);
@@ -368,7 +522,7 @@ function htmlExtractMainHtml_(html, source) {
 
 function htmlCleanArticleText_(text) {
   return htmlCleanText_(text)
-    .replace(/^\s*(Tin li\u00ean quan|B\u00e0i li\u00ean quan|Xem th\u00eam|\u0110\u1ecdc th\u00eam|Chia s\u1ebb|Theo d\u00f5i|Ngu\u1ed3n tin)\s*:?.*$/gmi, '')
+    .replace(/^\s*(Tin liên quan|Bài liên quan|Xem thêm|Đọc thêm|Chia sẻ|Theo dõi|Nguồn tin)\s*:?.*$/gmi, '')
     .replace(/^\s*(- Advertisement -|Advertisement)\s*$/gmi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -487,8 +641,8 @@ function htmlNormalizeTextKey_(value) {
   return cleanValue_(value)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\u0111/g, 'd')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }

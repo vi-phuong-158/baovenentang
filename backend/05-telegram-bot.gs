@@ -37,7 +37,7 @@ function sendTelegramDailyDigest(articles) {
 function buildTelegramDigest(articles) {
   const today = formatVietnameseDate(new Date());
   
-  let msg = `🛡️ *BẢN TIN TRẬN ĐỊA SỐ*\n`;
+  let msg = `🛡️ *BẢN TIN TRỢ LÝ 35*\n`;
   msg += `📅 _${today}_\n`;
   msg += `━━━━━━━━━━━━━━━━━\n\n`;
   
@@ -152,7 +152,7 @@ function handleTelegramMessage(message) {
  * Lệnh /start
  */
 function handleStartCommand(chatId, userName) {
-  const msg = `🛡️ *Chào mừng ${userName} đến TRẬN ĐỊA SỐ!*\n\n` +
+  const msg = `🛡️ *Chào mừng ${userName} đến TRỢ LÝ 35!*\n\n` +
     `Đây là nền tảng bản tin tự động về:\n` +
     `📰 Tin chính thống hàng ngày\n` +
     `🧠 Kiểm tra nhận thức chính trị\n` +

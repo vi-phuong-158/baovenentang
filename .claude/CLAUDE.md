@@ -5,14 +5,15 @@ Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an t
 ## 🏗️ Kiến trúc hệ thống
 - **Backend (Google Apps Script):** 
   - `01-config.gs`: Quản lý cấu hình tập trung từ Script Properties.
-  - `02-rss-crawler.gs`: Tự động thu thập tin tức từ Nhân Dân, CAND, Chính phủ.
+  - `02-news-crawler.gs`: Thu thập tin tức từ RSS (Nhân Dân, CAND, Chính phủ...) và HTML nguồn không có RSS.
   - `03-gemini-ai.gs`: Xử lý ngôn ngữ tự nhiên (Tóm tắt, Phân tích, Embedding).
   - `04-sheets-db.gs`: Giao tiếp với Google Sheets (Database).
   - `05-telegram-bot.gs`: Tích hợp bot thông báo qua Telegram.
   - `06-email-brevo.gs`: Gửi thông báo/email digest qua Brevo API.
   - `07-main.gs`: Điểm khởi đầu (Entry points: `doGet`, `doPost`, `runDailyNewsBot`).
   - `08-troly35.gs`: Logic cốt lõi của Trợ lý 35 (RAG, Pinecone integration).
-  - `09-tccs-scraper.gs`: Scrape Tạp chí Cộng sản, lưu toàn văn và tạo chunk chọn lọc động bằng AI paragraph plan để đồng bộ vào Pinecone.
+  - `09-tccs.gs`: Pipeline TCCS — Scrape Tạp chí Cộng sản, tạo chunk động (AI paragraph plan), đồng bộ Pinecone, và sinh PHAN_BAC_KHO tự động từ toàn văn bài.
+  - `11-bantin35.gs`: Module Bản tin 35 nội bộ — thu thập nguồn công khai cần theo dõi, phân tích AI, gửi Telegram/Email.
 - **Frontend (Static Web):**
   - Đặt tại `/web`, deploy trên Vercel.
   - Sử dụng Vanilla JS (`app.js`, `troly35.js`) kết hợp CSS hiện đại.

@@ -13,7 +13,7 @@ function AdminDesktop() {
       </div>
       <div className="win-body">
         <aside className="win-side">
-          <div className="brand">🛡 Trận Địa Số</div>
+          <div className="brand">🛡 Trợ lý 35</div>
           <div className="user">PA01 · v.ngocphuong</div>
           <div className="col" style={{ gap: 2 }}>
             <AdminNavItem id="dash" ico="📊" label="Tổng quan" active={active} onClick={setActive} />

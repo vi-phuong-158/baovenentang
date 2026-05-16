@@ -255,6 +255,36 @@ function getTodayArticles() {
 }
 
 /**
+ * Lấy bài viết trong N ngày gần nhất, mới nhất trước.
+ * @param {number} days - Số ngày nhìn lại (1 = hôm nay, 7 = 7 ngày gần nhất,...)
+ */
+function getArticles(days) {
+  const sheet = getSheet_('TIN_TUC');
+  if (sheet.getLastRow() <= 1) return [];
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (Math.max(1, parseInt(days) || 1) - 1));
+  cutoff.setHours(0, 0, 0, 0);
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+  return data
+    .filter(row => row[0] && new Date(row[0]) >= cutoff)
+    .map(row => ({
+      date: row[0],
+      title: row[1],
+      summary: row[2],
+      category: row[3],
+      priority: row[4],
+      message: row[5],
+      source: row[6],
+      link: row[7],
+      keywords: row[8]
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+/**
  * Lấy câu hỏi quiz ngẫu nhiên.
  */
 function getRandomQuiz(count = 1) {

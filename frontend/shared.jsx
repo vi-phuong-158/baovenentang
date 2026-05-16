@@ -80,7 +80,7 @@ function BrandBanner({ small }) {
       textAlign: "center",
     }}>
       <div className="hand" style={{ fontWeight: 700, fontSize: small ? 16 : 20, letterSpacing: ".5px" }}>
-        🛡️ TRẬN ĐỊA SỐ
+        🛡️ TRỢ LÝ 35
       </div>
       <div className="hand2" style={{ fontSize: small ? 11 : 13, marginTop: 2, opacity: .92 }}>
         Thông tin đúng — Tư tưởng vững

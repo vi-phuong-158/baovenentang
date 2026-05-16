@@ -43,7 +43,7 @@ function sendDailyEmailDigest(articles) {
       const result = sendEmailViaBrevo({
         toEmail: sub.email,
         toName: sub.name,
-        subject: `🛡️ Bản tin Trận Địa Số - ${new Date().toLocaleDateString('vi-VN')}`,
+        subject: `🛡️ Bản tin Trợ lý 35 - ${new Date().toLocaleDateString('vi-VN')}`,
         htmlContent: htmlBody
       });
       
@@ -156,7 +156,7 @@ function buildEmailHTML(name, articles) {
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#c0392b 0%,#8b0000 100%);padding:30px 20px;text-align:center;">
-              <h1 style="color:white;margin:0;font-size:28px;letter-spacing:1px;">🛡️ TRẬN ĐỊA SỐ</h1>
+              <h1 style="color:white;margin:0;font-size:28px;letter-spacing:1px;">🛡️ TRỢ LÝ 35</h1>
               <p style="color:#fadbd8;margin:8px 0 0;font-size:14px;">Bản tin tư tưởng hàng ngày</p>
               <p style="color:#fadbd8;margin:5px 0 0;font-size:13px;">${today}</p>
             </td>
@@ -167,7 +167,7 @@ function buildEmailHTML(name, articles) {
             <td style="padding:25px 30px 0;">
               <p style="margin:0;font-size:16px;color:#333;">Xin chào <strong>${safeName}</strong>,</p>
               <p style="margin:10px 0 0;color:#666;font-size:14px;line-height:1.6;">
-                Trận Địa Số gửi đến bạn các tin chọn lọc trong ngày, được phân tích và tổng hợp tự động.
+                Trợ lý 35 gửi đến bạn các tin chọn lọc trong ngày, được phân tích và tổng hợp tự động.
               </p>
             </td>
           </tr>
@@ -234,7 +234,7 @@ function buildEmailHTML(name, articles) {
           <tr>
             <td style="background:#f8f8f8;padding:25px 30px;text-align:center;border-top:1px solid #eee;">
               <p style="margin:0;color:#888;font-size:13px;line-height:1.6;">
-                © 2026 <strong>Trận Địa Số</strong> — Công an tỉnh Phú Thọ<br>
+                © 2026 <strong>Trợ lý 35</strong> — Công an tỉnh Phú Thọ<br>
                 Bản tin tự động phục vụ công tác bảo vệ nền tảng tư tưởng của Đảng
               </p>
               <p style="margin:15px 0 0;font-size:12px;">
@@ -297,11 +297,11 @@ function sendWelcomeEmail(subscriber) {
 <!DOCTYPE html>
 <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
   <div style="background:#c0392b;padding:30px;text-align:center;border-radius:8px 8px 0 0;">
-    <h1 style="color:white;margin:0;">🛡️ Chào mừng đến TRẬN ĐỊA SỐ</h1>
+    <h1 style="color:white;margin:0;">🛡️ Chào mừng đến TRỢ LÝ 35</h1>
   </div>
   <div style="background:white;padding:30px;border:1px solid #eee;border-radius:0 0 8px 8px;">
     <p>Xin chào <strong>${safeName}</strong>,</p>
-    <p>Cảm ơn bạn đã đăng ký nhận bản tin Trận Địa Số!</p>
+    <p>Cảm ơn bạn đã đăng ký nhận bản tin Trợ lý 35!</p>
     <p>Từ ngày mai, mỗi sáng lúc 6h30, bạn sẽ nhận được bản tin tổng hợp các thông tin quan trọng về:</p>
     <ul>
       <li>📰 Tin chính trị - tư tưởng</li>
@@ -315,14 +315,14 @@ function sendWelcomeEmail(subscriber) {
         Khám phá ngay
       </a>
     </div>
-    <p style="color:#888;font-size:13px;">Trân trọng,<br><strong>Đội ngũ Trận Địa Số</strong></p>
+    <p style="color:#888;font-size:13px;">Trân trọng,<br><strong>Đội ngũ Trợ lý 35</strong></p>
   </div>
 </body></html>`;
 
   sendEmailViaBrevo({
     toEmail: subscriber.email,
     toName: subscriber.name,
-    subject: '🛡️ Chào mừng đến Trận Địa Số!',
+    subject: '🛡️ Chào mừng đến Trợ lý 35!',
     htmlContent: html
   });
 }

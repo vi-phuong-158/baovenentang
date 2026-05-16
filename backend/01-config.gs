@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * TRẬN ĐỊA SỐ - Cấu hình Google Apps Script
+ * TRỢ LÝ 35 - Cấu hình Google Apps Script
  * ============================================================
  * Khuyến nghị triển khai:
  * - Không điền API key trực tiếp trong file này.
@@ -12,7 +12,7 @@
 const CONFIG_DEFAULTS = {
   // ===== Gemini AI =====
   GEMINI_API_KEY: '',
-  GEMINI_MODEL: 'gemini-2.0-flash',
+  GEMINI_MODEL: 'gemini-2.5-flash',
   GEMINI_EMBEDDING_MODEL: 'gemini-embedding-2',
 
   // ===== Telegram Bot =====
@@ -22,7 +22,7 @@ const CONFIG_DEFAULTS = {
   // ===== Brevo Email =====
   BREVO_API_KEY: '',
   SENDER_EMAIL: '',
-  SENDER_NAME: 'Trận Địa Số - Phú Thọ',
+  SENDER_NAME: 'Trợ lý 35 - Phú Thọ',
 
   // ===== Google Sheets =====
   SHEET_ID: '',
@@ -46,6 +46,11 @@ const CONFIG_DEFAULTS = {
   // ===== Crawl nguồn HTML không có RSS =====
   HTML_SOURCE_MAX_ARTICLES_PER_SOURCE: 5,
   HTML_SOURCE_REQUEST_DELAY_MS: 1500,
+
+  // ===== Ban tin 35 tu cac nguon cong khai can theo doi =====
+  BANTIN35_MAX_ITEMS_PER_SOURCE: 5,
+  BANTIN35_LOOKBACK_DAYS: 7,
+  BANTIN35_REQUEST_DELAY_MS: 1500,
 
   // ===== Web App URL =====
   WEB_APP_URL: '',
@@ -146,11 +151,14 @@ function showConfigSetupInstructions() {
     TCCS_REQUEST_DELAY_MS: '2500',
     HTML_SOURCE_MAX_ARTICLES_PER_SOURCE: '5',
     HTML_SOURCE_REQUEST_DELAY_MS: '1500',
+    BANTIN35_MAX_ITEMS_PER_SOURCE: '5',
+    BANTIN35_LOOKBACK_DAYS: '7',
+    BANTIN35_REQUEST_DELAY_MS: '1500',
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
     BREVO_API_KEY: 'xkeysib-...',
     SENDER_EMAIL: 'email-da-verify@domain.vn',
-    SENDER_NAME: 'Trận Địa Số - Phú Thọ',
+    SENDER_NAME: 'Trợ lý 35 - Phú Thọ',
     WEB_APP_URL: 'https://script.google.com/macros/s/.../exec',
     ADMIN_EMAIL: 'admin@domain.vn',
     MAX_ARTICLES_PER_DAY: '10',

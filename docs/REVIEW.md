@@ -1,4 +1,4 @@
-# REVIEW — Trận Địa Số (Đánh giá kỹ thuật toàn diện)
+# REVIEW — Trợ lý 35 (Đánh giá kỹ thuật toàn diện)
 
 > Ngày review: 2026-05-14  
 > Người review: Claude Code (AI Assistant)  

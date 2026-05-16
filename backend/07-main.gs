@@ -13,7 +13,7 @@
 function runDailyNewsBot() {
   const startTime = new Date();
   Logger.log('═══════════════════════════════════');
-  Logger.log('🚀 TRẬN ĐỊA SỐ - Bắt đầu chu trình hàng ngày');
+  Logger.log('🚀 TRỢ LÝ 35 - Bắt đầu chu trình hàng ngày');
   Logger.log(`Thời gian: ${startTime.toLocaleString('vi-VN')}`);
   Logger.log('═══════════════════════════════════');
   
@@ -61,8 +61,8 @@ function runDailyNewsBot() {
     // Bước 8: Gửi Email
     Logger.log('\n📧 BƯỚC 7: Gửi Email');
     sendDailyEmailDigest(enriched);
-    
-    // Bước 9: Cập nhật thống kê
+
+    // Bước 8: Cập nhật thống kê
     Logger.log('\n📊 BƯỚC 8: Cập nhật thống kê');
     updateDailyStats({
       articlesCount: enriched.length,
@@ -94,7 +94,7 @@ function notifyAdminError(error) {
     sendEmailViaBrevo({
       toEmail: CONFIG.ADMIN_EMAIL,
       toName: 'Admin',
-      subject: '❌ Trận Địa Số - Lỗi hệ thống',
+      subject: '❌ Trợ lý 35 - Lỗi hệ thống',
       htmlContent: `<h2>Lỗi xảy ra trong runDailyNewsBot</h2>
         <p><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</p>
         <p><strong>Lỗi:</strong> ${error.toString()}</p>
@@ -122,7 +122,12 @@ function doGet(e) {
       case 'today':
         result = { success: true, data: getTodayArticles() };
         break;
-        
+
+      case 'articles':
+        const days = parseInt(params.days, 10) || 1;
+        result = { success: true, data: getArticles(days) };
+        break;
+
       case 'quiz':
         const count = parseInt(params.count, 10) || 10;
         result = { success: true, data: getRandomQuiz(count) };
@@ -140,10 +145,10 @@ function doGet(e) {
       default:
         result = { 
           success: true, 
-          message: 'Trận Địa Số API',
+          message: 'Trợ lý 35 API',
           version: '1.0',
           endpoints: ['today', 'quiz', 'rebuttals', 'stats'],
-          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends']
+          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest']
         };
     }
   } catch(error) {
@@ -201,6 +206,14 @@ function doPost(e) {
 
       case 'troly35_trends':
         result = handleTroLy35Trends(data);
+        break;
+
+      case 'bantin35_generate':
+        result = handleBanTin35Generate(data);
+        break;
+
+      case 'bantin35_latest':
+        result = handleBanTin35Latest(data);
         break;
         
       case 'contact':
@@ -262,6 +275,7 @@ function setupSystem() {
   
   // 2. Tạo trigger chạy hàng ngày
   setupDailyTrigger();
+  setupBanTin35Trigger();
   
   // 3. Setup Telegram webhook (nếu đã có Web App URL)
   if (!isBlank_(CONFIG.WEB_APP_URL) && hasRequiredConfig_(REQUIRED_TELEGRAM_CONFIG)) {
@@ -291,15 +305,35 @@ function setupDailyTrigger() {
       ScriptApp.deleteTrigger(trigger);
     }
   });
-  
+
   // Tạo trigger mới
   ScriptApp.newTrigger('runDailyNewsBot')
     .timeBased()
     .everyDays(1)
     .atHour(CONFIG.RUN_HOUR)
     .create();
-  
-  Logger.log(`✅ Đã tạo trigger chạy lúc ${CONFIG.RUN_HOUR}h hàng ngày`);
+
+  Logger.log(`✅ Đã tạo trigger tin tức chạy lúc ${CONFIG.RUN_HOUR}h hàng ngày`);
+}
+
+/**
+ * Tạo trigger riêng cho Bản tin 35 (chạy sau runDailyNewsBot 2 tiếng)
+ */
+function setupBanTin35Trigger() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'runBanTin35DailyStep') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  const hour = Number(CONFIG.BANTIN35_RUN_HOUR) || (Number(CONFIG.RUN_HOUR) + 2) || 8;
+  ScriptApp.newTrigger('runBanTin35DailyStep')
+    .timeBased()
+    .everyDays(1)
+    .atHour(hour)
+    .create();
+
+  Logger.log(`✅ Đã tạo trigger Bản tin 35 chạy lúc ${hour}h hàng ngày`);
 }
 
 function logMissingOptionalConfig_() {
@@ -352,7 +386,7 @@ function testRun() {
     } else if (filtered.length > 0) {
       sendTelegramMessage(
         CONFIG.TELEGRAM_CHANNEL, 
-        '🧪 *Test*: Đây là tin nhắn kiểm tra từ Trận Địa Số'
+        '🧪 *Test*: Đây là tin nhắn kiểm tra từ Trợ lý 35'
       );
     }
     

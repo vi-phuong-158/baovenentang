@@ -1,4 +1,4 @@
-# PLAN — Kế hoạch chỉnh sửa Trận Địa Số
+# PLAN — Kế hoạch chỉnh sửa Trợ lý 35
 
 > Tạo ngày: 2026-05-14  
 > Dựa trên: REVIEW.md  
