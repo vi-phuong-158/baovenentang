@@ -14,14 +14,35 @@ const PAGES = {
   'dang-ky':  DangKy,
 };
 
+const TAB_IDS = Object.keys(PAGES);
+
 export default function App() {
   const [tab, setTab] = useState('tin-tuc');
-  const Page = PAGES[tab] ?? TinTuc;
+  // Track which tabs have been visited so we lazy-mount on first visit
+  const [mounted, setMounted] = useState(() => new Set(['tin-tuc']));
+
+  const handleSelect = (id) => {
+    setTab(id);
+    setMounted(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
 
   return (
     <>
-      <Page key={tab} />
-      <BottomNav active={tab} onSelect={setTab} />
+      {TAB_IDS.map(id => {
+        if (!mounted.has(id)) return null;
+        const Page = PAGES[id];
+        return (
+          <div key={id} style={{ display: id === tab ? 'block' : 'none' }}>
+            <Page />
+          </div>
+        );
+      })}
+      <BottomNav active={tab} onSelect={handleSelect} />
     </>
   );
 }

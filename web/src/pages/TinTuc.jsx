@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X } from 'lucide-react';
-import { getArticles, getStats } from '../api.js';
+import { getArticles, getStats, invalidateCache } from '../api.js';
 
 function useAnimatedCounter(target, duration = 1200) {
   const [value, setValue] = useState(0);
@@ -85,7 +85,11 @@ export default function TinTuc() {
   const [category, setCategory] = useState('');
   const [onlyImportant, setOnlyImportant] = useState(false);
 
-  const load = async (d = days) => {
+  const load = async (d = days, forceRefresh = false) => {
+    if (forceRefresh) {
+      invalidateCache(`articles-${d}`);
+      invalidateCache('stats');
+    }
     setLoading(true);
     setError('');
     try {
@@ -140,7 +144,7 @@ export default function TinTuc() {
             <h1>Bản tin</h1>
             <p>Tổng hợp từ nguồn chính thống</p>
           </div>
-          <button onClick={() => load(days)} disabled={loading}
+          <button onClick={() => load(days, true)} disabled={loading}
             style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 10, padding: '8px 10px', color: '#fff', cursor: 'pointer' }}>
             <RefreshCw size={16} className={loading ? 'spinner' : ''} />
           </button>

@@ -8,15 +8,30 @@ const getJson = (url) =>
     return res.data ?? res;
   });
 
+// Simple in-memory cache — resets on page refresh, persists across tab switches
+const CACHE = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 phút
+
+const cached = (key, fetcher) => {
+  const entry = CACHE.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return Promise.resolve(entry.data);
+  return fetcher().then(data => {
+    CACHE.set(key, { data, ts: Date.now() });
+    return data;
+  });
+};
+
+export const invalidateCache = (key) => key ? CACHE.delete(key) : CACHE.clear();
+
 // GET helpers — return unwrapped data directly
 export const getToday = () =>
   getJson(`${API_URL}?action=today`);
 
 export const getArticles = (days = 1) =>
-  getJson(`${API_URL}?action=articles&days=${days}`);
+  cached(`articles-${days}`, () => getJson(`${API_URL}?action=articles&days=${days}`));
 
 export const getStats = () =>
-  getJson(`${API_URL}?action=stats`);
+  cached('stats', () => getJson(`${API_URL}?action=stats`));
 
 export const getQuiz = (count = 10) =>
   getJson(`${API_URL}?action=quiz&count=${count}`);
