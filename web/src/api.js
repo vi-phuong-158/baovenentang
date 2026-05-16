@@ -36,6 +36,9 @@ export const getStats = () =>
 export const getQuiz = (count = 10) =>
   getJson(`${API_URL}?action=quiz&count=${count}`);
 
+export const searchArticles = (q, limit = 50) =>
+  getJson(`${API_URL}?action=search&q=${encodeURIComponent(q)}&limit=${limit}`);
+
 export const getRebuttals = (keyword) =>
   getJson(`${API_URL}?action=rebuttals&keyword=${encodeURIComponent(keyword)}`);
 

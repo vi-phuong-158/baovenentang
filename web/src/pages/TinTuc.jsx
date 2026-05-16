@@ -1,6 +1,15 @@
 import { useEffect, useState, useMemo } from 'react';
 import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X } from 'lucide-react';
-import { getArticles, getStats, invalidateCache } from '../api.js';
+import { getArticles, getStats, invalidateCache, searchArticles } from '../api.js';
+
+function useDebounce(value, delay) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 function useAnimatedCounter(target, duration = 1200) {
   const [value, setValue] = useState(0);
@@ -76,8 +85,10 @@ const DAY_OPTIONS = [
 
 export default function TinTuc() {
   const [news, setNews] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [days, setDays] = useState(1);
@@ -85,6 +96,10 @@ export default function TinTuc() {
   const [category, setCategory] = useState('');
   const [onlyImportant, setOnlyImportant] = useState(false);
 
+  const debouncedSearch = useDebounce(search, 400);
+  const isSearchMode = debouncedSearch.trim().length > 0;
+
+  // Browse mode: load theo khoảng ngày, có cache
   const load = async (d = days, forceRefresh = false) => {
     if (forceRefresh) {
       invalidateCache(`articles-${d}`);
@@ -105,33 +120,39 @@ export default function TinTuc() {
 
   useEffect(() => { load(days); }, [days]);
 
+  // Search mode: gọi server mỗi khi từ khoá thay đổi (sau debounce)
+  useEffect(() => {
+    const q = debouncedSearch.trim();
+    if (!q) { setSearchResults([]); return; }
+
+    setSearchLoading(true);
+    searchArticles(q)
+      .then(res => setSearchResults(Array.isArray(res) ? res : []))
+      .catch(() => setSearchResults([]))
+      .finally(() => setSearchLoading(false));
+  }, [debouncedSearch]);
+
+  // Khi đổi tab sang search mode thì reset category filter
+  useEffect(() => { setCategory(''); }, [isSearchMode]);
+
+  const baseList = isSearchMode ? searchResults : news;
+
   const categories = useMemo(() => {
-    const cats = news.map(a => a.category).filter(Boolean);
+    const cats = baseList.map(a => a.category).filter(Boolean);
     return [...new Set(cats)].sort();
-  }, [news]);
+  }, [baseList]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    return news.filter(a => {
+    return baseList.filter(a => {
       if (onlyImportant && a.priority !== 'Quan trọng' && a.priority !== 1) return false;
       if (category && a.category !== category) return false;
-      if (q && !(
-        (a.title || '').toLowerCase().includes(q) ||
-        (a.summary || '').toLowerCase().includes(q) ||
-        (a.source || '').toLowerCase().includes(q) ||
-        (a.keywords || '').toLowerCase().includes(q)
-      )) return false;
       return true;
     });
-  }, [news, search, category, onlyImportant]);
+  }, [baseList, category, onlyImportant]);
 
-  const hasFilter = search || category || onlyImportant;
-
-  const clearFilters = () => {
-    setSearch('');
-    setCategory('');
-    setOnlyImportant(false);
-  };
+  const isLoading = isSearchMode ? searchLoading : loading;
+  const hasFilter = category || onlyImportant;
+  const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
 
   return (
     <div className="page page-fade">
@@ -144,14 +165,14 @@ export default function TinTuc() {
             <h1>Bản tin</h1>
             <p>Tổng hợp từ nguồn chính thống</p>
           </div>
-          <button onClick={() => load(days, true)} disabled={loading}
-            style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 10, padding: '8px 10px', color: '#fff', cursor: 'pointer' }}>
+          <button onClick={() => load(days, true)} disabled={loading || isSearchMode}
+            style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 10, padding: '8px 10px', color: '#fff', cursor: isSearchMode ? 'default' : 'pointer', opacity: isSearchMode ? .4 : 1 }}>
             <RefreshCw size={16} className={loading ? 'spinner' : ''} />
           </button>
         </div>
       </div>
 
-      {stats && (
+      {stats && !isSearchMode && (
         <div className="card tinted" style={{ marginBottom: 14 }}>
           <div className="section-label">Thống kê</div>
           <div className="row" style={{ justifyContent: 'space-around' }}>
@@ -162,16 +183,18 @@ export default function TinTuc() {
         </div>
       )}
 
-      {/* Khoảng thời gian */}
-      <div className="row" style={{ gap: 6, marginBottom: 12 }}>
-        {DAY_OPTIONS.map(opt => (
-          <button key={opt.value} onClick={() => setDays(opt.value)}
-            className={`btn ${days === opt.value ? 'primary' : 'ghost'} sm`}
-            style={{ flex: 1 }}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      {/* Khoảng thời gian — ẩn khi đang tìm kiếm */}
+      {!isSearchMode && (
+        <div className="row" style={{ gap: 6, marginBottom: 12 }}>
+          {DAY_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => setDays(opt.value)}
+              className={`btn ${days === opt.value ? 'primary' : 'ghost'} sm`}
+              style={{ flex: 1 }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tìm kiếm */}
       <div style={{ position: 'relative', marginBottom: 10 }}>
@@ -180,7 +203,7 @@ export default function TinTuc() {
           className="field"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm tiêu đề, tóm tắt, nguồn..."
+          placeholder="Tìm trong toàn bộ bản tin..."
           style={{ paddingLeft: 36, paddingRight: search ? 36 : 12 }}
         />
         {search && (
@@ -191,8 +214,15 @@ export default function TinTuc() {
         )}
       </div>
 
+      {/* Nhãn search mode */}
+      {isSearchMode && (
+        <div className="text-xs text-mute" style={{ marginBottom: 10, paddingLeft: 2 }}>
+          🔍 Đang tìm kiếm toàn bộ dữ liệu
+        </div>
+      )}
+
       {/* Lọc chuyên mục + ưu tiên */}
-      {(categories.length > 0 || !loading) && (
+      {(categories.length > 0 || !isLoading) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
           <button
             onClick={() => setCategory('')}
@@ -219,7 +249,10 @@ export default function TinTuc() {
       {/* Đếm kết quả + clear */}
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>
-          {loading ? 'Đang tải...' : `${filtered.length} bài${news.length !== filtered.length ? ` / ${news.length}` : ''}`}
+          {isLoading
+            ? (isSearchMode ? 'Đang tìm...' : 'Đang tải...')
+            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}`
+          }
         </div>
         {hasFilter && (
           <button onClick={clearFilters}
@@ -229,13 +262,16 @@ export default function TinTuc() {
         )}
       </div>
 
-      {loading && (
-        <div className="empty"><RefreshCw size={24} className="spinner" style={{ marginBottom: 8 }} /><br />Đang tải...</div>
+      {isLoading && (
+        <div className="empty"><RefreshCw size={24} className="spinner" style={{ marginBottom: 8 }} /><br />{isSearchMode ? 'Đang tìm...' : 'Đang tải...'}</div>
       )}
-      {error && <div className="msg error">{error}</div>}
-      {!loading && !error && filtered.length === 0 && (
+      {error && !isSearchMode && <div className="msg error">{error}</div>}
+      {!isLoading && filtered.length === 0 && (
         <div className="empty">
-          {hasFilter ? 'Không có bài nào khớp bộ lọc.' : 'Chưa có bản tin trong khoảng thời gian này.'}
+          {isSearchMode
+            ? `Không tìm thấy bài nào khớp "${debouncedSearch}".`
+            : (hasFilter ? 'Không có bài nào khớp bộ lọc.' : 'Chưa có bản tin trong khoảng thời gian này.')
+          }
         </div>
       )}
       {filtered.map((a, i) => <NewsCard key={i} article={a} />)}

@@ -133,6 +133,12 @@ function doGet(e) {
         result = { success: true, data: getRandomQuiz(count) };
         break;
         
+      case 'search':
+        const searchQuery = params.q || params.query || '';
+        const searchLimit = parseInt(params.limit, 10) || 50;
+        result = { success: true, data: searchArticles(searchQuery, searchLimit) };
+        break;
+
       case 'rebuttals':
         const keyword = params.keyword || '';
         result = { success: true, data: getRebuttals(keyword) };

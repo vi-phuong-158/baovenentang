@@ -345,6 +345,49 @@ function updateDailyStats(stats) {
 }
 
 /**
+ * Tìm kiếm bài viết toàn bộ sheet TIN_TUC theo từ khoá.
+ * Tìm trong: tiêu đề, tóm tắt, nguồn, từ khóa.
+ * @param {string} query - Từ khoá tìm kiếm
+ * @param {number} limit - Số kết quả tối đa (mặc định 50, tối đa 100)
+ */
+function searchArticles(query, limit) {
+  const sheet = getSheet_('TIN_TUC');
+  if (sheet.getLastRow() <= 1) return [];
+
+  const q = (query || '').toString().toLowerCase().trim();
+  if (!q) return [];
+
+  const maxResults = Math.min(parseInt(limit) || 50, 100);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+  const results = [];
+  // Duyệt từ dòng mới nhất (cuối sheet) lên để ưu tiên bài gần đây
+  for (let i = data.length - 1; i >= 0 && results.length < maxResults; i--) {
+    const row = data[i];
+    const title    = (row[1] || '').toString().toLowerCase();
+    const summary  = (row[2] || '').toString().toLowerCase();
+    const source   = (row[6] || '').toString().toLowerCase();
+    const keywords = (row[8] || '').toString().toLowerCase();
+
+    if (title.includes(q) || summary.includes(q) || source.includes(q) || keywords.includes(q)) {
+      results.push({
+        date:     row[0],
+        title:    row[1],
+        summary:  row[2],
+        category: row[3],
+        priority: row[4],
+        message:  row[5],
+        source:   row[6],
+        link:     row[7],
+        keywords: row[8]
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
  * Lấy danh sách luận điểm phản bác.
  */
 function getRebuttals(searchKeyword) {
