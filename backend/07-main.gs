@@ -279,9 +279,10 @@ function setupSystem() {
   // 1. Tạo cấu trúc sheets
   initializeSheets();
   
-  // 2. Tạo trigger chạy hàng ngày
+  // 2. Tạo trigger chạy hàng ngày + archive hàng tháng
   setupDailyTrigger();
   setupBanTin35Trigger();
+  setupArchiveTrigger();
   
   // 3. Setup Telegram webhook (nếu đã có Web App URL)
   if (!isBlank_(CONFIG.WEB_APP_URL) && hasRequiredConfig_(REQUIRED_TELEGRAM_CONFIG)) {
@@ -320,6 +321,48 @@ function setupDailyTrigger() {
     .create();
 
   Logger.log(`✅ Đã tạo trigger tin tức chạy lúc ${CONFIG.RUN_HOUR}h hàng ngày`);
+}
+
+/**
+ * Tạo trigger archive tự động — chạy ngày 1 mỗi tháng lúc 2h sáng.
+ * Gọi trong setupSystem() hoặc chạy thủ công 1 lần.
+ */
+function setupArchiveTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'runMonthlyArchive') ScriptApp.deleteTrigger(t);
+  });
+
+  ScriptApp.newTrigger('runMonthlyArchive')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(2)
+    .create();
+
+  Logger.log('✅ Đã tạo trigger archive chạy ngày 1 mỗi tháng lúc 2h sáng');
+}
+
+/**
+ * Handler trigger — tự động chạy ngày 1 mỗi tháng.
+ * Archive bài viết cũ hơn 6 tháng sang Spreadsheet backup riêng.
+ */
+function runMonthlyArchive() {
+  Logger.log('📦 Bắt đầu archive bản tin cũ (> 6 tháng)...');
+  try {
+    assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
+    const result = archiveOldArticles();
+    Logger.log(`✅ Archive hoàn tất — đã chuyển: ${result.archived} bài, còn lại: ${result.remaining} bài`);
+    if (result.archiveUrl) Logger.log(`📄 Backup: ${result.archiveUrl}`);
+  } catch (e) {
+    Logger.log(`❌ Lỗi archive: ${e}`);
+    notifyAdminError(e);
+  }
+}
+
+/**
+ * Chạy thủ công để kiểm tra archive (không cần chờ trigger tháng).
+ */
+function runArchiveNow() {
+  runMonthlyArchive();
 }
 
 /**
