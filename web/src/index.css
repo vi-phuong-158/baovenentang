@@ -107,7 +107,7 @@ img { display: block; max-width: 100%; }
 .page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 16px 88px;
+  padding: 20px 16px 72px;
   min-height: 100dvh;
 }
 
@@ -331,7 +331,7 @@ h1, h2, h3 { font-family: var(--font-display); }
 .divider   { height: 1px; background: var(--line-soft); margin: 12px 0; }
 
 /* ── Bottom nav safe-area ────────────────────────────── */
-.bottom-nav-spacer { height: 84px; }
+.bottom-nav-spacer { height: 82px; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

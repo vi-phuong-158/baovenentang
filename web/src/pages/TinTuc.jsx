@@ -1,16 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X, Bell } from 'lucide-react';
-import { getArticles, getStats, invalidateCache, searchArticles } from '../api.js';
-=======
 import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
->>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
-=======
-import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
-import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
->>>>>>> Stashed changes
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -94,7 +84,16 @@ const DAY_OPTIONS = [
 ];
 const PAGE_LIMIT = 20;
 
-<<<<<<< HEAD
+const SIGNUP_TOPICS = [
+  'Bảo vệ nền tảng tư tưởng',
+  'An ninh mạng',
+  'Chính sách pháp luật',
+  'Phòng chống tham nhũng',
+  'Đối ngoại - Chủ quyền',
+];
+
+const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
+
 function normalizePagedResponse(res) {
   if (Array.isArray(res)) return { items: res, total: res.length, page: 1, hasMore: false };
   return {
@@ -105,30 +104,7 @@ function normalizePagedResponse(res) {
   };
 }
 
-export default function TinTuc({ onNavigate }) {
-=======
-const SIGNUP_TOPICS = [
-  'Bảo vệ nền tảng tư tưởng',
-  'An ninh mạng',
-  'Chính sách pháp luật',
-  'Phòng chống tham nhũng',
-  'Đối ngoại - Chủ quyền',
-];
-
-const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
-
-const SIGNUP_TOPICS = [
-  'Bảo vệ nền tảng tư tưởng',
-  'An ninh mạng',
-  'Chính sách pháp luật',
-  'Phòng chống tham nhũng',
-  'Đối ngoại - Chủ quyền',
-];
-
-const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
-
 export default function TinTuc() {
->>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
   const [news, setNews] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [stats, setStats] = useState(null);
@@ -156,7 +132,6 @@ export default function TinTuc() {
   const debouncedSearch = useDebounce(search, 400);
   const isSearchMode = debouncedSearch.trim().length > 0;
 
-  // Browse mode: load theo khoảng ngày, có cache
   const load = async (d = days, forceRefresh = false) => {
     if (forceRefresh) {
       invalidateCache();
@@ -181,7 +156,6 @@ export default function TinTuc() {
 
   useEffect(() => { load(days); }, [days]);
 
-  // Search mode: gọi server mỗi khi từ khoá thay đổi (sau debounce)
   useEffect(() => {
     const q = debouncedSearch.trim();
     if (!q) {
@@ -191,7 +165,6 @@ export default function TinTuc() {
       setSearchTotal(0);
       return;
     }
-
     setSearchLoading(true);
     searchArticles(q, 1, PAGE_LIMIT)
       .then(res => {
@@ -205,7 +178,6 @@ export default function TinTuc() {
       .finally(() => setSearchLoading(false));
   }, [debouncedSearch]);
 
-  // Khi đổi tab sang search mode thì reset category filter
   useEffect(() => { setCategory(''); }, [isSearchMode]);
 
   const baseList = isSearchMode ? searchResults : news;
@@ -227,8 +199,7 @@ export default function TinTuc() {
   const canLoadMore = isSearchMode ? searchHasMore : hasMore;
   const hasFilter = category || onlyImportant;
   const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
-<<<<<<< Updated upstream
-<<<<<<< HEAD
+
   const loadMore = async () => {
     if (loadingMore) return;
     setLoadingMore(true);
@@ -248,12 +219,13 @@ export default function TinTuc() {
       }
     } finally {
       setLoadingMore(false);
-=======
-=======
->>>>>>> Stashed changes
-  const setSignup = (key, value) => setSignupForm(form => ({ ...form, [key]: value }));
+    }
+  };
+
+  const setSignupField = (key, value) => setSignupForm(f => ({ ...f, [key]: value }));
+
   const selectSignupChannel = (channel) => {
-    setSignup('channel', channel);
+    setSignupField('channel', channel);
     if (channel === 'Telegram') {
       window.open(TELEGRAM_CHANNEL_URL, '_blank', 'noopener,noreferrer');
     }
@@ -271,7 +243,6 @@ export default function TinTuc() {
       setSignupError('Vui lòng điền đầy đủ họ tên, email và chủ đề.');
       return;
     }
-
     setSignupLoading(true);
     setSignupError('');
     try {
@@ -284,28 +255,37 @@ export default function TinTuc() {
       setSignupError(err.message || 'Không đăng ký được. Thử lại sau.');
     } finally {
       setSignupLoading(false);
-<<<<<<< Updated upstream
->>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
-=======
->>>>>>> Stashed changes
     }
   };
 
   return (
     <div className="page page-fade">
+      {/* Header */}
       <div className="page-header">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1>Bản tin</h1>
             <p>Tổng hợp từ nguồn chính thống</p>
           </div>
-          <button onClick={() => load(days, true)} disabled={loading || isSearchMode}
-            style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 10, padding: '8px 10px', color: '#fff', cursor: isSearchMode ? 'default' : 'pointer', opacity: isSearchMode ? .4 : 1 }}>
+          <button
+            onClick={() => load(days, true)}
+            disabled={loading || isSearchMode}
+            style={{
+              background: 'rgba(255,255,255,.15)',
+              border: '1px solid rgba(255,255,255,.3)',
+              borderRadius: 10,
+              padding: '8px 10px',
+              color: '#fff',
+              cursor: isSearchMode ? 'default' : 'pointer',
+              opacity: isSearchMode ? .4 : 1,
+            }}
+          >
             <RefreshCw size={16} className={loading ? 'spinner' : ''} />
           </button>
         </div>
       </div>
 
+      {/* Stats */}
       {stats && !isSearchMode && (
         <div className="card tinted" style={{ marginBottom: 14 }}>
           <div className="section-label">Thống kê</div>
@@ -317,60 +297,16 @@ export default function TinTuc() {
         </div>
       )}
 
+      {/* Inline signup block */}
       {!isSearchMode && (
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-        <div className="card elevated" style={{
-          marginBottom: 20,
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 14,
-        }}>
-          <div className="row" style={{ gap: 14, minWidth: 0 }}>
-            <div className="chip red lg" style={{ borderRadius: 16 }}>
-              <Bell size={18} strokeWidth={2.1} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: 16,
-                lineHeight: 1.2,
-                color: 'var(--ink)',
-                marginBottom: 3,
-              }}>
-                Theo dõi bản tin
-              </div>
-              <div className="text-sm text-soft" style={{ lineHeight: 1.35 }}>
-                Nhận tin chọn lọc qua Email hoặc Telegram.
-              </div>
-            </div>
-          </div>
-          <button
-            className="btn primary sm"
-            onClick={() => onNavigate?.('dang-ky')}
-            style={{
-              flexShrink: 0,
-              borderRadius: 16,
-              padding: '11px 18px',
-              fontWeight: 800,
-              boxShadow: '0 9px 20px rgba(184,50,39,.28)',
-            }}
-          >
-            Đăng ký
-          </button>
-=======
-=======
->>>>>>> Stashed changes
         <div className={`card ${showSignup ? 'elevated' : 'tinted'}`} style={{ marginBottom: 14 }}>
+          {/* Collapsed state */}
           {!showSignup && (
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div className="row" style={{ gap: 10 }}>
                 <div className="chip red"><Bell size={16} /></div>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}>Theo dõi bản tin</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15 }}>Theo dõi bản tin</div>
                   <div className="text-sm text-soft">Nhận tin chọn lọc qua Email hoặc Telegram.</div>
                 </div>
               </div>
@@ -380,11 +316,14 @@ export default function TinTuc() {
             </div>
           )}
 
+          {/* Success state */}
           {showSignup && signupSuccess && (
             <div style={{ textAlign: 'center', padding: '12px 4px' }}>
               <CheckCircle size={36} color="var(--ok)" style={{ margin: '0 auto 8px' }} />
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Đăng ký thành công!</div>
-              <div className="text-sm text-soft" style={{ marginBottom: 14 }}>Bạn sẽ nhận bản tin qua <strong>{signupForm.channel}</strong>.</div>
+              <div className="text-sm text-soft" style={{ marginBottom: 14 }}>
+                Bạn sẽ nhận bản tin qua <strong>{signupForm.channel}</strong>.
+              </div>
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn ghost full" onClick={resetSignup}>Đăng ký thêm</button>
                 <button className="btn primary full" onClick={() => setShowSignup(false)}>Xong</button>
@@ -392,29 +331,30 @@ export default function TinTuc() {
             </div>
           )}
 
+          {/* Form expanded */}
           {showSignup && !signupSuccess && (
             <form onSubmit={submitSignup}>
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
                 <div className="row" style={{ gap: 8 }}>
                   <div className="chip red"><Bell size={15} /></div>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}>Theo dõi bản tin</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15 }}>Đăng ký bản tin</span>
                 </div>
-                <button type="button" onClick={() => setShowSignup(false)} style={{ color: 'var(--ink-mute)', display: 'flex' }} aria-label="Đóng đăng ký">
+                <button type="button" onClick={() => setShowSignup(false)} style={{ color: 'var(--ink-mute)', display: 'flex' }} aria-label="Đóng">
                   <X size={18} />
                 </button>
               </div>
 
               <div className="field-group">
                 <label className="field-label">Họ và tên *</label>
-                <input className="field" value={signupForm.name} onChange={e => setSignup('name', e.target.value)} placeholder="Nguyễn Văn A" />
+                <input className="field" value={signupForm.name} onChange={e => setSignupField('name', e.target.value)} placeholder="Nguyễn Văn A" />
               </div>
               <div className="field-group">
                 <label className="field-label">Email *</label>
-                <input className="field" type="email" value={signupForm.email} onChange={e => setSignup('email', e.target.value)} placeholder="email@domain.vn" />
+                <input className="field" type="email" value={signupForm.email} onChange={e => setSignupField('email', e.target.value)} placeholder="email@domain.vn" />
               </div>
               <div className="field-group">
                 <label className="field-label">Đơn vị công tác</label>
-                <input className="field" value={signupForm.organization} onChange={e => setSignup('organization', e.target.value)} placeholder="PA01 - Công an tỉnh Phú Thọ" />
+                <input className="field" value={signupForm.organization} onChange={e => setSignupField('organization', e.target.value)} placeholder="PA01 - Công an tỉnh Phú Thọ" />
               </div>
 
               <div className="section-label" style={{ marginTop: 4 }}>Chủ đề quan tâm *</div>
@@ -423,7 +363,7 @@ export default function TinTuc() {
                   <button
                     key={topic}
                     type="button"
-                    onClick={() => setSignup('topics', topic)}
+                    onClick={() => setSignupField('topics', topic)}
                     className="pill"
                     style={{
                       cursor: 'pointer',
@@ -447,7 +387,7 @@ export default function TinTuc() {
                     className={`btn ${signupForm.channel === channel ? 'primary' : 'ghost'} sm`}
                     style={{ flex: 1 }}
                   >
-                    {channel}
+                    {channel === 'Email' ? '📧' : '💬'} {channel}
                   </button>
                 ))}
               </div>
@@ -459,14 +399,10 @@ export default function TinTuc() {
               </button>
             </form>
           )}
-<<<<<<< Updated upstream
->>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
-=======
->>>>>>> Stashed changes
         </div>
       )}
 
-      {/* Khoảng thời gian — ẩn khi đang tìm kiếm */}
+      {/* Khoảng thời gian */}
       {!isSearchMode && (
         <div className="row" style={{ gap: 6, marginBottom: 12 }}>
           {DAY_OPTIONS.map(opt => (
@@ -497,44 +433,39 @@ export default function TinTuc() {
         )}
       </div>
 
-      {/* Nhãn search mode */}
+      {/* Search mode label */}
       {isSearchMode && (
         <div className="text-xs text-mute" style={{ marginBottom: 10, paddingLeft: 2 }}>
           🔍 Đang tìm kiếm toàn bộ dữ liệu
         </div>
       )}
 
-      {/* Lọc chuyên mục + ưu tiên */}
+      {/* Category filters */}
       {(categories.length > 0 || !isLoading) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-          <button
-            onClick={() => setCategory('')}
-            className="pill"
+          <button onClick={() => setCategory('')} className="pill"
             style={{ cursor: 'pointer', background: !category ? 'var(--ink)' : 'var(--surface)', color: !category ? '#fff' : 'var(--ink-soft)', border: `1.5px solid ${!category ? 'var(--ink)' : 'var(--line)'}`, transition: 'all .15s' }}>
             Tất cả
           </button>
           {categories.map(cat => (
-            <button key={cat} onClick={() => setCategory(c => c === cat ? '' : cat)}
-              className="pill"
+            <button key={cat} onClick={() => setCategory(c => c === cat ? '' : cat)} className="pill"
               style={{ cursor: 'pointer', background: category === cat ? 'var(--red)' : 'var(--surface)', color: category === cat ? '#fff' : 'var(--ink-soft)', border: `1.5px solid ${category === cat ? 'var(--red)' : 'var(--line)'}`, transition: 'all .15s' }}>
               {cat}
             </button>
           ))}
-          <button
-            onClick={() => setOnlyImportant(v => !v)}
-            className="pill"
+          <button onClick={() => setOnlyImportant(v => !v)} className="pill"
             style={{ cursor: 'pointer', background: onlyImportant ? 'var(--red-soft)' : 'var(--surface)', color: onlyImportant ? 'var(--red)' : 'var(--ink-soft)', border: `1.5px solid ${onlyImportant ? 'var(--red)' : 'var(--line)'}`, transition: 'all .15s', fontWeight: onlyImportant ? 600 : 500 }}>
             🔴 Quan trọng
           </button>
         </div>
       )}
 
-      {/* Đếm kết quả + clear */}
+      {/* Count + clear */}
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>
           {isLoading
             ? (isSearchMode ? 'Đang tìm...' : 'Đang tải...')
-            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}${(isSearchMode ? searchTotal : total) ? ` / ${(isSearchMode ? searchTotal : total)} tổng` : ''}`
+            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}${(isSearchMode ? searchTotal : total) ? ` / ${isSearchMode ? searchTotal : total} tổng` : ''}`
           }
         </div>
         {hasFilter && (
