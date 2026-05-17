@@ -255,6 +255,100 @@ function getTodayArticles() {
 }
 
 /**
+ * Lấy hoặc tạo mới Spreadsheet lưu trữ backup.
+ * ID được lưu vào Script Property 'ARCHIVE_SHEET_ID' sau lần tạo đầu tiên.
+ */
+function getOrCreateArchiveSpreadsheet_() {
+  const props = PropertiesService.getScriptProperties();
+  const archiveId = props.getProperty('ARCHIVE_SHEET_ID');
+
+  if (archiveId) {
+    try {
+      return SpreadsheetApp.openById(archiveId);
+    } catch (e) {
+      Logger.log(`[Archive] Không mở được backup (${archiveId}), tạo mới: ${e}`);
+    }
+  }
+
+  const ss = SpreadsheetApp.create('Trợ lý 35 - Archive Bản tin');
+  props.setProperty('ARCHIVE_SHEET_ID', ss.getId());
+  Logger.log(`[Archive] Đã tạo backup spreadsheet: ${ss.getUrl()}`);
+  return ss;
+}
+
+/**
+ * Archive các bài viết cũ hơn 6 tháng từ sheet TIN_TUC sang Spreadsheet backup riêng.
+ * Hàm này được gọi tự động vào ngày 1 mỗi tháng qua trigger runMonthlyArchive().
+ * @returns {{ archived: number, remaining: number, archiveUrl: string }}
+ */
+function archiveOldArticles() {
+  const sheet = getSheet_('TIN_TUC');
+  if (sheet.getLastRow() <= 1) {
+    Logger.log('[Archive] Sheet TIN_TUC trống, bỏ qua.');
+    return { archived: 0, remaining: 0, archiveUrl: '' };
+  }
+
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 6);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const numCols = sheet.getLastColumn();
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
+
+  const toKeep = [];
+  const toArchive = [];
+
+  data.forEach(row => {
+    const d = row[0] ? new Date(row[0]) : null;
+    if (d && !isNaN(d.getTime()) && d < cutoff) {
+      toArchive.push(row);
+    } else {
+      toKeep.push(row);
+    }
+  });
+
+  if (toArchive.length === 0) {
+    Logger.log('[Archive] Không có bài nào cũ hơn 6 tháng.');
+    return { archived: 0, remaining: toKeep.length, archiveUrl: '' };
+  }
+
+  // Ghi sang backup spreadsheet
+  const archiveSs = getOrCreateArchiveSpreadsheet_();
+  let archiveSheet = archiveSs.getSheetByName('TIN_TUC');
+  if (!archiveSheet) {
+    archiveSheet = archiveSs.insertSheet('TIN_TUC');
+    archiveSheet.getRange(1, 1, 1, SHEET_HEADERS.TIN_TUC.length)
+      .setValues([SHEET_HEADERS.TIN_TUC]);
+    archiveSheet.getRange(1, 1, 1, SHEET_HEADERS.TIN_TUC.length)
+      .setBackground('#1a3a5c')
+      .setFontColor('white')
+      .setFontWeight('bold');
+    archiveSheet.setFrozenRows(1);
+  }
+
+  const archiveLastRow = archiveSheet.getLastRow();
+  archiveSheet.getRange(archiveLastRow + 1, 1, toArchive.length, numCols)
+    .setValues(toArchive);
+
+  // Ghi log dòng phân cách theo tháng vào backup để dễ tra sau
+  const archiveNote = `[Archived ${new Date().toLocaleDateString('vi-VN')} — ${toArchive.length} bài từ trước ${cutoff.toLocaleDateString('vi-VN')}]`;
+  Logger.log(`[Archive] ${archiveNote}`);
+
+  // Xoá data cũ khỏi sheet chính (giữ nguyên header và định dạng)
+  sheet.deleteRows(2, sheet.getLastRow() - 1);
+  if (toKeep.length > 0) {
+    sheet.getRange(2, 1, toKeep.length, numCols).setValues(toKeep);
+  }
+
+  Logger.log(`[Archive] Xong: ${toArchive.length} bài đã chuyển, còn lại ${toKeep.length} bài.`);
+  return {
+    archived: toArchive.length,
+    remaining: toKeep.length,
+    archiveUrl: archiveSs.getUrl()
+  };
+}
+
+/**
  * Lấy bài viết trong N ngày gần nhất, mới nhất trước.
  * @param {number} days - Số ngày nhìn lại (1 = hôm nay, 7 = 7 ngày gần nhất,...)
  */
@@ -342,6 +436,49 @@ function updateDailyStats(stats) {
     Number(stats.quizAttempts) || 0,
     Number(stats.newSubscribers) || 0
   ]);
+}
+
+/**
+ * Tìm kiếm bài viết toàn bộ sheet TIN_TUC theo từ khoá.
+ * Tìm trong: tiêu đề, tóm tắt, nguồn, từ khóa.
+ * @param {string} query - Từ khoá tìm kiếm
+ * @param {number} limit - Số kết quả tối đa (mặc định 50, tối đa 100)
+ */
+function searchArticles(query, limit) {
+  const sheet = getSheet_('TIN_TUC');
+  if (sheet.getLastRow() <= 1) return [];
+
+  const q = (query || '').toString().toLowerCase().trim();
+  if (!q) return [];
+
+  const maxResults = Math.min(parseInt(limit) || 50, 100);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+  const results = [];
+  // Duyệt từ dòng mới nhất (cuối sheet) lên để ưu tiên bài gần đây
+  for (let i = data.length - 1; i >= 0 && results.length < maxResults; i--) {
+    const row = data[i];
+    const title    = (row[1] || '').toString().toLowerCase();
+    const summary  = (row[2] || '').toString().toLowerCase();
+    const source   = (row[6] || '').toString().toLowerCase();
+    const keywords = (row[8] || '').toString().toLowerCase();
+
+    if (title.includes(q) || summary.includes(q) || source.includes(q) || keywords.includes(q)) {
+      results.push({
+        date:     row[0],
+        title:    row[1],
+        summary:  row[2],
+        category: row[3],
+        priority: row[4],
+        message:  row[5],
+        source:   row[6],
+        link:     row[7],
+        keywords: row[8]
+      });
+    }
+  }
+
+  return results;
 }
 
 /**
