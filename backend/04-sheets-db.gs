@@ -53,6 +53,10 @@ const SHEET_HEADERS = {
   ],
   QUIZ_RESULT: [
     'Thời gian', 'Người làm', 'Đơn vị', 'Điểm', 'Tổng câu', 'Chi tiết'
+  ],
+  TROLY35_FEEDBACK: [
+    'Thời gian', 'Query Hash', 'Rating', 'Comment', 'Response ID',
+    'Access Code Hash', 'Query Preview', 'Response Preview', 'Reason'
   ]
 };
 
@@ -352,30 +356,53 @@ function archiveOldArticles() {
  * Lấy bài viết trong N ngày gần nhất, mới nhất trước.
  * @param {number} days - Số ngày nhìn lại (1 = hôm nay, 7 = 7 ngày gần nhất,...)
  */
-function getArticles(days) {
-  const sheet = getSheet_('TIN_TUC');
-  if (sheet.getLastRow() <= 1) return [];
+function getArticles(days, page, limit) {
+  const parsedDays = Math.max(1, parseInt(days) || 1);
+  const parsedPage = Math.max(1, parseInt(page) || 1);
+  const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 20), 50);
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - (Math.max(1, parseInt(days) || 1) - 1));
-  cutoff.setHours(0, 0, 0, 0);
+  const cacheKey = 'articles_' + parsedDays;
+  const cache = CacheService.getScriptCache();
+  let articles;
 
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { articles = JSON.parse(cached); } catch (_) { articles = null; }
+  }
 
-  return data
-    .filter(row => row[0] && new Date(row[0]) >= cutoff)
-    .map(row => ({
-      date: row[0],
-      title: row[1],
-      summary: row[2],
-      category: row[3],
-      priority: row[4],
-      message: row[5],
-      source: row[6],
-      link: row[7],
-      keywords: row[8]
-    }))
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!articles) {
+    const sheet = getSheet_('TIN_TUC');
+    if (sheet.getLastRow() <= 1) return { data: [], total: 0, page: parsedPage, hasMore: false };
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (parsedDays - 1));
+    cutoff.setHours(0, 0, 0, 0);
+
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+    articles = data
+      .filter(row => row[0] && new Date(row[0]) >= cutoff)
+      .map(row => ({
+        date: row[0],
+        title: row[1],
+        summary: row[2],
+        category: row[3],
+        priority: row[4],
+        message: row[5],
+        source: row[6],
+        link: row[7],
+        keywords: row[8]
+      }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    try { cache.put(cacheKey, JSON.stringify(articles), 300); } catch (_) {}
+  }
+
+  const total = articles.length;
+  const start = (parsedPage - 1) * parsedLimit;
+  const paged = articles.slice(start, start + parsedLimit);
+
+  return { data: paged, total, page: parsedPage, hasMore: start + parsedLimit < total };
 }
 
 /**
@@ -452,10 +479,16 @@ function searchArticles(query, limit) {
   if (!q) return [];
 
   const maxResults = Math.min(parseInt(limit) || 50, 100);
+  const cacheKey = 'search_' + Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, q + '_' + maxResults).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (_) {}
+  }
+
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
   const results = [];
-  // Duyệt từ dòng mới nhất (cuối sheet) lên để ưu tiên bài gần đây
   for (let i = data.length - 1; i >= 0 && results.length < maxResults; i--) {
     const row = data[i];
     const title    = (row[1] || '').toString().toLowerCase();
@@ -478,6 +511,7 @@ function searchArticles(query, limit) {
     }
   }
 
+  try { cache.put(cacheKey, JSON.stringify(results), 600); } catch (_) {}
   return results;
 }
 
@@ -560,4 +594,81 @@ function cleanValue_(value) {
 
 function isValidEmail_(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ============================================================
+// TROLY35 FEEDBACK
+// ============================================================
+
+function saveTroLy35Feedback_(data) {
+  const sheet = getSheet_('TROLY35_FEEDBACK');
+  sheet.appendRow([
+    new Date(),
+    cleanValue_(data.queryHash),
+    cleanValue_(data.rating),
+    cleanValue_(data.comment).substring(0, 500),
+    cleanValue_(data.responseId),
+    cleanValue_(data.accessCodeHash),
+    cleanValue_(data.queryPreview).substring(0, 200),
+    cleanValue_(data.responsePreview).substring(0, 200),
+    cleanValue_(data.reason)
+  ]);
+}
+
+function getTroLy35FeedbackStats_() {
+  const sheet = getSheet_('TROLY35_FEEDBACK');
+  if (sheet.getLastRow() <= 1) return { total: 0, good: 0, bad: 0, goodRate: 0, topBadQueries: [], weeklyTrend: [] };
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const total = data.length;
+  const good = data.filter(r => r[2] === 'good').length;
+  const bad = data.filter(r => r[2] === 'bad').length;
+
+  const badByQuery = {};
+  data.filter(r => r[2] === 'bad').forEach(r => {
+    const preview = r[6] || 'Unknown';
+    badByQuery[preview] = (badByQuery[preview] || 0) + 1;
+  });
+  const topBadQueries = Object.entries(badByQuery)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([query, count]) => ({ query, count }));
+
+  const weeklyTrend = [];
+  const now = new Date();
+  for (let w = 0; w < 4; w++) {
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - (w + 1) * 7);
+    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() - w * 7);
+    const weekData = data.filter(r => {
+      const d = new Date(r[0]);
+      return d >= weekStart && d < weekEnd;
+    });
+    weeklyTrend.push({
+      week: `W-${w}`,
+      total: weekData.length,
+      good: weekData.filter(r => r[2] === 'good').length,
+      bad: weekData.filter(r => r[2] === 'bad').length,
+    });
+  }
+
+  return { total, good, bad, goodRate: total > 0 ? Math.round(good / total * 100) : 0, topBadQueries, weeklyTrend };
+}
+
+function getTroLy35FeedbackInsights_() {
+  const sheet = getSheet_('TROLY35_FEEDBACK');
+  if (sheet.getLastRow() <= 1) return [];
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const badEntries = data.filter(r => r[2] === 'bad');
+  if (badEntries.length === 0) return [];
+
+  const reasonCounts = {};
+  badEntries.forEach(r => {
+    const reason = r[8] || 'Không rõ';
+    reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+  });
+
+  return Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => ({ reason, count, rate: Math.round(count / badEntries.length * 100) }));
 }

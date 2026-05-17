@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Lock, Key, Shield, Search, Edit3, Sparkles, Eraser, Copy, Star, TrendingUp, RefreshCw, Send } from 'lucide-react';
-import { runTroLy35, rateTroLy35, getTrends } from '../api.js';
+import { Lock, Key, Shield, Search, Edit3, Sparkles, Eraser, Copy, Star, TrendingUp, RefreshCw, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
+import DOMPurify from 'dompurify';
+import { runTroLy35, rateTroLy35, getTrends, sendFeedback } from '../api.js';
 
 const ACCESS_KEY = 'troly35_access_code';
 
@@ -18,10 +19,13 @@ function escapeHTML(text) {
   return d.innerHTML;
 }
 
+const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'div', 'span'], ALLOWED_ATTR: ['style', 'class'] };
+
 function formatText(text) {
   const safe = escapeHTML(text || '').trim();
   if (!safe) return '<div class="empty" style="padding:16px 0">Không có nội dung.</div>';
-  return safe.split(/\n{2,}/).map(b => `<p style="margin-bottom:10px;line-height:1.65">${b.replace(/\n/g, '<br>')}</p>`).join('');
+  const html = safe.split(/\n{2,}/).map(b => `<p style="margin-bottom:10px;line-height:1.65">${b.replace(/\n/g, '<br>')}</p>`).join('');
+  return DOMPurify.sanitize(html, PURIFY_CONFIG);
 }
 
 function buildView(result, mode) {
@@ -43,8 +47,9 @@ function buildView(result, mode) {
 }
 
 export default function TroLy35() {
-  const [accessCode, setAccessCode] = useState(sessionStorage.getItem(ACCESS_KEY) || '');
-  const [accessMsg, setAccessMsg] = useState(sessionStorage.getItem(ACCESS_KEY) ? 'Đã tải mã truy cập trong phiên này.' : '');
+  const [remember, setRemember] = useState(!!localStorage.getItem(ACCESS_KEY));
+  const [accessCode, setAccessCode] = useState(localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '');
+  const [accessMsg, setAccessMsg] = useState((localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY)) ? 'Đã tải mã truy cập.' : '');
   const [accessMsgType, setAccessMsgType] = useState('success');
 
   const [mode, setMode] = useState('rebuttal');
@@ -62,6 +67,11 @@ export default function TroLy35() {
   const [rating, setRating] = useState(0);
   const [ratingNote, setRatingNote] = useState('');
 
+  const [feedback, setFeedback] = useState(null); // 'good' | 'bad' | null
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackReason, setFeedbackReason] = useState('');
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
   const [trends, setTrends] = useState(null);
   const [trendWindow, setTrendWindow] = useState(7);
   const [trendsLoading, setTrendsLoading] = useState(false);
@@ -74,8 +84,9 @@ export default function TroLy35() {
 
   const saveAccess = () => {
     const v = accessCode.trim();
-    if (!v) { sessionStorage.removeItem(ACCESS_KEY); setAccessMsg('Đã xóa mã.'); setAccessMsgType('neutral'); return; }
-    sessionStorage.setItem(ACCESS_KEY, v);
+    if (!v) { sessionStorage.removeItem(ACCESS_KEY); localStorage.removeItem(ACCESS_KEY); setAccessMsg('Đã xóa mã.'); setAccessMsgType('neutral'); return; }
+    if (remember) { localStorage.setItem(ACCESS_KEY, v); sessionStorage.removeItem(ACCESS_KEY); }
+    else { sessionStorage.setItem(ACCESS_KEY, v); localStorage.removeItem(ACCESS_KEY); }
     setAccessMsg('Đã lưu mã truy cập.'); setAccessMsgType('success');
     loadTrends(v, trendWindow);
   };
@@ -107,6 +118,10 @@ export default function TroLy35() {
       setRequestId(res.requestId || '');
       setRating(0);
       setResultTab(0);
+      setFeedback(null);
+      setFeedbackSent(false);
+      setFeedbackReason('');
+      setShowFeedbackModal(false);
       setResult({ result: res.result || {}, analysis: res.analysis || {}, knowledge: res.knowledge || [] });
       setRunMsg('Đã tạo bản nháp. Vui lòng rà soát trước khi sử dụng.'); setRunMsgType('success');
       loadTrends(code, trendWindow);
@@ -166,6 +181,10 @@ export default function TroLy35() {
             <Key size={14} /> Lưu
           </button>
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+          Ghi nhớ mã <span style={{ fontSize: 11, color: 'var(--ink-mute)' }}>(chỉ dùng trên thiết bị cá nhân)</span>
+        </label>
         {accessMsg && <div className={`msg ${accessMsgType}`}>{accessMsg}</div>}
       </div>
 
@@ -297,10 +316,65 @@ export default function TroLy35() {
               </div>
             )}
 
-            {/* Rating */}
+            {/* Feedback thumbs */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line-soft)' }}>
+              {!feedbackSent ? (
+                <div>
+                  <div className="row" style={{ gap: 8, marginBottom: showFeedbackModal ? 10 : 0 }}>
+                    <span className="text-sm text-soft">Phản hồi hữu ích không?</span>
+                    <button
+                      onClick={async () => {
+                        setFeedback('good'); setFeedbackSent(true);
+                        const code = accessCode.trim() || localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
+                        try { await sendFeedback({ accessCode: code, responseId: requestId, rating: 'good', queryPreview: content.substring(0, 200) }); } catch {}
+                      }}
+                      disabled={feedbackSent}
+                      style={{ background: feedback === 'good' ? 'var(--ok-soft)' : 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}
+                    >
+                      <ThumbsUp size={14} /> Hữu ích
+                    </button>
+                    <button
+                      onClick={() => { setFeedback('bad'); setShowFeedbackModal(true); }}
+                      disabled={feedbackSent}
+                      style={{ background: feedback === 'bad' ? '#fef2f2' : 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}
+                    >
+                      <ThumbsDown size={14} /> Chưa tốt
+                    </button>
+                  </div>
+                  {showFeedbackModal && (
+                    <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: 12, border: '1px solid var(--line)' }}>
+                      <div className="text-sm" style={{ fontWeight: 600, marginBottom: 8 }}>Lý do chưa tốt?</div>
+                      {['Không chính xác', 'Không đầy đủ', 'Khó hiểu', 'Thiếu dẫn chứng'].map(r => (
+                        <label key={r} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 4, cursor: 'pointer' }}>
+                          <input type="radio" name="fb_reason" value={r} checked={feedbackReason === r} onChange={() => setFeedbackReason(r)} />
+                          {r}
+                        </label>
+                      ))}
+                      <button
+                        className="btn sm primary"
+                        style={{ marginTop: 8 }}
+                        onClick={async () => {
+                          setFeedbackSent(true); setShowFeedbackModal(false);
+                          const code = accessCode.trim() || localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
+                          try { await sendFeedback({ accessCode: code, responseId: requestId, rating: 'bad', reason: feedbackReason, queryPreview: content.substring(0, 200) }); } catch {}
+                        }}
+                      >
+                        Gửi
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-soft" style={{ textAlign: 'center', padding: 4 }}>
+                  Cảm ơn góp ý!
+                </div>
+              )}
+            </div>
+
+            {/* Rating */}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line-soft)' }}>
               <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-                <span className="text-sm text-soft">Đánh giá chất lượng:</span>
+                <span className="text-sm text-soft">Chấm sao:</span>
                 <div className="row" style={{ gap: 3 }}>
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setRating(n)}

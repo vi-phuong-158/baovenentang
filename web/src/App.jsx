@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import BottomNav from './components/BottomNav.jsx';
-import TinTuc from './pages/TinTuc.jsx';
-import TroLy35 from './pages/TroLy35.jsx';
-import Quiz from './pages/Quiz.jsx';
-import ThuVien from './pages/ThuVien.jsx';
-import DangKy from './pages/DangKy.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import Skeleton from './components/Skeleton.jsx';
+
+const TinTuc = lazy(() => import('./pages/TinTuc.jsx'));
+const TroLy35 = lazy(() => import('./pages/TroLy35.jsx'));
+const Quiz = lazy(() => import('./pages/Quiz.jsx'));
+const ThuVien = lazy(() => import('./pages/ThuVien.jsx'));
+const DangKy = lazy(() => import('./pages/DangKy.jsx'));
 
 const PAGES = {
   'tin-tuc':  TinTuc,
@@ -18,7 +21,6 @@ const TAB_IDS = Object.keys(PAGES);
 
 export default function App() {
   const [tab, setTab] = useState('tin-tuc');
-  // Track which tabs have been visited so we lazy-mount on first visit
   const [mounted, setMounted] = useState(() => new Set(['tin-tuc']));
 
   const handleSelect = (id) => {
@@ -33,15 +35,25 @@ export default function App() {
 
   return (
     <>
-      {TAB_IDS.map(id => {
-        if (!mounted.has(id)) return null;
-        const Page = PAGES[id];
-        return (
-          <div key={id} style={{ display: id === tab ? 'block' : 'none' }}>
-            <Page />
-          </div>
-        );
-      })}
+      <a href="#main-content" className="skip-link" style={{
+        position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden',
+        zIndex: 999,
+      }}>Bỏ qua điều hướng</a>
+      <main id="main-content">
+        {TAB_IDS.map(id => {
+          if (!mounted.has(id)) return null;
+          const Page = PAGES[id];
+          return (
+            <div key={id} style={{ display: id === tab ? 'block' : 'none' }}>
+              <ErrorBoundary>
+                <Suspense fallback={<div className="page"><Skeleton lines={6} /></div>}>
+                  <Page />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          );
+        })}
+      </main>
       <BottomNav active={tab} onSelect={handleSelect} />
     </>
   );

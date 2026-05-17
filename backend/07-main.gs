@@ -125,7 +125,9 @@ function doGet(e) {
 
       case 'articles':
         const days = parseInt(params.days, 10) || 1;
-        result = { success: true, data: getArticles(days) };
+        const page = parseInt(params.page, 10) || 1;
+        const limit = parseInt(params.limit, 10) || 20;
+        result = { success: true, data: getArticles(days, page, limit) };
         break;
 
       case 'quiz':
@@ -147,6 +149,11 @@ function doGet(e) {
       case 'stats':
         result = { success: true, data: getStatistics() };
         break;
+
+      case 'feedback_stats':
+        validateApiToken_(params);
+        result = { success: true, data: getTroLy35FeedbackStats_() };
+        break;
         
       default:
         result = { 
@@ -164,46 +171,104 @@ function doGet(e) {
   return jsonResponse_(result);
 }
 
+// ============================================================
+// SECURITY - Authentication & Validation
+// ============================================================
+
+/**
+ * Validate API token cho các endpoint nhạy cảm.
+ * Token được gửi qua field 'api_token' trong body.
+ */
+function validateApiToken_(data) {
+  const token = CONFIG.API_ACCESS_TOKEN;
+  if (isBlank_(token)) return; // Nếu chưa cấu hình, skip (backward compatible)
+  if (cleanValue_(data.api_token) !== token) {
+    throw new Error('Token không hợp lệ.');
+  }
+}
+
+/**
+ * Validate Telegram webhook secret header.
+ */
+function validateTelegramWebhook_(e) {
+  const secret = CONFIG.TELEGRAM_WEBHOOK_SECRET;
+  if (isBlank_(secret)) return; // Backward compatible
+  const headerSecret = e && e.parameter && e.parameter.secret ? e.parameter.secret : '';
+  if (headerSecret !== secret) {
+    throw new Error('Telegram webhook secret không khớp.');
+  }
+}
+
+/**
+ * Validate input string length.
+ */
+function assertMaxLength_(value, maxLen, fieldName) {
+  if (typeof value === 'string' && value.length > maxLen) {
+    throw new Error(`${fieldName} vượt quá ${maxLen} ký tự.`);
+  }
+}
+
+/**
+ * Validate email format.
+ */
+function validateEmail_(email) {
+  if (!email || typeof email !== 'string') throw new Error('Email không hợp lệ.');
+  if (email.length > 254) throw new Error('Email quá dài.');
+  if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(email)) {
+    throw new Error('Định dạng email không hợp lệ.');
+  }
+}
+
 /**
  * POST request - Nhận dữ liệu (đăng ký, kết quả quiz, webhook Telegram)
  */
 function doPost(e) {
   let result;
-  
+
   try {
-    // Kiểm tra nếu là webhook Telegram
     const data = parsePostData_(e);
-    
+
+    // Telegram webhook — validate secret
     if (data.update_id) {
-      // Telegram webhook
+      validateTelegramWebhook_(e);
       if (data.message) {
         handleTelegramMessage(data.message);
       }
       return ContentService.createTextOutput('OK');
     }
-    
-    // API call thường
+
     const action = data.action || ((e && e.parameter) ? e.parameter.action : '');
-    
+
     switch(action) {
       case 'subscribe':
+        validateApiToken_(data);
+        validateEmail_(data.email);
+        assertMaxLength_(data.name, 100, 'Tên');
         result = addSubscriber(data);
         if (result.success) {
           sendWelcomeEmail(result.subscriber);
         }
         break;
-        
+
       case 'submit_quiz':
+        validateApiToken_(data);
         saveQuizResult(data);
         result = { success: true, message: 'Đã lưu kết quả' };
         break;
 
       case 'troly35_run':
+        assertMaxLength_(data.content, 5000, 'Nội dung');
+        assertMaxLength_(data.topic, 200, 'Chủ đề');
+        assertMaxLength_(data.sourceUrl, 500, 'URL nguồn');
         result = handleTroLy35Run(data);
         break;
 
       case 'troly35_rate':
         result = handleTroLy35Rate(data);
+        break;
+
+      case 'troly35_feedback':
+        result = handleTroLy35Feedback(data);
         break;
 
       case 'troly35_history':
@@ -215,22 +280,25 @@ function doPost(e) {
         break;
 
       case 'bantin35_generate':
+        validateApiToken_(data);
         result = handleBanTin35Generate(data);
         break;
 
       case 'bantin35_latest':
         result = handleBanTin35Latest(data);
         break;
-        
+
       case 'contact':
-        // Gửi email liên hệ về admin
+        validateApiToken_(data);
+        assertMaxLength_(data.message, 2000, 'Tin nhắn');
+        assertMaxLength_(data.name, 100, 'Tên');
         result = { success: true };
         break;
-        
+
       default:
         result = { success: false, error: 'Action không hợp lệ' };
     }
-    
+
   } catch(error) {
     result = { success: false, error: error.toString() };
   }
@@ -240,7 +308,11 @@ function doPost(e) {
 
 function parsePostData_(e) {
   const contents = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
-  return JSON.parse(contents);
+  try {
+    return JSON.parse(contents);
+  } catch (err) {
+    throw new Error('Dữ liệu gửi lên không phải JSON hợp lệ.');
+  }
 }
 
 function jsonResponse_(payload) {

@@ -274,6 +274,32 @@ function handleTroLy35Rate(data) {
   };
 }
 
+function handleTroLy35Feedback(data) {
+  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
+  troLy35RequireAccess_(data && data.accessCode);
+
+  const rating = cleanValue_(data && data.rating);
+  if (rating !== 'good' && rating !== 'bad') throw new Error('Rating phải là "good" hoặc "bad".');
+
+  const responseId = cleanValue_(data && data.responseId);
+  if (!responseId) throw new Error('Thiếu responseId.');
+
+  const codeHash = troLy35Hash_(cleanValue_(data.accessCode)).substring(0, 12);
+
+  saveTroLy35Feedback_({
+    queryHash: cleanValue_(data.queryHash),
+    rating,
+    comment: cleanValue_(data.comment),
+    responseId,
+    accessCodeHash: codeHash,
+    queryPreview: cleanValue_(data.queryPreview),
+    responsePreview: cleanValue_(data.responsePreview),
+    reason: cleanValue_(data.reason),
+  });
+
+  return { success: true, message: 'Cảm ơn góp ý!' };
+}
+
 function handleTroLy35History(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
   troLy35RequireAccess_(data && data.accessCode);
@@ -623,8 +649,10 @@ function troLy35GenerateRebuttalDraft_(content, analysis, knowledge) {
     };
   }
 
-  const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết tự tin, có lập luận rõ ràng, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
+  const feedbackHints = troLy35GetFeedbackHints_();
 
+  const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết tự tin, có lập luận rõ ràng, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
+${feedbackHints}
 NỘI DUNG GỐC:
 """
 ${content}
@@ -713,12 +741,20 @@ function troLy35SearchKnowledge_(analysis, content, topicHint) {
 function troLy35EmbedText_(text) {
   assertRequiredConfig_(REQUIRED_GEMINI_CONFIG);
 
+  const truncated = text.substring(0, TROLY35_EMBEDDING_MAX_CHARS);
+  const cacheKey = 'emb_' + Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, truncated).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 20);
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (_) {}
+  }
+
   const model = CONFIG.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${CONFIG.GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`;
   const payload = {
     model: `models/${model}`,
     content: {
-      parts: [{ text: text.substring(0, TROLY35_EMBEDDING_MAX_CHARS) }]
+      parts: [{ text: truncated }]
     },
     outputDimensionality: TROLY35_EMBEDDING_DIMENSION
   };
@@ -726,6 +762,7 @@ function troLy35EmbedText_(text) {
   const response = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json',
+    headers: { 'x-goog-api-key': CONFIG.GEMINI_API_KEY },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
@@ -744,6 +781,7 @@ function troLy35EmbedText_(text) {
     throw new Error('Gemini embedding không trả về vector.');
   }
 
+  try { cache.put(cacheKey, JSON.stringify(values), 21600); } catch (_) {}
   return values;
 }
 
@@ -982,6 +1020,30 @@ Nguồn: ${item.nguon}`;
   }).join('\n\n');
 }
 
+function troLy35GetFeedbackHints_() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'fb_hints';
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const insights = getTroLy35FeedbackInsights_();
+    if (!insights || insights.length === 0) return '';
+
+    const hints = insights
+      .filter(i => i.rate >= 20)
+      .map(i => `- Lý do "${i.reason}" chiếm ${i.rate}% feedback tiêu cực. Hãy cải thiện khía cạnh này.`)
+      .join('\n');
+
+    if (!hints) return '';
+    const result = `\nGỢI Ý CẢI THIỆN TỪ FEEDBACK NGƯỜI DÙNG:\n${hints}\n`;
+    cache.put(cacheKey, result, 3600);
+    return result;
+  } catch (_) {
+    return '';
+  }
+}
+
 function troLy35KnowledgeToEmbeddingText_(item) {
   return [
     item.chuDe,
@@ -1088,10 +1150,29 @@ function troLy35RequireAccess_(accessCode) {
     throw new Error('Chưa cấu hình TROLY35_ACCESS_CODE_SHA256.');
   }
 
-  const hash = troLy35Hash_(cleanValue_(accessCode));
-  if (hash !== cleanValue_(CONFIG.TROLY35_ACCESS_CODE_SHA256).toLowerCase()) {
-    throw new Error('Mã truy cập không đúng.');
+  const codeHash = troLy35Hash_(cleanValue_(accessCode));
+  troLy35AssertNotBruteForced_(codeHash);
+
+  if (codeHash !== cleanValue_(CONFIG.TROLY35_ACCESS_CODE_SHA256).toLowerCase()) {
+    troLy35RecordFailedAttempt_(codeHash);
+    throw new Error('Mã truy cập không hợp lệ.');
   }
+}
+
+function troLy35AssertNotBruteForced_(codeHash) {
+  const cache = CacheService.getScriptCache();
+  const key = 'bf_' + codeHash.substring(0, 16);
+  const attempts = Number(cache.get(key)) || 0;
+  if (attempts >= 5) {
+    throw new Error('Mã truy cập không hợp lệ.');
+  }
+}
+
+function troLy35RecordFailedAttempt_(codeHash) {
+  const cache = CacheService.getScriptCache();
+  const key = 'bf_' + codeHash.substring(0, 16);
+  const attempts = Number(cache.get(key)) || 0;
+  cache.put(key, String(attempts + 1), 900);
 }
 
 function troLy35AssertDailyLimit_(accessCode) {

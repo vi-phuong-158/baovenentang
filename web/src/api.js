@@ -1,34 +1,79 @@
-const API_URL =
-  'https://script.google.com/macros/s/AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg/exec';
+const API_URL = import.meta.env.PROD
+  ? '/api/gas'
+  : 'https://script.google.com/macros/s/AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg/exec';
 
-// Unwrap { success, data } envelope returned by all GAS doGet endpoints
 const getJson = (url) =>
   fetch(url).then(r => r.json()).then(res => {
     if (res.success === false) throw new Error(res.error || 'API error');
     return res.data ?? res;
   });
 
-// Simple in-memory cache — resets on page refresh, persists across tab switches
-const CACHE = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 phút
+// Persistent cache with localStorage + stale-while-revalidate
+const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_PREFIX = 'bvnt_';
+const CACHE_MAX_BYTES = 4 * 1024 * 1024;
+
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (Date.now() - entry.ts < CACHE_TTL) return { data: entry.data, fresh: true };
+    return { data: entry.data, fresh: false };
+  } catch { return null; }
+}
+
+function cacheSet(key, data) {
+  try {
+    const value = JSON.stringify({ data, ts: Date.now() });
+    if (value.length > CACHE_MAX_BYTES) return;
+    localStorage.setItem(CACHE_PREFIX + key, value);
+  } catch {
+    cacheTrim();
+    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+  }
+}
+
+function cacheTrim() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(CACHE_PREFIX)) {
+      try {
+        const entry = JSON.parse(localStorage.getItem(k));
+        keys.push({ key: k, ts: entry.ts || 0 });
+      } catch { localStorage.removeItem(k); }
+    }
+  }
+  keys.sort((a, b) => a.ts - b.ts);
+  const half = Math.ceil(keys.length / 2);
+  keys.slice(0, half).forEach(k => localStorage.removeItem(k.key));
+}
 
 const cached = (key, fetcher) => {
-  const entry = CACHE.get(key);
-  if (entry && Date.now() - entry.ts < CACHE_TTL) return Promise.resolve(entry.data);
-  return fetcher().then(data => {
-    CACHE.set(key, { data, ts: Date.now() });
-    return data;
-  });
+  const hit = cacheGet(key);
+  if (hit && hit.fresh) return Promise.resolve(hit.data);
+  const promise = fetcher().then(data => { cacheSet(key, data); return data; });
+  if (hit) return Promise.resolve(hit.data);
+  return promise;
 };
 
-export const invalidateCache = (key) => key ? CACHE.delete(key) : CACHE.clear();
+export const invalidateCache = (key) => {
+  if (key) { localStorage.removeItem(CACHE_PREFIX + key); }
+  else {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CACHE_PREFIX)) localStorage.removeItem(k);
+    }
+  }
+};
 
-// GET helpers — return unwrapped data directly
+// GET helpers
 export const getToday = () =>
   getJson(`${API_URL}?action=today`);
 
-export const getArticles = (days = 1) =>
-  cached(`articles-${days}`, () => getJson(`${API_URL}?action=articles&days=${days}`));
+export const getArticles = (days = 1, page = 1, limit = 20) =>
+  cached(`articles-${days}-${page}-${limit}`, () => getJson(`${API_URL}?action=articles&days=${days}&page=${page}&limit=${limit}`));
 
 export const getStats = () =>
   cached('stats', () => getJson(`${API_URL}?action=stats`));
@@ -42,7 +87,7 @@ export const searchArticles = (q, limit = 50) =>
 export const getRebuttals = (keyword) =>
   getJson(`${API_URL}?action=rebuttals&keyword=${encodeURIComponent(keyword)}`);
 
-// POST helper — Content-Type: text/plain is required to bypass GAS CORS preflight
+// POST helper
 export const postApi = (action, payload) =>
   fetch(API_URL, {
     method: 'POST',
@@ -56,3 +101,4 @@ export const submitQuiz = (data) => postApi('submit_quiz', data);
 export const runTroLy35 = (data) => postApi('troly35_run', data);
 export const rateTroLy35 = (data) => postApi('troly35_rate', data);
 export const getTrends = (data) => postApi('troly35_trends', data);
+export const sendFeedback = (data) => postApi('troly35_feedback', data);

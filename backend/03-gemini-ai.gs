@@ -97,7 +97,7 @@ Trả về mảng JSON kết quả:`;
 function callGeminiAPI(prompt, responseJsonSchema) {
   assertRequiredConfig_(REQUIRED_GEMINI_CONFIG);
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent`;
 
   const generationConfig = {
     temperature: 0.3,
@@ -121,10 +121,11 @@ function callGeminiAPI(prompt, responseJsonSchema) {
   const response = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json',
+    headers: { 'x-goog-api-key': CONFIG.GEMINI_API_KEY },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
-  
+
   const code = response.getResponseCode();
   if (code !== 200) {
     throw new Error(`Gemini API trả về ${code}: ${response.getContentText()}`);

@@ -327,13 +327,4 @@ function sendWelcomeEmail(subscriber) {
   });
 }
 
-function escapeHtml_(value) {
-  if (value === undefined || value === null) return '';
-
-  return value.toString()
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// escapeHtml_() đã chuyển sang 00-utils.gs

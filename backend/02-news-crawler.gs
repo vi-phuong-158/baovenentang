@@ -30,14 +30,23 @@ function fetchAllNewsSources() {
 function fetchAllRSS() {
   const allArticles = [];
 
-  RSS_SOURCES.forEach(source => {
-    try {
-      Logger.log(`[RSS] Đang kéo từ: ${source.name}`);
-      const response = UrlFetchApp.fetch(source.url, {
-        muteHttpExceptions: true,
-        followRedirects: true
-      });
+  const requests = RSS_SOURCES.map(source => ({
+    url: source.url,
+    muteHttpExceptions: true,
+    followRedirects: true
+  }));
 
+  let responses;
+  try {
+    responses = UrlFetchApp.fetchAll(requests);
+  } catch (error) {
+    Logger.log(`[RSS] fetchAll lỗi: ${error}`);
+    return allArticles;
+  }
+
+  responses.forEach((response, idx) => {
+    const source = RSS_SOURCES[idx];
+    try {
       if (response.getResponseCode() !== 200) {
         Logger.log(`[RSS] Lỗi ${response.getResponseCode()} từ ${source.name}`);
         return;
@@ -75,7 +84,7 @@ function fetchAllRSS() {
       });
 
     } catch(error) {
-      Logger.log(`[RSS] Lỗi kéo ${source.name}: ${error}`);
+      Logger.log(`[RSS] Lỗi xử lý ${source.name}: ${error}`);
     }
   });
 

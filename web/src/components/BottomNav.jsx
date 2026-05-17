@@ -10,7 +10,7 @@ const TABS = [
 
 export default function BottomNav({ active, onSelect }) {
   return (
-    <nav style={{
+    <nav role="tablist" aria-label="Điều hướng chính" style={{
       position: 'fixed',
       bottom: 14,
       borderRadius: 28,
@@ -43,6 +43,9 @@ export default function BottomNav({ active, onSelect }) {
           return (
             <button
               key={id}
+              role="tab"
+              aria-selected={isActive}
+              aria-label={label}
               onClick={() => onSelect(id)}
               style={{
                 flex: 1,
@@ -96,6 +99,9 @@ export default function BottomNav({ active, onSelect }) {
         return (
           <button
             key={id}
+            role="tab"
+            aria-selected={isActive}
+            aria-label={label}
             onClick={() => onSelect(id)}
             style={{
               flex: 1,
