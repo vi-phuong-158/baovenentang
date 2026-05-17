@@ -1,6 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
+<<<<<<< HEAD
 import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X, Bell } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles } from '../api.js';
+=======
+import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
+import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -84,6 +89,7 @@ const DAY_OPTIONS = [
 ];
 const PAGE_LIMIT = 20;
 
+<<<<<<< HEAD
 function normalizePagedResponse(res) {
   if (Array.isArray(res)) return { items: res, total: res.length, page: 1, hasMore: false };
   return {
@@ -95,6 +101,19 @@ function normalizePagedResponse(res) {
 }
 
 export default function TinTuc({ onNavigate }) {
+=======
+const SIGNUP_TOPICS = [
+  'Bảo vệ nền tảng tư tưởng',
+  'An ninh mạng',
+  'Chính sách pháp luật',
+  'Phòng chống tham nhũng',
+  'Đối ngoại - Chủ quyền',
+];
+
+const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
+
+export default function TinTuc() {
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
   const [news, setNews] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [stats, setStats] = useState(null);
@@ -113,6 +132,11 @@ export default function TinTuc({ onNavigate }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [onlyImportant, setOnlyImportant] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [signupForm, setSignupForm] = useState({ name: '', email: '', organization: '', topics: '', channel: 'Email' });
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [signupError, setSignupError] = useState('');
 
   const debouncedSearch = useDebounce(search, 400);
   const isSearchMode = debouncedSearch.trim().length > 0;
@@ -188,6 +212,7 @@ export default function TinTuc({ onNavigate }) {
   const canLoadMore = isSearchMode ? searchHasMore : hasMore;
   const hasFilter = category || onlyImportant;
   const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
+<<<<<<< HEAD
   const loadMore = async () => {
     if (loadingMore) return;
     setLoadingMore(true);
@@ -207,6 +232,41 @@ export default function TinTuc({ onNavigate }) {
       }
     } finally {
       setLoadingMore(false);
+=======
+  const setSignup = (key, value) => setSignupForm(form => ({ ...form, [key]: value }));
+  const selectSignupChannel = (channel) => {
+    setSignup('channel', channel);
+    if (channel === 'Telegram') {
+      window.open(TELEGRAM_CHANNEL_URL, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const resetSignup = () => {
+    setSignupForm({ name: '', email: '', organization: '', topics: '', channel: 'Email' });
+    setSignupError('');
+    setSignupSuccess(false);
+  };
+
+  const submitSignup = async (e) => {
+    e.preventDefault();
+    if (!signupForm.name.trim() || !signupForm.email.trim() || !signupForm.topics) {
+      setSignupError('Vui lòng điền đầy đủ họ tên, email và chủ đề.');
+      return;
+    }
+
+    setSignupLoading(true);
+    setSignupError('');
+    try {
+      const res = await subscribe(signupForm);
+      if (res.success === false) throw new Error(res.error || 'Có lỗi xảy ra.');
+      setSignupSuccess(true);
+      invalidateCache('stats');
+      load(days, true);
+    } catch (err) {
+      setSignupError(err.message || 'Không đăng ký được. Thử lại sau.');
+    } finally {
+      setSignupLoading(false);
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
     }
   };
 
@@ -237,6 +297,7 @@ export default function TinTuc({ onNavigate }) {
       )}
 
       {!isSearchMode && (
+<<<<<<< HEAD
         <div className="card elevated" style={{
           marginBottom: 20,
           padding: '16px 18px',
@@ -278,6 +339,103 @@ export default function TinTuc({ onNavigate }) {
           >
             Đăng ký
           </button>
+=======
+        <div className={`card ${showSignup ? 'elevated' : 'tinted'}`} style={{ marginBottom: 14 }}>
+          {!showSignup && (
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div className="row" style={{ gap: 10 }}>
+                <div className="chip red"><Bell size={16} /></div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}>Theo dõi bản tin</div>
+                  <div className="text-sm text-soft">Nhận tin chọn lọc qua Email hoặc Telegram.</div>
+                </div>
+              </div>
+              <button className="btn primary sm" onClick={() => setShowSignup(true)} style={{ flexShrink: 0 }}>
+                Đăng ký
+              </button>
+            </div>
+          )}
+
+          {showSignup && signupSuccess && (
+            <div style={{ textAlign: 'center', padding: '12px 4px' }}>
+              <CheckCircle size={36} color="var(--ok)" style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Đăng ký thành công!</div>
+              <div className="text-sm text-soft" style={{ marginBottom: 14 }}>Bạn sẽ nhận bản tin qua <strong>{signupForm.channel}</strong>.</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn ghost full" onClick={resetSignup}>Đăng ký thêm</button>
+                <button className="btn primary full" onClick={() => setShowSignup(false)}>Xong</button>
+              </div>
+            </div>
+          )}
+
+          {showSignup && !signupSuccess && (
+            <form onSubmit={submitSignup}>
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <div className="chip red"><Bell size={15} /></div>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}>Theo dõi bản tin</span>
+                </div>
+                <button type="button" onClick={() => setShowSignup(false)} style={{ color: 'var(--ink-mute)', display: 'flex' }} aria-label="Đóng đăng ký">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="field-group">
+                <label className="field-label">Họ và tên *</label>
+                <input className="field" value={signupForm.name} onChange={e => setSignup('name', e.target.value)} placeholder="Nguyễn Văn A" />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Email *</label>
+                <input className="field" type="email" value={signupForm.email} onChange={e => setSignup('email', e.target.value)} placeholder="email@domain.vn" />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Đơn vị công tác</label>
+                <input className="field" value={signupForm.organization} onChange={e => setSignup('organization', e.target.value)} placeholder="PA01 - Công an tỉnh Phú Thọ" />
+              </div>
+
+              <div className="section-label" style={{ marginTop: 4 }}>Chủ đề quan tâm *</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {SIGNUP_TOPICS.map(topic => (
+                  <button
+                    key={topic}
+                    type="button"
+                    onClick={() => setSignup('topics', topic)}
+                    className="pill"
+                    style={{
+                      cursor: 'pointer',
+                      background: signupForm.topics === topic ? 'var(--red-soft)' : 'var(--surface)',
+                      color: signupForm.topics === topic ? 'var(--red)' : 'var(--ink-soft)',
+                      border: `1.5px solid ${signupForm.topics === topic ? 'var(--red)' : 'var(--line)'}`,
+                      fontWeight: signupForm.topics === topic ? 700 : 500,
+                    }}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+
+              <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+                {['Email', 'Telegram'].map(channel => (
+                  <button
+                    key={channel}
+                    type="button"
+                    onClick={() => selectSignupChannel(channel)}
+                    className={`btn ${signupForm.channel === channel ? 'primary' : 'ghost'} sm`}
+                    style={{ flex: 1 }}
+                  >
+                    {channel}
+                  </button>
+                ))}
+              </div>
+
+              {signupError && <div className="msg error" style={{ marginBottom: 12 }}>{signupError}</div>}
+
+              <button type="submit" className="btn primary full" disabled={signupLoading}>
+                {signupLoading ? 'Đang đăng ký...' : <><Send size={15} /> Đăng ký nhận bản tin</>}
+              </button>
+            </form>
+          )}
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
         </div>
       )}
 

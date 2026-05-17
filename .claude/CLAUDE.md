@@ -16,7 +16,10 @@ Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an t
   - `11-bantin35.gs`: Module Bản tin 35 nội bộ — thu thập nguồn công khai cần theo dõi, phân tích AI, gửi Telegram/Email.
 - **Frontend (Static Web):**
   - Đặt tại `/web`, deploy trên Vercel.
-  - Sử dụng Vanilla JS (`app.js`, `troly35.js`) kết hợp CSS hiện đại.
+  - Sử dụng React 18 + Vite (`src/App.jsx`, `src/pages/*`, `src/components/*`) kết hợp CSS hiện đại trong `src/index.css`.
+  - Bottom navigation hiện giữ 3 tab chính: `Tin tức`, `Trợ lý 35`, `Quiz`.
+  - `Trợ lý 35` là giao diện chat hỏi đáp đơn giản: nhập mã truy cập, hỏi, nhận câu trả lời dạng hội thoại, và xem thống kê xu hướng.
+  - `Tin tức` chứa luồng đọc/tìm kiếm bản tin và nút mở form `Theo dõi bản tin`; không dùng tab `Đăng ký` riêng.
   - Kết nối với Backend qua Web App URL của Apps Script.
 
 ## 🚀 Lệnh & Quy trình vận hành (Apps Script)
@@ -42,11 +45,20 @@ Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an t
 ### Telegram & Webhook
 - `setTelegramWebhook()`: Kích hoạt Webhook để Bot Telegram có thể nhận tin nhắn.
 
+### Frontend Web
+- Làm việc trong thư mục `web/`.
+- `npm run build`: Kiểm tra build React/Vite trước khi deploy Vercel.
+- `npm run dev`: Chạy local khi cần kiểm tra giao diện tương tác.
+- Ưu tiên thay đổi nhỏ, đúng component; tránh chỉnh backend GAS nếu yêu cầu chỉ là UI.
+
 ## 🌐 API Endpoints (doGet/doPost)
 - `GET ?action=today`: Lấy danh sách tin tức trong ngày.
+- `GET ?action=articles&days=7`: Lấy danh sách bản tin theo khoảng ngày.
+- `GET ?action=search&q=...`: Tìm kiếm trong bản tin.
 - `GET ?action=stats`: Lấy thống kê lượt dùng, bài viết.
 - `GET ?action=quiz&count=10`: Lấy bộ câu hỏi trắc nghiệm ngẫu nhiên.
 - `POST action: troly35_run`: Chạy phân tích/phản bác (Input: `mode`, `content`).
+- `POST action: troly35_trends`: Lấy thống kê xu hướng Trợ lý 35 theo mã truy cập.
 - `POST action: subscribe`: Đăng ký nhận tin qua Email/Telegram.
 
 ---

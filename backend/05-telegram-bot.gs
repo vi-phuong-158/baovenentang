@@ -78,7 +78,7 @@ function buildTelegramDigest(articles) {
   msg += `━━━━━━━━━━━━━━━━━\n`;
   msg += `✅ Gõ /quiz để kiểm tra nhận thức\n`;
   msg += `📚 Gõ /phanbac để tra cứu luận điểm\n`;
-  msg += `🌐 Web: trandiadso.vn`;
+  msg += `🌐 Web: https://baovenentang.vercel.app/`;
   
   // Telegram giới hạn 4096 ký tự/tin
   if (msg.length > 4000) {
@@ -162,7 +162,7 @@ function handleStartCommand(chatId, userName) {
     `/phanbac <từ khóa> - Tra cứu luận điểm\n` +
     `/dangky - Đăng ký nhận email\n` +
     `/help - Trợ giúp\n\n` +
-    `🌐 Web: trandiadso.vn`;
+    `🌐 Web: https://baovenentang.vercel.app/`;
     
   sendTelegramMessage(chatId, msg);
 }
@@ -283,8 +283,8 @@ function handleRebuttalCommand(chatId, text) {
  */
 function handleSubscribeCommand(chatId) {
   const msg = `📝 *ĐĂNG KÝ NHẬN BẢN TIN EMAIL*\n\n` +
-    `Để nhận bản tin chi tiết qua email, vui lòng truy cập:\n` +
-    `🌐 trandiadso.vn/dangky\n\n` +
+    `Để nhận bản tin chi tiết qua email, vui lòng truy cập mục Tin tức:\n` +
+    `🌐 https://baovenentang.vercel.app/\n\n` +
     `Hoặc tiếp tục theo dõi channel này để nhận tin nhanh hàng ngày!`;
   
   sendTelegramMessage(chatId, msg);
@@ -301,8 +301,8 @@ function handleHelpCommand(chatId) {
     `📚 /phanbac <từ khóa> - Luận điểm phản bác\n` +
     `📧 /dangky - Đăng ký nhận email\n` +
     `❓ /help - Hiển thị trợ giúp này\n\n` +
-    `*Liên hệ:* @your_username\n` +
-    `*Web:* trandiadso.vn`;
+    `*Liên hệ:* @baovenentang\n` +
+    `*Web:* https://baovenentang.vercel.app/`;
   
   sendTelegramMessage(chatId, msg);
 }

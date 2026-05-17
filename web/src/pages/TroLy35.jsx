@@ -1,33 +1,67 @@
+<<<<<<< Updated upstream
 import { useState, useEffect } from 'react';
 import { Lock, Key, Shield, Search, Edit3, Sparkles, Eraser, Copy, Star, TrendingUp, RefreshCw, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { runTroLy35, rateTroLy35, getTrends, sendFeedback } from '../api.js';
+=======
+import { useEffect, useRef, useState } from 'react';
+import { Bot, Copy, Key, Lock, RefreshCw, Send, Trash2, TrendingUp } from 'lucide-react';
+import { getTrends, runTroLy35 } from '../api.js';
+import logo35 from '../../logo.png';
+>>>>>>> Stashed changes
 
 const ACCESS_KEY = 'troly35_access_code';
 
-const MODES = [
-  { id: 'rebuttal',      label: 'Phản bác',   Icon: Shield,  contentLabel: 'Nội dung bài viết/bình luận', placeholder: 'Dán nội dung cần phân tích. Nếu có link MXH, hãy dán kèm nội dung vì hệ thống không tự scrape.' },
-  { id: 'fact_check',    label: 'Thẩm định',  Icon: Search,  contentLabel: 'Nội dung cần thẩm định', placeholder: 'Dán tin tức, nhận định hoặc đoạn trích cần thẩm định nhanh.' },
-  { id: 'article_writer',label: 'Viết bài',   Icon: Edit3,   contentLabel: 'Chủ đề và thông điệp chính', placeholder: 'Nhập chủ đề, thông điệp chính, đối tượng độc giả và yêu cầu độ dài.' },
-];
+function getBestAnswer(res) {
+  const result = res?.result || {};
+  const primary =
+    result.phien_ban_day_du ||
+    result.phien_ban_comment ||
+    result.nhan_dinh_chinh ||
+    result.khuyen_nghi_xu_ly ||
+    result.bai_viet ||
+    result.caption_mxh ||
+    '';
 
-const RESULT_TABS = ['Đầy đủ', 'Comment', 'Tóm tắt', 'Dẫn chứng'];
+  const fallback = Array.isArray(result.phien_ban_tom_tat)
+    ? result.phien_ban_tom_tat.join('\n')
+    : result.phien_ban_tom_tat || '';
 
-function escapeHTML(text) {
-  const d = document.createElement('div');
-  d.textContent = text ?? '';
-  return d.innerHTML;
+  const notes = [result.ghi_chu, result.nhan_kiem_duyet].filter(Boolean).join('\n\n');
+  const answer = [primary || fallback, notes].filter(Boolean).join('\n\n').trim();
+
+  return answer || 'Tôi chưa tạo được câu trả lời phù hợp. Anh/chị vui lòng thử hỏi lại rõ hơn.';
 }
 
+<<<<<<< HEAD
 const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'li'], ALLOWED_ATTR: [] };
+=======
+<<<<<<< Updated upstream
+const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'div', 'span'], ALLOWED_ATTR: ['style', 'class'] };
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
 
 function formatText(text) {
   const safe = escapeHTML(text || '').trim();
   if (!safe) return '<p>Không có nội dung.</p>';
   const html = safe.split(/\n{2,}/).map(b => `<p>${b.replace(/\n/g, '<br>')}</p>`).join('');
   return DOMPurify.sanitize(html, PURIFY_CONFIG);
+=======
+function MessageText({ text }) {
+  const blocks = (text || '').split(/\n{2,}/);
+
+  return (
+    <>
+      {blocks.map((block, blockIndex) => (
+        <p key={blockIndex} style={{ margin: 0, marginBottom: blockIndex === blocks.length - 1 ? 0 : 10, whiteSpace: 'pre-wrap' }}>
+          {block}
+        </p>
+      ))}
+    </>
+  );
+>>>>>>> Stashed changes
 }
 
+<<<<<<< HEAD
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text || '');
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -50,6 +84,55 @@ function buildView(result, mode) {
     short: result.phien_ban_comment || '',
     summary: Array.isArray(result.phien_ban_tom_tat) ? result.phien_ban_tom_tat : [],
   };
+=======
+function ChatMessage({ message, onCopy }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: isUser ? 'flex-end' : 'flex-start',
+      marginBottom: 10,
+    }}>
+      <div style={{
+        maxWidth: '86%',
+        padding: '11px 13px',
+        borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+        background: isUser ? 'var(--red)' : 'var(--surface)',
+        color: isUser ? '#fff' : 'var(--ink)',
+        border: isUser ? '1px solid var(--red)' : '1px solid var(--line)',
+        boxShadow: isUser ? 'var(--shadow-red)' : 'var(--shadow-card)',
+        lineHeight: 1.55,
+      }}>
+        {!isUser && (
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div className="row" style={{ gap: 6 }}>
+              <Bot size={14} color="var(--red)" />
+              <span className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>Trợ lý 35</span>
+            </div>
+            {!message.pending && !message.error && (
+              <button
+                type="button"
+                onClick={() => onCopy(message.text)}
+                aria-label="Copy câu trả lời"
+                style={{ display: 'flex', color: 'var(--ink-mute)', padding: 2 }}
+              >
+                <Copy size={14} />
+              </button>
+            )}
+          </div>
+        )}
+        <div className="text-sm" style={{ color: isUser ? '#fff' : (message.error ? 'var(--red)' : 'var(--ink-soft)') }}>
+          {message.pending ? (
+            <span className="row" style={{ gap: 7 }}><RefreshCw size={14} className="spinner" /> Đang trả lời...</span>
+          ) : (
+            <MessageText text={message.text} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
 }
 
 export default function TroLy35() {
@@ -58,14 +141,13 @@ export default function TroLy35() {
   const [accessMsg, setAccessMsg] = useState((localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY)) ? 'Đã tải mã truy cập.' : '');
   const [accessMsgType, setAccessMsgType] = useState('success');
 
-  const [mode, setMode] = useState('rebuttal');
-  const [content, setContent] = useState('');
-  const [sourceUrl, setSourceUrl] = useState('');
-  const [topic, setTopic] = useState('');
+  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [runMsg, setRunMsg] = useState('');
   const [runMsgType, setRunMsgType] = useState('neutral');
 
+<<<<<<< Updated upstream
   const [result, setResult] = useState(null);
   const [resultTab, setResultTab] = useState(0);
   const [requestId, setRequestId] = useState('');
@@ -78,31 +160,51 @@ export default function TroLy35() {
   const [feedbackReason, setFeedbackReason] = useState('');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
+=======
+>>>>>>> Stashed changes
   const [trends, setTrends] = useState(null);
   const [trendWindow, setTrendWindow] = useState(7);
   const [trendsLoading, setTrendsLoading] = useState(false);
 
-  const currentMode = MODES.find(m => m.id === mode);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (accessCode) loadTrends(accessCode, trendWindow);
   }, []);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages]);
+
   const saveAccess = () => {
     const v = accessCode.trim();
+<<<<<<< Updated upstream
     if (!v) { sessionStorage.removeItem(ACCESS_KEY); localStorage.removeItem(ACCESS_KEY); setAccessMsg('Đã xóa mã.'); setAccessMsgType('neutral'); return; }
     if (remember) { localStorage.setItem(ACCESS_KEY, v); sessionStorage.removeItem(ACCESS_KEY); }
     else { sessionStorage.setItem(ACCESS_KEY, v); localStorage.removeItem(ACCESS_KEY); }
     setAccessMsg('Đã lưu mã truy cập.'); setAccessMsgType('success');
+=======
+    if (!v) {
+      sessionStorage.removeItem(ACCESS_KEY);
+      setAccessMsg('Đã xóa mã.');
+      setAccessMsgType('neutral');
+      setTrends(null);
+      return;
+    }
+    sessionStorage.setItem(ACCESS_KEY, v);
+    setAccessMsg('Đã lưu mã truy cập.');
+    setAccessMsgType('success');
+>>>>>>> Stashed changes
     loadTrends(v, trendWindow);
   };
 
-  const loadTrends = async (code, window) => {
+  const loadTrends = async (code, windowDays) => {
     if (!code) return;
     setTrendsLoading(true);
     try {
-      const res = await getTrends({ accessCode: code, windowDays: window });
+      const res = await getTrends({ accessCode: code, windowDays });
       if (res.success !== false) setTrends(res.data || res);
+<<<<<<< Updated upstream
     } catch {}
     finally { setTrendsLoading(false); }
   };
@@ -133,29 +235,27 @@ export default function TroLy35() {
       loadTrends(code, trendWindow);
     } catch (err) {
       setRunMsg(err.message || 'Có lỗi xảy ra.'); setRunMsgType('error');
+=======
+    } catch {
+      setTrends(null);
+>>>>>>> Stashed changes
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendRating = async () => {
-    const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
-    if (!requestId) { setRunMsg('Chưa có kết quả để đánh giá.'); setRunMsgType('error'); return; }
-    if (!rating) { setRunMsg('Vui lòng chọn số sao.'); setRunMsgType('error'); return; }
-    try {
-      const res = await rateTroLy35({ accessCode: code, requestId, rating, note: ratingNote });
-      if (!res.success) throw new Error(res.error);
-      setRunMsg('Đã lưu đánh giá.'); setRunMsgType('success');
-    } catch (err) {
-      setRunMsg(err.message || 'Không lưu được đánh giá.'); setRunMsgType('error');
+      setTrendsLoading(false);
     }
   };
 
   const copyText = async (text) => {
-    try { await navigator.clipboard.writeText(text); setRunMsg('Đã copy.'); setRunMsgType('success'); }
-    catch { setRunMsg('Không copy được.'); setRunMsgType('error'); }
+    try {
+      await navigator.clipboard.writeText(text);
+      setRunMsg('Đã copy câu trả lời.');
+      setRunMsgType('success');
+    } catch {
+      setRunMsg('Không copy được.');
+      setRunMsgType('error');
+    }
   };
 
+<<<<<<< HEAD
   const view = result ? buildView(result.result, mode) : null;
   const analysis = result?.analysis || {};
   const feedbackKey = requestId ? `troly35_feedback_${requestId}` : '';
@@ -189,6 +289,66 @@ export default function TroLy35() {
     } catch (err) {
       setRunMsg(err.message || 'Không gửi được góp ý.');
       setRunMsgType('error');
+=======
+  const clearChat = () => {
+    setMessages([]);
+    setQuestion('');
+    setRunMsg('');
+  };
+
+  const sendQuestion = async (e) => {
+    e.preventDefault();
+
+    const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
+    const content = question.trim();
+
+    if (!code) {
+      setRunMsg('Vui lòng nhập mã truy cập nội bộ.');
+      setRunMsgType('error');
+      return;
+    }
+    if (content.length < 20) {
+      setRunMsg('Câu hỏi cần tối thiểu 20 ký tự để hệ thống có đủ ngữ cảnh.');
+      setRunMsgType('error');
+      return;
+    }
+    if (/^https?:\/\/\S+$/i.test(content)) {
+      setRunMsg('Vui lòng nhập câu hỏi hoặc dán nội dung cần hỏi, không chỉ gửi một đường link.');
+      setRunMsgType('error');
+      return;
+    }
+
+    const id = Date.now();
+    const userMessage = { id: `user-${id}`, role: 'user', text: content };
+    const assistantMessage = { id: `assistant-${id}`, role: 'assistant', text: '', pending: true };
+
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setQuestion('');
+    setRunMsg('');
+    setLoading(true);
+
+    try {
+      const res = await runTroLy35({ accessCode: code, mode: 'rebuttal', content });
+      if (!res.success) throw new Error(res.error || 'Không xử lý được yêu cầu.');
+
+      const answer = getBestAnswer(res);
+      setMessages(prev => prev.map(item =>
+        item.id === assistantMessage.id
+          ? { ...item, text: answer, pending: false }
+          : item
+      ));
+      loadTrends(code, trendWindow);
+    } catch (err) {
+      setMessages(prev => prev.map(item =>
+        item.id === assistantMessage.id
+          ? { ...item, text: err.message || 'Có lỗi xảy ra. Vui lòng thử lại.', pending: false, error: true }
+          : item
+      ));
+      setRunMsg(err.message || 'Có lỗi xảy ra.');
+      setRunMsgType('error');
+    } finally {
+      setLoading(false);
+>>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
     }
   };
 
@@ -201,21 +361,24 @@ export default function TroLy35() {
           </div>
         </div>
         <h1>Trợ lý 35</h1>
-        <p>Phân tích, tìm dẫn chứng và soạn bản nháp phản hồi</p>
+        <p>Hỏi đáp nhanh, trả lời ngắn gọn để hỗ trợ xử lý thông tin</p>
       </div>
 
-      {/* Access card */}
       <div className="card tinted" style={{ marginBottom: 12 }}>
         <div className="row" style={{ marginBottom: 8 }}>
           <div className="chip red"><Lock size={14} /></div>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Truy cập</span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <input className="field" type="password" value={accessCode}
+          <input
+            className="field"
+            type="password"
+            value={accessCode}
             onChange={e => setAccessCode(e.target.value)}
             placeholder="Nhập mã truy cập nội bộ"
             style={{ flex: 1 }}
-            onKeyDown={e => e.key === 'Enter' && saveAccess()} />
+            onKeyDown={e => e.key === 'Enter' && saveAccess()}
+          />
           <button className="btn sm" onClick={saveAccess} style={{ flexShrink: 0 }}>
             <Key size={14} /> Lưu
           </button>
@@ -227,20 +390,62 @@ export default function TroLy35() {
         {accessMsg && <div className={`msg ${accessMsgType}`}>{accessMsg}</div>}
       </div>
 
-      {/* Mode tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--surface-2)', padding: 5, borderRadius: 16, border: '1px solid var(--line)' }}>
-        {MODES.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setMode(id)}
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 6px', borderRadius: 12, border: 'none', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all .15s',
-              background: mode === id ? 'var(--surface)' : 'transparent',
-              color: mode === id ? 'var(--red)' : 'var(--ink-soft)',
-              boxShadow: mode === id ? '0 1px 4px rgba(26,20,16,.08)' : 'none',
-            }}>
-            <Icon size={15} /> {label}
-          </button>
-        ))}
+      <div className="card elevated" style={{ padding: 12, marginBottom: 12 }}>
+        <div style={{
+          minHeight: 260,
+          maxHeight: 420,
+          overflowY: 'auto',
+          padding: '2px 2px 10px',
+        }}>
+          {messages.length === 0 ? (
+            <div className="empty" style={{ padding: '34px 12px 38px' }}>
+              <img
+                src={logo35}
+                alt="Trợ lý 35"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  objectFit: 'contain',
+                  opacity: 0.78,
+                  filter: 'drop-shadow(0 8px 18px rgba(183,28,28,.18))',
+                  display: 'block',
+                  margin: '0 auto 12px',
+                }}
+              />
+              Nhập câu hỏi để bắt đầu hội thoại.
+            </div>
+          ) : (
+            messages.map(message => (
+              <ChatMessage key={message.id} message={message} onCopy={copyText} />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form onSubmit={sendQuestion} style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 10 }}>
+          <textarea
+            className="field"
+            rows={3}
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            placeholder="Nhập câu hỏi hoặc dán nội dung cần hỗ trợ..."
+            disabled={loading}
+            style={{ minHeight: 82, marginBottom: 8 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn primary" style={{ flex: 1 }} disabled={loading}>
+              {loading ? <><RefreshCw size={15} className="spinner" /> Đang trả lời...</> : <><Send size={15} /> Gửi câu hỏi</>}
+            </button>
+            <button type="button" className="btn ghost sm" onClick={clearChat} disabled={loading && messages.length === 0} aria-label="Xóa hội thoại">
+              <Trash2 size={15} />
+            </button>
+          </div>
+          {runMsg && <div className={`msg ${runMsgType}`}>{runMsg}</div>}
+        </form>
       </div>
 
+<<<<<<< Updated upstream
       {/* Form */}
       <form onSubmit={run}>
         <div className="card elevated" style={{ marginBottom: 12 }}>
@@ -425,6 +630,8 @@ export default function TroLy35() {
       )}
 
       {/* Trends */}
+=======
+>>>>>>> Stashed changes
       <div className="card tinted" style={{ marginTop: 16 }}>
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
           <div className="row" style={{ gap: 8 }}>
@@ -433,8 +640,12 @@ export default function TroLy35() {
           </div>
           <div className="row" style={{ gap: 4 }}>
             {[7, 30].map(w => (
-              <button key={w} onClick={() => { setTrendWindow(w); loadTrends(accessCode || sessionStorage.getItem(ACCESS_KEY), w); }}
-                className={`btn sm ${trendWindow === w ? 'primary' : 'ghost'}`} style={{ padding: '5px 10px', fontSize: 12 }}>
+              <button
+                key={w}
+                onClick={() => { setTrendWindow(w); loadTrends(accessCode || sessionStorage.getItem(ACCESS_KEY), w); }}
+                className={`btn sm ${trendWindow === w ? 'primary' : 'ghost'}`}
+                style={{ padding: '5px 10px', fontSize: 12 }}
+              >
                 {w} ngày
               </button>
             ))}
