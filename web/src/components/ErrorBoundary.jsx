@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component {
           </p>
           <button
             className="btn primary"
-            onClick={() => { this.setState({ hasError: false }); }}
+            onClick={() => window.location.reload()}
             style={{ fontSize: 14 }}
           >
             Thử lại

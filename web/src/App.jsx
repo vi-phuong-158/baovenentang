@@ -31,23 +31,20 @@ export default function App() {
       next.add(id);
       return next;
     });
+    requestAnimationFrame(() => document.getElementById('main-content')?.focus());
   };
 
   return (
     <>
-      <a href="#main-content" className="skip-link" style={{
-        position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden',
-        zIndex: 999,
-      }}>Bỏ qua điều hướng</a>
-      <main id="main-content">
+      <main id="main-content" tabIndex={-1}>
         {TAB_IDS.map(id => {
           if (!mounted.has(id)) return null;
           const Page = PAGES[id];
           return (
             <div key={id} style={{ display: id === tab ? 'block' : 'none' }}>
               <ErrorBoundary>
-                <Suspense fallback={<div className="page"><Skeleton lines={6} /></div>}>
-                  <Page />
+                <Suspense fallback={<><div className="top-progress" /><div className="page"><Skeleton lines={6} /></div></>}>
+                  <Page onNavigate={handleSelect} />
                 </Suspense>
               </ErrorBoundary>
             </div>

@@ -1,6 +1,7 @@
 const API_URL = import.meta.env.PROD
   ? '/api/gas'
   : 'https://script.google.com/macros/s/AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg/exec';
+const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 const getJson = (url) =>
   fetch(url).then(r => r.json()).then(res => {
@@ -11,7 +12,7 @@ const getJson = (url) =>
 // Persistent cache with localStorage + stale-while-revalidate
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_PREFIX = 'bvnt_';
-const CACHE_MAX_BYTES = 4 * 1024 * 1024;
+const CACHE_MAX_BYTES = 5 * 1024 * 1024;
 
 function cacheGet(key) {
   try {
@@ -27,6 +28,7 @@ function cacheSet(key, data) {
   try {
     const value = JSON.stringify({ data, ts: Date.now() });
     if (value.length > CACHE_MAX_BYTES) return;
+    cacheTrim(value.length);
     localStorage.setItem(CACHE_PREFIX + key, value);
   } catch {
     cacheTrim();
@@ -34,27 +36,40 @@ function cacheSet(key, data) {
   }
 }
 
-function cacheTrim() {
+function cacheTrim(extraBytes = 0) {
   const keys = [];
+  let totalBytes = 0;
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k && k.startsWith(CACHE_PREFIX)) {
       try {
-        const entry = JSON.parse(localStorage.getItem(k));
-        keys.push({ key: k, ts: entry.ts || 0 });
+        const raw = localStorage.getItem(k) || '';
+        const entry = JSON.parse(raw);
+        totalBytes += raw.length;
+        keys.push({ key: k, ts: entry.ts || 0, bytes: raw.length });
       } catch { localStorage.removeItem(k); }
     }
   }
   keys.sort((a, b) => a.ts - b.ts);
-  const half = Math.ceil(keys.length / 2);
-  keys.slice(0, half).forEach(k => localStorage.removeItem(k.key));
+  while (totalBytes + extraBytes > CACHE_MAX_BYTES && keys.length) {
+    const oldest = keys.shift();
+    localStorage.removeItem(oldest.key);
+    totalBytes -= oldest.bytes;
+  }
+  if (extraBytes === 0) {
+    const half = Math.ceil(keys.length / 2);
+    keys.slice(0, half).forEach(k => localStorage.removeItem(k.key));
+  }
 }
 
 const cached = (key, fetcher) => {
   const hit = cacheGet(key);
   if (hit && hit.fresh) return Promise.resolve(hit.data);
   const promise = fetcher().then(data => { cacheSet(key, data); return data; });
-  if (hit) return Promise.resolve(hit.data);
+  if (hit) {
+    promise.catch(() => {});
+    return Promise.resolve(hit.data);
+  }
   return promise;
 };
 
@@ -81,18 +96,21 @@ export const getStats = () =>
 export const getQuiz = (count = 10) =>
   getJson(`${API_URL}?action=quiz&count=${count}`);
 
-export const searchArticles = (q, limit = 50) =>
-  getJson(`${API_URL}?action=search&q=${encodeURIComponent(q)}&limit=${limit}`);
+export const searchArticles = (q, page = 1, limit = 20) =>
+  getJson(`${API_URL}?action=search&q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
 
 export const getRebuttals = (keyword) =>
   getJson(`${API_URL}?action=rebuttals&keyword=${encodeURIComponent(keyword)}`);
 
 // POST helper
-export const postApi = (action, payload) =>
+export const postApi = (action, payload = {}) =>
   fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...payload }),
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+      ...(API_TOKEN && API_URL.startsWith('/') ? { 'X-Api-Token': API_TOKEN } : {}),
+    },
+    body: JSON.stringify({ action, ...payload, ...(API_TOKEN ? { api_token: API_TOKEN } : {}) }),
   }).then(r => r.json());
 
 // Named POST wrappers

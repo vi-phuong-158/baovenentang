@@ -317,10 +317,22 @@ function setTelegramWebhook() {
     throw new Error('Thiếu WEB_APP_URL. Hãy deploy Web App rồi lưu URL vào Script Properties.');
   }
 
-  const webhookUrl = encodeURIComponent(CONFIG.WEB_APP_URL);
-  const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/setWebhook?url=${webhookUrl}`;
-  
-  const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  let webhookUrl = cleanValue_(CONFIG.WEB_APP_URL);
+  const secret = cleanValue_(CONFIG.TELEGRAM_WEBHOOK_SECRET);
+  if (secret && webhookUrl.indexOf('secret=') === -1) {
+    webhookUrl += (webhookUrl.indexOf('?') === -1 ? '?' : '&') + 'secret=' + encodeURIComponent(secret);
+  }
+
+  const payload = { url: webhookUrl };
+  if (secret) payload.secret_token = secret;
+
+  const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/setWebhook`;
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
   Logger.log(`[Webhook] ${response.getContentText()}`);
 }
 

@@ -19,13 +19,19 @@ function escapeHTML(text) {
   return d.innerHTML;
 }
 
-const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'div', 'span'], ALLOWED_ATTR: ['style', 'class'] };
+const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'li'], ALLOWED_ATTR: [] };
 
 function formatText(text) {
   const safe = escapeHTML(text || '').trim();
-  if (!safe) return '<div class="empty" style="padding:16px 0">Không có nội dung.</div>';
-  const html = safe.split(/\n{2,}/).map(b => `<p style="margin-bottom:10px;line-height:1.65">${b.replace(/\n/g, '<br>')}</p>`).join('');
+  if (!safe) return '<p>Không có nội dung.</p>';
+  const html = safe.split(/\n{2,}/).map(b => `<p>${b.replace(/\n/g, '<br>')}</p>`).join('');
   return DOMPurify.sanitize(html, PURIFY_CONFIG);
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text || '');
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function buildView(result, mode) {
@@ -152,6 +158,39 @@ export default function TroLy35() {
 
   const view = result ? buildView(result.result, mode) : null;
   const analysis = result?.analysis || {};
+  const feedbackKey = requestId ? `troly35_feedback_${requestId}` : '';
+
+  useEffect(() => {
+    if (!feedbackKey) return;
+    const saved = localStorage.getItem(feedbackKey);
+    if (saved) {
+      setFeedback(saved);
+      setFeedbackSent(true);
+    }
+  }, [feedbackKey]);
+
+  const submitFeedback = async (ratingValue, reason = '') => {
+    if (!requestId || !view) return;
+    const code = accessCode.trim() || localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
+    try {
+      await sendFeedback({
+        accessCode: code,
+        responseId: requestId,
+        rating: ratingValue,
+        reason,
+        queryHash: await sha256Hex(content.trim()),
+        queryPreview: content.substring(0, 200),
+        responsePreview: (view.full || view.short || '').substring(0, 200),
+      });
+      if (feedbackKey) localStorage.setItem(feedbackKey, ratingValue);
+      setFeedback(ratingValue);
+      setFeedbackSent(true);
+      setShowFeedbackModal(false);
+    } catch (err) {
+      setRunMsg(err.message || 'Không gửi được góp ý.');
+      setRunMsgType('error');
+    }
+  };
 
   return (
     <div className="page page-fade">
@@ -235,7 +274,7 @@ export default function TroLy35() {
 
       {/* Result card */}
       {result && (
-        <div className="card elevated" style={{ marginTop: 16, borderRadius: 20, overflow: 'hidden', padding: 0 }}>
+        <div className="card elevated" aria-live="polite" style={{ marginTop: 16, borderRadius: 20, overflow: 'hidden', padding: 0 }}>
           {/* Analysis strip */}
           {Object.keys(analysis).length > 0 && (
             <div style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', padding: '10px 14px', display: 'flex', flexWrap: 'wrap', gap: '6px 14px', fontSize: 13 }}>
@@ -323,11 +362,7 @@ export default function TroLy35() {
                   <div className="row" style={{ gap: 8, marginBottom: showFeedbackModal ? 10 : 0 }}>
                     <span className="text-sm text-soft">Phản hồi hữu ích không?</span>
                     <button
-                      onClick={async () => {
-                        setFeedback('good'); setFeedbackSent(true);
-                        const code = accessCode.trim() || localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
-                        try { await sendFeedback({ accessCode: code, responseId: requestId, rating: 'good', queryPreview: content.substring(0, 200) }); } catch {}
-                      }}
+                      onClick={() => submitFeedback('good')}
                       disabled={feedbackSent}
                       style={{ background: feedback === 'good' ? 'var(--ok-soft)' : 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}
                     >
@@ -344,7 +379,7 @@ export default function TroLy35() {
                   {showFeedbackModal && (
                     <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: 12, border: '1px solid var(--line)' }}>
                       <div className="text-sm" style={{ fontWeight: 600, marginBottom: 8 }}>Lý do chưa tốt?</div>
-                      {['Không chính xác', 'Không đầy đủ', 'Khó hiểu', 'Thiếu dẫn chứng'].map(r => (
+                      {['Không chính xác', 'Không đầy đủ', 'Khó hiểu', 'Thiếu dẫn chứng', 'Khác'].map(r => (
                         <label key={r} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 4, cursor: 'pointer' }}>
                           <input type="radio" name="fb_reason" value={r} checked={feedbackReason === r} onChange={() => setFeedbackReason(r)} />
                           {r}
@@ -353,11 +388,7 @@ export default function TroLy35() {
                       <button
                         className="btn sm primary"
                         style={{ marginTop: 8 }}
-                        onClick={async () => {
-                          setFeedbackSent(true); setShowFeedbackModal(false);
-                          const code = accessCode.trim() || localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
-                          try { await sendFeedback({ accessCode: code, responseId: requestId, rating: 'bad', reason: feedbackReason, queryPreview: content.substring(0, 200) }); } catch {}
-                        }}
+                        onClick={() => submitFeedback('bad', feedbackReason || 'Khác')}
                       >
                         Gửi
                       </button>

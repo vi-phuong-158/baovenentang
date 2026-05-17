@@ -18,6 +18,10 @@ const CONFIG_DEFAULTS = {
   // ===== Telegram Bot =====
   TELEGRAM_TOKEN: '',
   TELEGRAM_CHANNEL: '',
+  TELEGRAM_WEBHOOK_SECRET: '',
+
+  // ===== API Security =====
+  API_ACCESS_TOKEN: '',
 
   // ===== Brevo Email =====
   BREVO_API_KEY: '',
@@ -156,6 +160,8 @@ function showConfigSetupInstructions() {
     BANTIN35_REQUEST_DELAY_MS: '1500',
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
+    TELEGRAM_WEBHOOK_SECRET: 'secret_ngau_nhien_cho_webhook_telegram',
+    API_ACCESS_TOKEN: 'token_ngau_nhien_cho_api_noi_bo',
     BREVO_API_KEY: 'xkeysib-...',
     SENDER_EMAIL: 'email-da-verify@domain.vn',
     SENDER_NAME: 'Trợ lý 35 - Phú Thọ',

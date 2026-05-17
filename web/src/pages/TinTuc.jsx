@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X } from 'lucide-react';
+import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X, Bell } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles } from '../api.js';
 
 function useDebounce(value, delay) {
@@ -82,16 +82,34 @@ const DAY_OPTIONS = [
   { label: '7 ngày', value: 7 },
   { label: '30 ngày', value: 30 },
 ];
+const PAGE_LIMIT = 20;
 
-export default function TinTuc() {
+function normalizePagedResponse(res) {
+  if (Array.isArray(res)) return { items: res, total: res.length, page: 1, hasMore: false };
+  return {
+    items: Array.isArray(res?.data) ? res.data : [],
+    total: Number(res?.total) || 0,
+    page: Number(res?.page) || 1,
+    hasMore: !!res?.hasMore,
+  };
+}
+
+export default function TinTuc({ onNavigate }) {
   const [news, setNews] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchTotal, setSearchTotal] = useState(0);
 
-  const [days, setDays] = useState(1);
+  const [days, setDays] = useState(7);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [onlyImportant, setOnlyImportant] = useState(false);
@@ -102,14 +120,18 @@ export default function TinTuc() {
   // Browse mode: load theo khoảng ngày, có cache
   const load = async (d = days, forceRefresh = false) => {
     if (forceRefresh) {
-      invalidateCache(`articles-${d}`);
+      invalidateCache();
       invalidateCache('stats');
     }
     setLoading(true);
     setError('');
     try {
-      const [newsRes, statsRes] = await Promise.all([getArticles(d), getStats()]);
-      setNews(Array.isArray(newsRes) ? newsRes : []);
+      const [newsRes, statsRes] = await Promise.all([getArticles(d, 1, PAGE_LIMIT), getStats()]);
+      const paged = normalizePagedResponse(newsRes);
+      setNews(paged.items);
+      setPage(paged.page);
+      setHasMore(paged.hasMore);
+      setTotal(paged.total);
       setStats(statsRes);
     } catch {
       setError('Không tải được dữ liệu. Thử lại sau.');
@@ -123,11 +145,23 @@ export default function TinTuc() {
   // Search mode: gọi server mỗi khi từ khoá thay đổi (sau debounce)
   useEffect(() => {
     const q = debouncedSearch.trim();
-    if (!q) { setSearchResults([]); return; }
+    if (!q) {
+      setSearchResults([]);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchTotal(0);
+      return;
+    }
 
     setSearchLoading(true);
-    searchArticles(q)
-      .then(res => setSearchResults(Array.isArray(res) ? res : []))
+    searchArticles(q, 1, PAGE_LIMIT)
+      .then(res => {
+        const paged = normalizePagedResponse(res);
+        setSearchResults(paged.items);
+        setSearchPage(paged.page);
+        setSearchHasMore(paged.hasMore);
+        setSearchTotal(paged.total);
+      })
       .catch(() => setSearchResults([]))
       .finally(() => setSearchLoading(false));
   }, [debouncedSearch]);
@@ -151,17 +185,36 @@ export default function TinTuc() {
   }, [baseList, category, onlyImportant]);
 
   const isLoading = isSearchMode ? searchLoading : loading;
+  const canLoadMore = isSearchMode ? searchHasMore : hasMore;
   const hasFilter = category || onlyImportant;
   const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
+  const loadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      if (isSearchMode) {
+        const paged = normalizePagedResponse(await searchArticles(debouncedSearch.trim(), searchPage + 1, PAGE_LIMIT));
+        setSearchResults(prev => prev.concat(paged.items));
+        setSearchPage(paged.page);
+        setSearchHasMore(paged.hasMore);
+        setSearchTotal(paged.total);
+      } else {
+        const paged = normalizePagedResponse(await getArticles(days, page + 1, PAGE_LIMIT));
+        setNews(prev => prev.concat(paged.items));
+        setPage(paged.page);
+        setHasMore(paged.hasMore);
+        setTotal(paged.total);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div className="page page-fade">
       <div className="page-header">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div className="pill" style={{ background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', marginBottom: 8, fontSize: 11 }}>
-              🛡️ TRỢ LÝ 35
-            </div>
             <h1>Bản tin</h1>
             <p>Tổng hợp từ nguồn chính thống</p>
           </div>
@@ -180,6 +233,51 @@ export default function TinTuc() {
             <StatItem icon={Users} value={stats.totalSubscribers || 0} label="Đăng ký" />
             <StatItem icon={BookOpen} value={stats.totalQuizAttempts || 0} label="Lượt quiz" />
           </div>
+        </div>
+      )}
+
+      {!isSearchMode && (
+        <div className="card elevated" style={{
+          marginBottom: 20,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 14,
+        }}>
+          <div className="row" style={{ gap: 14, minWidth: 0 }}>
+            <div className="chip red lg" style={{ borderRadius: 16 }}>
+              <Bell size={18} strokeWidth={2.1} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: 16,
+                lineHeight: 1.2,
+                color: 'var(--ink)',
+                marginBottom: 3,
+              }}>
+                Theo dõi bản tin
+              </div>
+              <div className="text-sm text-soft" style={{ lineHeight: 1.35 }}>
+                Nhận tin chọn lọc qua Email hoặc Telegram.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn primary sm"
+            onClick={() => onNavigate?.('dang-ky')}
+            style={{
+              flexShrink: 0,
+              borderRadius: 16,
+              padding: '11px 18px',
+              fontWeight: 800,
+              boxShadow: '0 9px 20px rgba(184,50,39,.28)',
+            }}
+          >
+            Đăng ký
+          </button>
         </div>
       )}
 
@@ -251,7 +349,7 @@ export default function TinTuc() {
         <div className="section-label" style={{ marginBottom: 0 }}>
           {isLoading
             ? (isSearchMode ? 'Đang tìm...' : 'Đang tải...')
-            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}`
+            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}${(isSearchMode ? searchTotal : total) ? ` / ${(isSearchMode ? searchTotal : total)} tổng` : ''}`
           }
         </div>
         {hasFilter && (
@@ -275,6 +373,11 @@ export default function TinTuc() {
         </div>
       )}
       {filtered.map((a, i) => <NewsCard key={i} article={a} />)}
+      {!isLoading && canLoadMore && !hasFilter && (
+        <button className="btn ghost full" onClick={loadMore} disabled={loadingMore} style={{ marginTop: 8 }}>
+          {loadingMore ? <><RefreshCw size={16} className="spinner" /> Đang tải...</> : 'Xem thêm'}
+        </button>
+      )}
     </div>
   );
 }

@@ -173,13 +173,15 @@ const TROLY35_ARTICLE_SCHEMA = {
 
 function handleTroLy35Run(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG.concat(REQUIRED_TROLY35_CONFIG));
-  troLy35RequireAccess_(data && data.accessCode);
+  const clientIpHash = cleanValue_(data && (data.clientIpHash || data.client_ip_hash));
+  troLy35RequireAccess_(data && data.accessCode, clientIpHash);
 
   const mode = troLy35NormalizeMode_(data && data.mode);
   const rawContent = cleanValue_(data && data.content).substring(0, TROLY35_MAX_INPUT_CHARS);
   const content = troLy35NormalizeRequestInput_(rawContent);
   const sourceUrl = cleanValue_(data && data.sourceUrl).substring(0, 500);
   const topicHint = cleanValue_(data && data.topic).substring(0, 160);
+  const cacheKey = troLy35RunCacheKey_(mode, content, sourceUrl, topicHint);
 
   if (content.length < 20) {
     throw new Error('Vui lòng nhập nội dung cần xử lý tối thiểu 20 ký tự.');
@@ -193,6 +195,29 @@ function handleTroLy35Run(data) {
   troLy35IncrementDailyLimit_(data.accessCode);
 
   const requestId = troLy35CreateRequestId_();
+  const cachedRun = troLy35GetCachedRun_(cacheKey);
+  if (cachedRun) {
+    troLy35SaveHistory_({
+      requestId,
+      mode,
+      input: content,
+      sourceUrl,
+      analysis: cachedRun.analysis || {},
+      result: cachedRun.result || {},
+      knowledge: cachedRun.knowledge || [],
+      status: 'DONE'
+    });
+
+    return {
+      success: true,
+      cached: true,
+      requestId,
+      analysis: cachedRun.analysis || {},
+      knowledge: cachedRun.knowledge || [],
+      result: cachedRun.result || {}
+    };
+  }
+
   let analysis = {};
   let knowledge = [];
   let result = {};
@@ -212,6 +237,8 @@ function handleTroLy35Run(data) {
         result = troLy35GenerateRebuttalDraft_(content, analysis, knowledge);
       }
     }
+
+    troLy35PutCachedRun_(cacheKey, { analysis, knowledge, result });
 
     troLy35SaveHistory_({
       requestId,
@@ -249,7 +276,7 @@ function handleTroLy35Run(data) {
 
 function handleTroLy35Rate(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode);
+  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
 
   const requestId = cleanValue_(data && data.requestId);
   const rating = Number(data && data.rating);
@@ -276,25 +303,27 @@ function handleTroLy35Rate(data) {
 
 function handleTroLy35Feedback(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode);
+  const accessCode = data && (data.accessCode || data.access_code);
+  troLy35RequireAccess_(accessCode, data && (data.clientIpHash || data.client_ip_hash));
 
   const rating = cleanValue_(data && data.rating);
   if (rating !== 'good' && rating !== 'bad') throw new Error('Rating phải là "good" hoặc "bad".');
 
-  const responseId = cleanValue_(data && data.responseId);
+  const responseId = cleanValue_(data && (data.responseId || data.response_id));
   if (!responseId) throw new Error('Thiếu responseId.');
 
-  const codeHash = troLy35Hash_(cleanValue_(data.accessCode)).substring(0, 12);
+  const codeHash = troLy35Hash_(cleanValue_(accessCode)).substring(0, 12);
+  const queryPreview = cleanValue_(data && (data.queryPreview || data.query_preview));
 
   saveTroLy35Feedback_({
-    queryHash: cleanValue_(data.queryHash),
+    queryHash: cleanValue_(data && (data.queryHash || data.query_hash)) || troLy35Hash_(queryPreview),
     rating,
-    comment: cleanValue_(data.comment),
+    comment: cleanValue_(data && (data.comment || data.reason)),
     responseId,
     accessCodeHash: codeHash,
-    queryPreview: cleanValue_(data.queryPreview),
-    responsePreview: cleanValue_(data.responsePreview),
-    reason: cleanValue_(data.reason),
+    queryPreview,
+    responsePreview: cleanValue_(data && (data.responsePreview || data.response_preview)),
+    reason: cleanValue_(data && data.reason),
   });
 
   return { success: true, message: 'Cảm ơn góp ý!' };
@@ -302,7 +331,7 @@ function handleTroLy35Feedback(data) {
 
 function handleTroLy35History(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode);
+  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
 
   const limit = Math.min(50, Math.max(1, Number(data && data.limit) || 20));
   const sheet = getSheet_('TROLY35_HISTORY');
@@ -329,7 +358,7 @@ function handleTroLy35History(data) {
 
 function handleTroLy35Trends(data) {
   assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode);
+  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
 
   const windowDays = Math.min(30, Math.max(1, Number(data && data.windowDays) || 7));
   const since = new Date();
@@ -781,7 +810,7 @@ function troLy35EmbedText_(text) {
     throw new Error('Gemini embedding không trả về vector.');
   }
 
-  try { cache.put(cacheKey, JSON.stringify(values), 21600); } catch (_) {}
+  try { cache.put(cacheKey, JSON.stringify(values), 86400); } catch (_) {}
   return values;
 }
 
@@ -1065,6 +1094,32 @@ function troLy35BuildKnowledgeQuery_(analysis, content, topicHint) {
   ].filter(Boolean).join('\n');
 }
 
+function troLy35RunCacheKey_(mode, content, sourceUrl, topicHint) {
+  return 'run_' + troLy35Hash_([
+    cleanValue_(mode),
+    cleanValue_(content),
+    cleanValue_(sourceUrl),
+    cleanValue_(topicHint)
+  ].join('\n---\n')).substring(0, 40);
+}
+
+function troLy35GetCachedRun_(cacheKey) {
+  try {
+    const raw = CacheService.getScriptCache().get(cacheKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function troLy35PutCachedRun_(cacheKey, payload) {
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(payload), 1800);
+  } catch (error) {
+    Logger.log(`[Trợ lý 35] Không cache được response: ${error}`);
+  }
+}
+
 function troLy35SaveHistory_(data) {
   const sheet = getSheet_('TROLY35_HISTORY');
   const analysis = data.analysis || {};
@@ -1145,34 +1200,52 @@ function troLy35NormalizeMode_(mode) {
   return value;
 }
 
-function troLy35RequireAccess_(accessCode) {
+function troLy35RequireAccess_(accessCode, clientIpHash) {
   if (isBlank_(CONFIG.TROLY35_ACCESS_CODE_SHA256)) {
     throw new Error('Chưa cấu hình TROLY35_ACCESS_CODE_SHA256.');
   }
 
   const codeHash = troLy35Hash_(cleanValue_(accessCode));
-  troLy35AssertNotBruteForced_(codeHash);
+  const actorKey = troLy35BruteForceActorKey_(clientIpHash, codeHash);
+  troLy35AssertNotBruteForced_(actorKey);
 
   if (codeHash !== cleanValue_(CONFIG.TROLY35_ACCESS_CODE_SHA256).toLowerCase()) {
-    troLy35RecordFailedAttempt_(codeHash);
+    troLy35RecordFailedAttempt_(actorKey);
+    throw new Error('Mã truy cập không hợp lệ.');
+  }
+
+  troLy35ClearFailedAttempts_(actorKey);
+}
+
+function troLy35BruteForceActorKey_(clientIpHash, codeHash) {
+  const client = cleanValue_(clientIpHash).replace(/[^a-f0-9]/gi, '').substring(0, 32);
+  return client || codeHash.substring(0, 16);
+}
+
+function troLy35AssertNotBruteForced_(actorKey) {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('bf_block_' + actorKey)) {
     throw new Error('Mã truy cập không hợp lệ.');
   }
 }
 
-function troLy35AssertNotBruteForced_(codeHash) {
+function troLy35RecordFailedAttempt_(actorKey) {
   const cache = CacheService.getScriptCache();
-  const key = 'bf_' + codeHash.substring(0, 16);
+  const key = 'bf_count_' + actorKey;
   const attempts = Number(cache.get(key)) || 0;
-  if (attempts >= 5) {
-    throw new Error('Mã truy cập không hợp lệ.');
+  const nextAttempts = attempts + 1;
+  if (nextAttempts >= 5) {
+    cache.put('bf_block_' + actorKey, '1', 1800);
+    cache.remove(key);
+    return;
   }
+  cache.put(key, String(nextAttempts), 900);
 }
 
-function troLy35RecordFailedAttempt_(codeHash) {
-  const cache = CacheService.getScriptCache();
-  const key = 'bf_' + codeHash.substring(0, 16);
-  const attempts = Number(cache.get(key)) || 0;
-  cache.put(key, String(attempts + 1), 900);
+function troLy35ClearFailedAttempts_(actorKey) {
+  try {
+    CacheService.getScriptCache().remove('bf_count_' + actorKey);
+  } catch (_) {}
 }
 
 function troLy35AssertDailyLimit_(accessCode) {

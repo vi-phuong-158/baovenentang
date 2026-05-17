@@ -1,9 +1,9 @@
-import { Newspaper, Bot, Target, BookOpen, Bell } from 'lucide-react';
+import { Newspaper, Target, BookOpen, Bell } from 'lucide-react';
 
 const TABS = [
   { id: 'tin-tuc',  label: 'Tin tức',   Icon: Newspaper },
   { id: 'quiz',     label: 'Quiz',       Icon: Target },
-  { id: 'troly35',  label: 'Trợ lý 35', Icon: Bot,      center: true },
+  { id: 'troly35',  label: 'Trợ lý 35', Icon: null,     center: true },
   { id: 'thu-vien', label: 'Thư viện',  Icon: BookOpen },
   { id: 'dang-ky',  label: 'Đăng ký',   Icon: Bell },
 ];
@@ -60,25 +60,52 @@ export default function BottomNav({ active, onSelect }) {
                 position: 'relative',
               }}
             >
-              {/* FAB raised button */}
               <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: 20,
+                width: 58,
+                height: 58,
+                borderRadius: '50%',
                 background: isActive
-                  ? 'linear-gradient(145deg, #d32f2f 0%, #b71c1c 100%)'
-                  : 'linear-gradient(145deg, #e53935 0%, #c62828 100%)',
+                  ? 'radial-gradient(circle at 35% 25%, #fffdf4 0%, #fff6dc 45%, #f3c95f 100%)'
+                  : 'radial-gradient(circle at 35% 25%, #ffffff 0%, #fff6e2 52%, #f0cf86 100%)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                color: '#c62f27',
                 boxShadow: isActive
-                  ? '0 0 0 3px rgba(211,47,47,.25), 0 8px 20px rgba(183,28,28,.55), inset 0 1px 0 rgba(255,255,255,.18)'
-                  : '0 4px 14px rgba(183,28,28,.45), inset 0 1px 0 rgba(255,255,255,.18)',
+                  ? '0 0 0 5px rgba(184,50,39,.12), 0 8px 22px rgba(184,50,39,.38), inset 0 1px 0 rgba(255,255,255,.75)'
+                  : '0 6px 18px rgba(184,50,39,.3), inset 0 1px 0 rgba(255,255,255,.8)',
                 transform: isActive ? 'translateY(-14px) scale(1.05)' : 'translateY(-12px)',
                 transition: 'all .2s cubic-bezier(.34,1.56,.64,1)',
-                border: '2px solid rgba(255,255,255,.3)',
+                border: '3px solid #c62f27',
+                outline: '2px solid #fff',
+                position: 'relative',
               }}>
-                <Icon size={24} strokeWidth={2} color="#fff" />
+                <span style={{
+                  position: 'absolute',
+                  inset: 5,
+                  borderRadius: '50%',
+                  border: '1px solid rgba(198,47,39,.38)',
+                  pointerEvents: 'none',
+                }} />
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 21,
+                  fontWeight: 900,
+                  lineHeight: .95,
+                  letterSpacing: 0,
+                }}>
+                  35
+                </span>
+                <span style={{
+                  fontSize: 6.5,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  letterSpacing: .3,
+                  marginTop: 1,
+                }}>
+                  TRỢ LÝ
+                </span>
               </div>
               <span style={{
                 fontSize: 10,

@@ -67,9 +67,9 @@ function fetchAllRSS() {
       items.forEach(item => {
         try {
           const article = {
-            title: cleanText(item.getChildText('title')),
+            title: cleanText_(item.getChildText('title')),
             link: item.getChildText('link'),
-            description: cleanText(item.getChildText('description')),
+            description: cleanText_(item.getChildText('description')),
             pubDate: item.getChildText('pubDate'),
             source: source.name,
             sourcePriority: source.priority
@@ -160,20 +160,6 @@ function isRecentArticle(pubDateStr) {
 /**
  * Làm sạch text: loại bỏ HTML, CDATA, whitespace thừa
  */
-function cleanText(text) {
-  if (!text) return '';
-  return text
-    .replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 // ============================================================
 // HTML CRAWLER
 // ============================================================

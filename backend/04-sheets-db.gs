@@ -140,8 +140,25 @@ function saveArticlesToSheet(articles) {
   ]);
 
   appendRows_(sheet, rows);
+  invalidateArticleCache_();
   Logger.log(`[Sheets] Đã lưu ${rows.length} bài vào TIN_TUC`);
   return rows.length;
+}
+
+function invalidateArticleCache_() {
+  try {
+    const cache = CacheService.getScriptCache();
+    [1, 7, 30].forEach(days => cache.remove('articles_' + days));
+    PropertiesService.getScriptProperties().setProperty('ARTICLE_CACHE_VERSION', String(Date.now()));
+  } catch (_) {}
+}
+
+function getArticleCacheVersion_() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('ARTICLE_CACHE_VERSION') || '1';
+  } catch (_) {
+    return '1';
+  }
 }
 
 function appendRows_(sheet, rows) {
@@ -190,7 +207,7 @@ function addSubscriber(data) {
   const email = normalizeEmail_(data && data.email);
   const name = cleanValue_(data && data.name);
 
-  if (!email || !isValidEmail_(email)) {
+  if (!validateEmail_(email)) {
     return { success: false, message: 'Email không hợp lệ' };
   }
 
@@ -361,7 +378,7 @@ function getArticles(days, page, limit) {
   const parsedPage = Math.max(1, parseInt(page) || 1);
   const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 20), 50);
 
-  const cacheKey = 'articles_' + parsedDays;
+  const cacheKey = 'articles_' + getArticleCacheVersion_() + '_' + parsedDays;
   const cache = CacheService.getScriptCache();
   let articles;
 
@@ -471,48 +488,56 @@ function updateDailyStats(stats) {
  * @param {string} query - Từ khoá tìm kiếm
  * @param {number} limit - Số kết quả tối đa (mặc định 50, tối đa 100)
  */
-function searchArticles(query, limit) {
+function searchArticles(query, page, limit) {
   const sheet = getSheet_('TIN_TUC');
-  if (sheet.getLastRow() <= 1) return [];
+  const parsedPage = Math.max(1, parseInt(page) || 1);
+  const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 20), 50);
+  if (sheet.getLastRow() <= 1) return { data: [], total: 0, page: parsedPage, hasMore: false };
 
   const q = (query || '').toString().toLowerCase().trim();
-  if (!q) return [];
+  if (!q) return { data: [], total: 0, page: parsedPage, hasMore: false };
 
-  const maxResults = Math.min(parseInt(limit) || 50, 100);
-  const cacheKey = 'search_' + Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, q + '_' + maxResults).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
+  const cacheKey = 'search_' + getArticleCacheVersion_() + '_' + Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, q).map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('').substring(0, 16);
   const cache = CacheService.getScriptCache();
   const cached = cache.get(cacheKey);
+  let results;
   if (cached) {
-    try { return JSON.parse(cached); } catch (_) {}
+    try { results = JSON.parse(cached); } catch (_) { results = null; }
   }
 
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  if (!results) {
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
-  const results = [];
-  for (let i = data.length - 1; i >= 0 && results.length < maxResults; i--) {
-    const row = data[i];
-    const title    = (row[1] || '').toString().toLowerCase();
-    const summary  = (row[2] || '').toString().toLowerCase();
-    const source   = (row[6] || '').toString().toLowerCase();
-    const keywords = (row[8] || '').toString().toLowerCase();
+    results = [];
+    for (let i = data.length - 1; i >= 0; i--) {
+      const row = data[i];
+      const title    = (row[1] || '').toString().toLowerCase();
+      const summary  = (row[2] || '').toString().toLowerCase();
+      const source   = (row[6] || '').toString().toLowerCase();
+      const keywords = (row[8] || '').toString().toLowerCase();
 
-    if (title.includes(q) || summary.includes(q) || source.includes(q) || keywords.includes(q)) {
-      results.push({
-        date:     row[0],
-        title:    row[1],
-        summary:  row[2],
-        category: row[3],
-        priority: row[4],
-        message:  row[5],
-        source:   row[6],
-        link:     row[7],
-        keywords: row[8]
-      });
+      if (title.includes(q) || summary.includes(q) || source.includes(q) || keywords.includes(q)) {
+        results.push({
+          date:     row[0],
+          title:    row[1],
+          summary:  row[2],
+          category: row[3],
+          priority: row[4],
+          message:  row[5],
+          source:   row[6],
+          link:     row[7],
+          keywords: row[8]
+        });
+      }
     }
+
+    try { cache.put(cacheKey, JSON.stringify(results), 600); } catch (_) {}
   }
 
-  try { cache.put(cacheKey, JSON.stringify(results), 600); } catch (_) {}
-  return results;
+  const total = results.length;
+  const start = (parsedPage - 1) * parsedLimit;
+  const paged = results.slice(start, start + parsedLimit);
+  return { data: paged, total, page: parsedPage, hasMore: start + parsedLimit < total };
 }
 
 /**
@@ -586,14 +611,6 @@ function shuffleRows_(rows) {
 
 function normalizeEmail_(email) {
   return cleanValue_(email).toLowerCase();
-}
-
-function cleanValue_(value) {
-  return value === undefined || value === null ? '' : value.toString().trim();
-}
-
-function isValidEmail_(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 // ============================================================

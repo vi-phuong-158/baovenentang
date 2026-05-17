@@ -147,13 +147,8 @@ POST { "action": "troly35_trends", "accessCode": "...", "windowDays": 7|30 }
 
 ## 7. Cập nhật frontend
 
-Trong `web/js/app.js` và `web/js/troly35.js`, thay:
-
-```javascript
-const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
-```
-
-bằng URL Web App đã deploy.
+Frontend production dùng React trong `web/src` và gọi backend qua Vercel route `/api/gas`.
+Khi deploy, cấu hình biến môi trường `GAS_DEPLOYMENT_URL` và `GAS_API_TOKEN` trên Vercel thay vì nhúng Web App URL hoặc token vào bundle.
 
 ## Ghi chú vận hành
 
