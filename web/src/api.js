@@ -99,9 +99,6 @@ export const getQuiz = (count = 10) =>
 export const searchArticles = (q, page = 1, limit = 20) =>
   getJson(`${API_URL}?action=search&q=${encodeURIComponent(q)}&page=${page}&limit=${limit}`);
 
-export const getRebuttals = (keyword) =>
-  getJson(`${API_URL}?action=rebuttals&keyword=${encodeURIComponent(keyword)}`);
-
 // POST helper
 export const postApi = (action, payload = {}) =>
   fetch(API_URL, {
@@ -118,5 +115,6 @@ export const subscribe = (data) => postApi('subscribe', data);
 export const submitQuiz = (data) => postApi('submit_quiz', data);
 export const runTroLy35 = (data) => postApi('troly35_run', data);
 export const rateTroLy35 = (data) => postApi('troly35_rate', data);
+export const getTroLy35History = (data) => postApi('troly35_history', data);
 export const getTrends = (data) => postApi('troly35_trends', data);
 export const sendFeedback = (data) => postApi('troly35_feedback', data);

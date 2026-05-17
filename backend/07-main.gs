@@ -142,11 +142,6 @@ function doGet(e) {
         result = { success: true, data: searchArticles(searchQuery, searchPage, searchLimit) };
         break;
 
-      case 'rebuttals':
-        const keyword = params.keyword || '';
-        result = { success: true, data: getRebuttals(keyword) };
-        break;
-        
       case 'stats':
         result = { success: true, data: getStatistics() };
         break;
@@ -161,8 +156,8 @@ function doGet(e) {
           success: true, 
           message: 'Trợ lý 35 API',
           version: '1.0',
-          endpoints: ['today', 'quiz', 'rebuttals', 'stats'],
-          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest']
+          endpoints: ['today', 'articles', 'search', 'quiz', 'stats'],
+          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest']
         };
     }
   } catch(error) {

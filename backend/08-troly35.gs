@@ -314,17 +314,20 @@ function handleTroLy35Feedback(data) {
 
   const codeHash = troLy35Hash_(cleanValue_(accessCode)).substring(0, 12);
   const queryPreview = cleanValue_(data && (data.queryPreview || data.query_preview));
+  const comment = cleanValue_(data && (data.comment || data.reason)).substring(0, 1000);
 
   saveTroLy35Feedback_({
     queryHash: cleanValue_(data && (data.queryHash || data.query_hash)) || troLy35Hash_(queryPreview),
     rating,
-    comment: cleanValue_(data && (data.comment || data.reason)),
+    comment,
     responseId,
     accessCodeHash: codeHash,
     queryPreview,
     responsePreview: cleanValue_(data && (data.responsePreview || data.response_preview)),
     reason: cleanValue_(data && data.reason),
   });
+
+  troLy35UpdateHistoryFeedback_(responseId, rating, comment);
 
   return { success: true, message: 'Cảm ơn góp ý!' };
 }
@@ -339,19 +342,24 @@ function handleTroLy35History(data) {
 
   const start = Math.max(2, sheet.getLastRow() - limit + 1);
   const dataRows = sheet.getRange(start, 1, sheet.getLastRow() - start + 1, sheet.getLastColumn()).getValues();
-  const rows = dataRows.reverse().map(row => ({
-    timestamp: row[0],
-    requestId: row[1],
-    mode: row[2],
-    topic: row[3],
-    dangerLevel: row[4],
-    inputPreview: row[5],
-    sourceUrl: row[7],
-    rating: row[11],
-    note: row[12],
-    status: row[13],
-    error: row[14]
-  }));
+  const rows = dataRows.reverse().map(row => {
+    const rating = row[11];
+    return {
+      timestamp: row[0],
+      requestId: row[1],
+      mode: row[2],
+      topic: row[3],
+      dangerLevel: row[4],
+      inputPreview: row[5],
+      sourceUrl: row[7],
+      answerText: troLy35FormatAnswerText_(row[2], troLy35ParseJsonSafe_(row[9])),
+      rating,
+      ratingStatus: troLy35RatingStatus_(rating),
+      note: row[12],
+      status: row[13],
+      error: row[14]
+    };
+  });
 
   return { success: true, data: rows };
 }
@@ -1154,6 +1162,64 @@ function troLy35FindHistoryRow_(sheet, requestId) {
     if (cleanValue_(values[i][0]) === requestId) return i + 2;
   }
   return 0;
+}
+
+function troLy35UpdateHistoryFeedback_(requestId, ratingStatus, note) {
+  const sheet = getSheet_('TROLY35_HISTORY');
+  const rowIndex = troLy35FindHistoryRow_(sheet, requestId);
+  if (!rowIndex) return false;
+
+  const numericRating = ratingStatus === 'good' ? 5 : 1;
+  sheet.getRange(rowIndex, 12, 1, 2).setValues([[numericRating, note || ratingStatus]]);
+  return true;
+}
+
+function troLy35RatingStatus_(rating) {
+  const value = Number(rating);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  return value >= 4 ? 'good' : 'bad';
+}
+
+function troLy35ParseJsonSafe_(text) {
+  try {
+    if (!text) return {};
+    return JSON.parse(cleanValue_(text));
+  } catch (_) {
+    return {};
+  }
+}
+
+function troLy35FormatAnswerText_(mode, result) {
+  const data = result || {};
+  let primary = '';
+  let fallback = '';
+
+  if (mode === TROLY35_MODES.FACT_CHECK) {
+    primary = [
+      data.muc_danh_gia ? `Mức đánh giá: ${data.muc_danh_gia}` : '',
+      data.do_tin_cay ? `Độ tin cậy: ${data.do_tin_cay}/5` : '',
+      data.nhan_dinh_chinh,
+      data.khuyen_nghi_xu_ly ? `Khuyến nghị xử lý: ${data.khuyen_nghi_xu_ly}` : ''
+    ].filter(Boolean).join('\n\n');
+    fallback = Array.isArray(data.diem_can_kiem_chung) ? data.diem_can_kiem_chung.join('\n') : '';
+  } else if (mode === TROLY35_MODES.ARTICLE_WRITER) {
+    primary = [
+      data.tieu_de ? `Tiêu đề: ${data.tieu_de}` : '',
+      data.mo_ta_ngan,
+      data.bai_viet,
+      data.caption_mxh ? `Caption MXH:\n${data.caption_mxh}` : ''
+    ].filter(Boolean).join('\n\n');
+    fallback = Array.isArray(data.dan_y) ? data.dan_y.join('\n') : '';
+  } else {
+    primary = data.phien_ban_day_du || data.phien_ban_comment || '';
+    fallback = Array.isArray(data.phien_ban_tom_tat)
+      ? data.phien_ban_tom_tat.join('\n')
+      : data.phien_ban_tom_tat || '';
+  }
+
+  const notes = [data.ghi_chu, data.nhan_kiem_duyet].filter(Boolean).join('\n\n');
+  const answer = [primary || fallback, notes].filter(Boolean).join('\n\n').trim();
+  return answer || 'Chưa có nội dung trả lời để hiển thị.';
 }
 
 function troLy35CallGeminiJson_(prompt, schema) {

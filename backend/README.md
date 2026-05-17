@@ -118,7 +118,6 @@ Các endpoint API cho frontend:
 GET  ?action=today
 GET  ?action=stats
 GET  ?action=quiz&count=10
-GET  ?action=rebuttals&keyword=...
 POST { "action": "subscribe", ... }
 POST { "action": "submit_quiz", ... }
 POST { "action": "troly35_run", "accessCode": "...", "mode": "rebuttal|fact_check|article_writer", "content": "...", "sourceUrl": "...", "topic": "..." }

@@ -1,29 +1,112 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Copy, Key, Lock, RefreshCw, Send, Trash2, TrendingUp } from 'lucide-react';
-import { getTrends, runTroLy35 } from '../api.js';
+import {
+  Bot,
+  Check,
+  Clock3,
+  Copy,
+  Key,
+  Lock,
+  MessageSquareText,
+  RefreshCw,
+  Send,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+  TrendingUp,
+} from 'lucide-react';
+import { getTrends, getTroLy35History, runTroLy35, sendFeedback } from '../api.js';
 import logo35 from '../../logo.png';
 
 const ACCESS_KEY = 'troly35_access_code';
+const HISTORY_LIMIT = 20;
 
-function getBestAnswer(res) {
-  const result = res?.result || {};
-  const primary =
-    result.phien_ban_day_du ||
-    result.phien_ban_comment ||
-    result.nhan_dinh_chinh ||
-    result.khuyen_nghi_xu_ly ||
-    result.bai_viet ||
-    result.caption_mxh ||
-    '';
+const MODES = [
+  {
+    value: 'rebuttal',
+    label: 'Phản bác',
+    shortLabel: 'Phản bác',
+    placeholder: 'Dán luận điểm, bình luận hoặc nội dung cần phản bác...',
+  },
+  {
+    value: 'fact_check',
+    label: 'Kiểm chứng',
+    shortLabel: 'Kiểm chứng',
+    placeholder: 'Dán thông tin cần thẩm định nguồn, độ tin cậy hoặc điểm cần kiểm chứng...',
+  },
+  {
+    value: 'article_writer',
+    label: 'Viết bài',
+    shortLabel: 'Viết bài',
+    placeholder: 'Nhập chủ đề, thông điệp hoặc dàn ý cần viết thành bài tuyên truyền...',
+  },
+];
 
-  const fallback = Array.isArray(result.phien_ban_tom_tat)
-    ? result.phien_ban_tom_tat.join('\n')
-    : result.phien_ban_tom_tat || '';
+function getMode(mode) {
+  return MODES.find(item => item.value === mode) || MODES[0];
+}
+
+function listBlock(title, items, mapper = item => item) {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  return `${title}:\n${items.map(item => `- ${mapper(item)}`).join('\n')}`;
+}
+
+function formatEvidence(items) {
+  return listBlock('Dẫn chứng sử dụng', items, item => {
+    if (!item || typeof item !== 'object') return item;
+    return [item.noi_dung, item.nguon ? `Nguồn: ${item.nguon}` : ''].filter(Boolean).join(' | ');
+  });
+}
+
+function formatAnswer(mode, res) {
+  const result = res?.result || res || {};
+  let parts = [];
+
+  if (mode === 'fact_check') {
+    parts = [
+      result.muc_danh_gia ? `Mức đánh giá: ${result.muc_danh_gia}` : '',
+      result.do_tin_cay ? `Độ tin cậy: ${result.do_tin_cay}/5` : '',
+      result.nhan_dinh_chinh,
+      listBlock('Điểm cần kiểm chứng', result.diem_can_kiem_chung),
+      formatEvidence(result.bang_chung_doi_chieu),
+      result.khuyen_nghi_xu_ly ? `Khuyến nghị xử lý:\n${result.khuyen_nghi_xu_ly}` : '',
+    ];
+  } else if (mode === 'article_writer') {
+    parts = [
+      result.tieu_de ? `Tiêu đề: ${result.tieu_de}` : '',
+      result.mo_ta_ngan,
+      listBlock('Dàn ý', result.dan_y),
+      result.bai_viet,
+      result.caption_mxh ? `Caption MXH:\n${result.caption_mxh}` : '',
+      Array.isArray(result.hashtag_de_xuat) && result.hashtag_de_xuat.length
+        ? `Hashtag: ${result.hashtag_de_xuat.join(' ')}`
+        : '',
+    ];
+  } else {
+    parts = [
+      result.phien_ban_day_du,
+      result.phien_ban_comment ? `Comment ngắn:\n${result.phien_ban_comment}` : '',
+      listBlock('Tóm tắt nhanh', result.phien_ban_tom_tat),
+      formatEvidence(result.dan_chung_su_dung),
+      Array.isArray(result.hashtag_de_xuat) && result.hashtag_de_xuat.length
+        ? `Hashtag: ${result.hashtag_de_xuat.join(' ')}`
+        : '',
+    ];
+  }
 
   const notes = [result.ghi_chu, result.nhan_kiem_duyet].filter(Boolean).join('\n\n');
-  const answer = [primary || fallback, notes].filter(Boolean).join('\n\n').trim();
-
+  const answer = [...parts, notes].filter(Boolean).join('\n\n').trim();
   return answer || 'Tôi chưa tạo được câu trả lời phù hợp. Anh/chị vui lòng thử hỏi lại rõ hơn.';
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function MessageText({ text }) {
@@ -39,17 +122,14 @@ function MessageText({ text }) {
   );
 }
 
-function ChatMessage({ message, onCopy }) {
+function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
   const isUser = message.role === 'user';
+  const mode = getMode(message.mode);
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: isUser ? 'flex-end' : 'flex-start',
-      marginBottom: 10,
-    }}>
+    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
       <div style={{
-        maxWidth: '86%',
+        maxWidth: '88%',
         padding: '11px 13px',
         borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
         background: isUser ? 'var(--red)' : 'var(--surface)',
@@ -60,9 +140,10 @@ function ChatMessage({ message, onCopy }) {
       }}>
         {!isUser && (
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <div className="row" style={{ gap: 6 }}>
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
               <Bot size={14} color="var(--red)" />
               <span className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>Trợ lý 35</span>
+              <span className="pill" style={{ padding: '2px 7px', fontSize: 11 }}>{mode.shortLabel}</span>
             </div>
             {!message.pending && !message.error && (
               <button
@@ -76,6 +157,7 @@ function ChatMessage({ message, onCopy }) {
             )}
           </div>
         )}
+
         <div className="text-sm" style={{ color: isUser ? '#fff' : (message.error ? 'var(--red)' : 'var(--ink-soft)') }}>
           {message.pending ? (
             <span className="row" style={{ gap: 7 }}><RefreshCw size={14} className="spinner" /> Đang trả lời...</span>
@@ -83,22 +165,84 @@ function ChatMessage({ message, onCopy }) {
             <MessageText text={message.text} />
           )}
         </div>
+
+        {!isUser && !message.pending && !message.error && message.requestId && (
+          <div style={{ borderTop: '1px solid var(--line-soft)', marginTop: 10, paddingTop: 8 }}>
+            {message.feedback ? (
+              <div className="row" style={{ gap: 6, color: message.feedback === 'good' ? 'var(--ok)' : 'var(--red)', fontSize: 12, fontWeight: 700 }}>
+                <Check size={13} />
+                Đã đánh giá {message.feedback === 'good' ? 'tốt' : 'chưa tốt'}
+              </div>
+            ) : (
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => onFeedback(message, 'good')}
+                  disabled={message.feedbackLoading}
+                  style={{ padding: '6px 9px', fontSize: 12 }}
+                >
+                  <ThumbsUp size={13} /> Tốt
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => onFeedback(message, 'bad')}
+                  disabled={message.feedbackLoading}
+                  style={{ padding: '6px 9px', fontSize: 12 }}
+                >
+                  <ThumbsDown size={13} /> Xấu
+                </button>
+                {message.feedbackLoading && <RefreshCw size={14} className="spinner" />}
+              </div>
+            )}
+
+            {message.showFeedbackNote && !message.feedback && (
+              <div style={{ marginTop: 8 }}>
+                <textarea
+                  className="field"
+                  rows={2}
+                  value={message.feedbackDraft || ''}
+                  onChange={e => onFeedbackDraft(message.id, e.target.value)}
+                  placeholder="Ghi chú ngắn để Trợ lý 35 cải thiện..."
+                  style={{ minHeight: 58, marginBottom: 6, fontSize: 13 }}
+                />
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  onClick={() => onFeedback(message, 'bad', true)}
+                  disabled={message.feedbackLoading}
+                  style={{ padding: '7px 10px', fontSize: 12 }}
+                >
+                  Gửi góp ý
+                </button>
+                {message.feedbackError && <div className="msg error">{message.feedbackError}</div>}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function TroLy35() {
-  const [accessCode, setAccessCode] = useState(localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '');
+  const savedCode = localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
+  const [accessCode, setAccessCode] = useState(savedCode);
   const [remember, setRemember] = useState(!!localStorage.getItem(ACCESS_KEY));
-  const [accessMsg, setAccessMsg] = useState((localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY)) ? 'Đã tải mã truy cập.' : '');
+  const [accessMsg, setAccessMsg] = useState(savedCode ? 'Đã tải mã truy cập.' : '');
   const [accessMsgType, setAccessMsgType] = useState('success');
 
+  const [mode, setMode] = useState('rebuttal');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [runMsg, setRunMsg] = useState('');
   const [runMsgType, setRunMsgType] = useState('neutral');
+
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMsg, setHistoryMsg] = useState('');
 
   const [trends, setTrends] = useState(null);
   const [trendWindow, setTrendWindow] = useState(7);
@@ -107,12 +251,20 @@ export default function TroLy35() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (accessCode) loadTrends(accessCode, trendWindow);
+    const code = accessCode.trim();
+    if (code) {
+      loadTrends(code, trendWindow);
+      loadHistory(code);
+    }
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
+
+  const updateAssistantMessage = (id, patch) => {
+    setMessages(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
+  };
 
   const saveAccess = () => {
     const v = accessCode.trim();
@@ -122,6 +274,8 @@ export default function TroLy35() {
       setAccessMsg('Đã xóa mã.');
       setAccessMsgType('neutral');
       setTrends(null);
+      setHistory([]);
+      setHistoryMsg('');
       return;
     }
     if (remember) {
@@ -134,6 +288,7 @@ export default function TroLy35() {
     setAccessMsg('Đã lưu mã truy cập.');
     setAccessMsgType('success');
     loadTrends(v, trendWindow);
+    loadHistory(v);
   };
 
   const loadTrends = async (code, windowDays) => {
@@ -146,6 +301,22 @@ export default function TroLy35() {
       setTrends(null);
     } finally {
       setTrendsLoading(false);
+    }
+  };
+
+  const loadHistory = async (code) => {
+    if (!code) return;
+    setHistoryLoading(true);
+    setHistoryMsg('');
+    try {
+      const res = await getTroLy35History({ accessCode: code, limit: HISTORY_LIMIT });
+      if (res.success === false) throw new Error(res.error || 'Không tải được lịch sử.');
+      setHistory(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setHistory([]);
+      setHistoryMsg(err.message || 'Không tải được lịch sử.');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -166,11 +337,84 @@ export default function TroLy35() {
     setRunMsg('');
   };
 
+  const submitFeedback = async (message, rating, confirmBad = false) => {
+    if (!message.requestId || message.feedback) return;
+    const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
+    if (!code) {
+      updateAssistantMessage(message.id, { feedbackError: 'Vui lòng lưu mã truy cập trước.' });
+      return;
+    }
+
+    const note = (message.feedbackDraft || '').trim();
+    if (rating === 'bad' && !confirmBad) {
+      updateAssistantMessage(message.id, { showFeedbackNote: true, feedbackError: '' });
+      return;
+    }
+    if (rating === 'bad' && !note) {
+      updateAssistantMessage(message.id, { showFeedbackNote: true, feedbackError: 'Vui lòng nhập ghi chú ngắn.' });
+      return;
+    }
+
+    updateAssistantMessage(message.id, { feedbackLoading: true, feedbackError: '' });
+    try {
+      const res = await sendFeedback({
+        accessCode: code,
+        rating,
+        responseId: message.requestId,
+        queryPreview: message.queryText || '',
+        responsePreview: message.text || '',
+        comment: note,
+        reason: note,
+      });
+      if (res.success === false) throw new Error(res.error || 'Không lưu được đánh giá.');
+      updateAssistantMessage(message.id, {
+        feedback: rating,
+        feedbackLoading: false,
+        showFeedbackNote: false,
+        feedbackDraft: note,
+      });
+      loadTrends(code, trendWindow);
+      loadHistory(code);
+    } catch (err) {
+      updateAssistantMessage(message.id, {
+        feedbackLoading: false,
+        feedbackError: err.message || 'Không lưu được đánh giá.',
+      });
+    }
+  };
+
+  const openHistoryItem = (item) => {
+    const itemMode = getMode(item.mode).value;
+    setMode(itemMode);
+    setMessages([
+      {
+        id: `history-user-${item.requestId}`,
+        role: 'user',
+        mode: itemMode,
+        text: item.inputPreview || 'Nội dung không còn trong lịch sử.',
+      },
+      {
+        id: `history-assistant-${item.requestId}`,
+        role: 'assistant',
+        mode: itemMode,
+        text: item.answerText || item.error || 'Chưa có nội dung trả lời để hiển thị.',
+        requestId: item.requestId,
+        queryText: item.inputPreview || '',
+        feedback: item.ratingStatus || '',
+        feedbackDraft: item.note || '',
+        error: item.status === 'ERROR',
+      },
+    ]);
+    setRunMsg('Đã mở lại mục lịch sử.');
+    setRunMsgType('neutral');
+  };
+
   const sendQuestion = async (e) => {
     e.preventDefault();
 
     const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
     const content = question.trim();
+    const selectedMode = getMode(mode).value;
 
     if (!code) {
       setRunMsg('Vui lòng nhập mã truy cập nội bộ.');
@@ -189,8 +433,8 @@ export default function TroLy35() {
     }
 
     const id = Date.now();
-    const userMessage = { id: `user-${id}`, role: 'user', text: content };
-    const assistantMessage = { id: `assistant-${id}`, role: 'assistant', text: '', pending: true };
+    const userMessage = { id: `user-${id}`, role: 'user', mode: selectedMode, text: content };
+    const assistantMessage = { id: `assistant-${id}`, role: 'assistant', mode: selectedMode, text: '', pending: true, queryText: content };
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setQuestion('');
@@ -198,16 +442,17 @@ export default function TroLy35() {
     setLoading(true);
 
     try {
-      const res = await runTroLy35({ accessCode: code, mode: 'rebuttal', content });
+      const res = await runTroLy35({ accessCode: code, mode: selectedMode, content });
       if (!res.success) throw new Error(res.error || 'Không xử lý được yêu cầu.');
 
-      const answer = getBestAnswer(res);
+      const answer = formatAnswer(selectedMode, res);
       setMessages(prev => prev.map(item =>
         item.id === assistantMessage.id
-          ? { ...item, text: answer, pending: false }
+          ? { ...item, text: answer, pending: false, requestId: res.requestId, responseRaw: res.result || {} }
           : item
       ));
       loadTrends(code, trendWindow);
+      loadHistory(code);
     } catch (err) {
       setMessages(prev => prev.map(item =>
         item.id === assistantMessage.id
@@ -221,9 +466,10 @@ export default function TroLy35() {
     }
   };
 
+  const activeMode = getMode(mode);
+
   return (
     <div className="page page-fade">
-      {/* Header */}
       <div className="page-header">
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <div className="pill" style={{ background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', fontSize: 11 }}>
@@ -234,7 +480,6 @@ export default function TroLy35() {
         <p>Hỏi đáp nhanh, hỗ trợ xử lý thông tin</p>
       </div>
 
-      {/* Access code */}
       <div className="card tinted" style={{ marginBottom: 12 }}>
         <div className="row" style={{ marginBottom: 8 }}>
           <div className="chip red"><Lock size={14} /></div>
@@ -261,8 +506,29 @@ export default function TroLy35() {
         {accessMsg && <div className={`msg ${accessMsgType}`}>{accessMsg}</div>}
       </div>
 
-      {/* Chat window */}
       <div className="card elevated" style={{ padding: 12, marginBottom: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <div className="chip red"><MessageSquareText size={14} /></div>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>{activeMode.label}</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, marginBottom: 10 }}>
+          {MODES.map(item => (
+            <button
+              key={item.value}
+              type="button"
+              className={`btn sm ${mode === item.value ? 'primary' : 'ghost'}`}
+              onClick={() => setMode(item.value)}
+              disabled={loading}
+              style={{ padding: '8px 6px', fontSize: 12 }}
+            >
+              {item.shortLabel}
+            </button>
+          ))}
+        </div>
+
         <div style={{ minHeight: 260, maxHeight: 420, overflowY: 'auto', padding: '2px 2px 10px' }}>
           {messages.length === 0 ? (
             <div className="empty" style={{ padding: '34px 12px 38px' }}>
@@ -279,7 +545,13 @@ export default function TroLy35() {
             </div>
           ) : (
             messages.map(message => (
-              <ChatMessage key={message.id} message={message} onCopy={copyText} />
+              <ChatMessage
+                key={message.id}
+                message={message}
+                onCopy={copyText}
+                onFeedback={submitFeedback}
+                onFeedbackDraft={(id, value) => updateAssistantMessage(id, { feedbackDraft: value, feedbackError: '' })}
+              />
             ))
           )}
           <div ref={messagesEndRef} />
@@ -291,7 +563,7 @@ export default function TroLy35() {
             rows={3}
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="Nhập câu hỏi hoặc dán nội dung cần hỗ trợ..."
+            placeholder={activeMode.placeholder}
             disabled={loading}
             style={{ minHeight: 82, marginBottom: 8 }}
           />
@@ -307,7 +579,58 @@ export default function TroLy35() {
         </form>
       </div>
 
-      {/* Trends */}
+      <div className="card tinted" style={{ marginBottom: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <div className="chip"><Clock3 size={14} /></div>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Lịch sử</span>
+          </div>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => loadHistory(accessCode || sessionStorage.getItem(ACCESS_KEY))}
+            disabled={historyLoading}
+            style={{ padding: '6px 9px', fontSize: 12 }}
+          >
+            {historyLoading ? <RefreshCw size={13} className="spinner" /> : <RefreshCw size={13} />}
+          </button>
+        </div>
+
+        {historyLoading && <div className="empty" style={{ padding: 12 }}><RefreshCw size={16} className="spinner" /></div>}
+        {!historyLoading && historyMsg && <div className="msg error">{historyMsg}</div>}
+        {!historyLoading && !historyMsg && history.length === 0 && (
+          <div className="empty" style={{ padding: 12 }}>Chưa có lịch sử hội thoại.</div>
+        )}
+        {!historyLoading && history.map(item => (
+          <button
+            key={item.requestId}
+            type="button"
+            onClick={() => openHistoryItem(item)}
+            style={{
+              width: '100%',
+              textAlign: 'left',
+              padding: '9px 0',
+              border: 0,
+              borderBottom: '1px solid var(--line-soft)',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <div className="row" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+              <span className="text-xs text-mute">{formatDate(item.timestamp)} · {getMode(item.mode).shortLabel}</span>
+              {item.ratingStatus && (
+                <span className={`pill ${item.ratingStatus === 'good' ? 'ok' : ''}`} style={{ fontSize: 11 }}>
+                  {item.ratingStatus === 'good' ? 'Tốt' : 'Xấu'}
+                </span>
+              )}
+            </div>
+            <div className="text-sm" style={{ color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.inputPreview || item.topic || item.requestId}
+            </div>
+          </button>
+        ))}
+      </div>
+
       <div className="card tinted" style={{ marginTop: 4 }}>
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
           <div className="row" style={{ gap: 8 }}>

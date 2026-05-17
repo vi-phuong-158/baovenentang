@@ -77,7 +77,6 @@ function buildTelegramDigest(articles) {
   
   msg += `━━━━━━━━━━━━━━━━━\n`;
   msg += `✅ Gõ /quiz để kiểm tra nhận thức\n`;
-  msg += `📚 Gõ /phanbac để tra cứu luận điểm\n`;
   msg += `🌐 Web: https://baovenentang.vercel.app/`;
   
   // Telegram giới hạn 4096 ký tự/tin
@@ -136,8 +135,6 @@ function handleTelegramMessage(message) {
     handleStartCommand(chatId, userName);
   } else if (text.startsWith('/quiz')) {
     handleQuizCommand(chatId);
-  } else if (text.startsWith('/phanbac')) {
-    handleRebuttalCommand(chatId, text);
   } else if (text.startsWith('/dangky')) {
     handleSubscribeCommand(chatId);
   } else if (text.startsWith('/help')) {
@@ -155,11 +152,9 @@ function handleStartCommand(chatId, userName) {
   const msg = `🛡️ *Chào mừng ${userName} đến TRỢ LÝ 35!*\n\n` +
     `Đây là nền tảng bản tin tự động về:\n` +
     `📰 Tin chính thống hàng ngày\n` +
-    `🧠 Kiểm tra nhận thức chính trị\n` +
-    `🛡️ Luận điểm phản bác sai trái\n\n` +
+    `🧠 Kiểm tra nhận thức chính trị\n\n` +
     `*Các lệnh khả dụng:*\n` +
     `/quiz - Kiểm tra nhận thức\n` +
-    `/phanbac <từ khóa> - Tra cứu luận điểm\n` +
     `/dangky - Đăng ký nhận email\n` +
     `/help - Trợ giúp\n\n` +
     `🌐 Web: https://baovenentang.vercel.app/`;
@@ -248,37 +243,6 @@ function handlePendingQuizAnswer_(chatId, text, userName) {
 }
 
 /**
- * Lệnh /phanbac
- */
-function handleRebuttalCommand(chatId, text) {
-  const keyword = text.replace('/phanbac', '').trim();
-  
-  if (!keyword) {
-    sendTelegramMessage(chatId, 
-      '📚 *Tra cứu luận điểm phản bác*\n\n' +
-      'Sử dụng: `/phanbac <từ khóa>`\n' +
-      'Ví dụ: `/phanbac dân chủ`');
-    return;
-  }
-  
-  const results = getRebuttals(keyword);
-  
-  if (results.length === 0) {
-    sendTelegramMessage(chatId, `❌ Không tìm thấy luận điểm về "${keyword}"`);
-    return;
-  }
-  
-  const r = results[0];
-  const msg = `📚 *LUẬN ĐIỂM PHẢN BÁC*\n\n` +
-    `*Chủ đề:* ${escapeMarkdown(r.topic)}\n\n` +
-    `❌ *Luận điệu sai trái:*\n${escapeMarkdown(r.wrongClaim)}\n\n` +
-    `✅ *Phản bác:*\n${escapeMarkdown(r.rebuttal)}\n\n` +
-    `📌 *Bằng chứng:*\n${escapeMarkdown(r.evidence)}`;
-  
-  sendTelegramMessage(chatId, msg);
-}
-
-/**
  * Lệnh /dangky
  */
 function handleSubscribeCommand(chatId) {
@@ -298,7 +262,6 @@ function handleHelpCommand(chatId) {
     `*Các lệnh khả dụng:*\n\n` +
     `📰 /start - Bắt đầu\n` +
     `🧠 /quiz - Câu hỏi kiểm tra\n` +
-    `📚 /phanbac <từ khóa> - Luận điểm phản bác\n` +
     `📧 /dangky - Đăng ký nhận email\n` +
     `❓ /help - Hiển thị trợ giúp này\n\n` +
     `*Liên hệ:* @baovenentang\n` +

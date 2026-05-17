@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
+import { Bell, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
 
 function useDebounce(value, delay) {
@@ -82,7 +82,7 @@ const DAY_OPTIONS = [
   { label: '7 ngày', value: 7 },
   { label: '30 ngày', value: 30 },
 ];
-const PAGE_LIMIT = 20;
+const PAGE_LIMIT = 10;
 
 const SIGNUP_TOPICS = [
   'Bảo vệ nền tảng tư tưởng',
@@ -102,6 +102,63 @@ function normalizePagedResponse(res) {
     page: Number(res?.page) || 1,
     hasMore: !!res?.hasMore,
   };
+}
+
+function getPageNumbers(currentPage, totalPages) {
+  const pages = new Set([1, totalPages]);
+  for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+    if (page >= 1 && page <= totalPages) pages.add(page);
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
+function PaginationControls({ currentPage, totalPages, loading, onPageChange }) {
+  if (totalPages <= 1) return null;
+  const pages = getPageNumbers(currentPage, totalPages);
+
+  return (
+    <div className="row" style={{ justifyContent: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+      <button
+        className="btn ghost sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={loading || currentPage <= 1}
+        aria-label="Trang trước"
+        title="Trang trước"
+        style={{ width: 38, padding: 8 }}
+      >
+        <ChevronLeft size={16} />
+      </button>
+      {pages.map((pageNumber, index) => {
+        const previous = pages[index - 1];
+        return (
+          <div key={pageNumber} className="row" style={{ gap: 6 }}>
+            {previous && pageNumber - previous > 1 && (
+              <span className="text-xs text-mute" style={{ padding: '0 2px' }}>...</span>
+            )}
+            <button
+              className={`btn ${pageNumber === currentPage ? 'primary' : 'ghost'} sm`}
+              onClick={() => onPageChange(pageNumber)}
+              disabled={loading || pageNumber === currentPage}
+              aria-label={`Trang ${pageNumber}`}
+              style={{ minWidth: 38, padding: '8px 10px' }}
+            >
+              {pageNumber}
+            </button>
+          </div>
+        );
+      })}
+      <button
+        className="btn ghost sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={loading || currentPage >= totalPages}
+        aria-label="Trang sau"
+        title="Trang sau"
+        style={{ width: 38, padding: 8 }}
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
 }
 
 export default function TinTuc() {
@@ -196,27 +253,36 @@ export default function TinTuc() {
   }, [baseList, category, onlyImportant]);
 
   const isLoading = isSearchMode ? searchLoading : loading;
-  const canLoadMore = isSearchMode ? searchHasMore : hasMore;
+  const activePage = isSearchMode ? searchPage : page;
+  const activeTotal = isSearchMode ? searchTotal : total;
+  const activeHasMore = isSearchMode ? searchHasMore : hasMore;
+  const totalPages = Math.max(1, Math.ceil((activeTotal || baseList.length) / PAGE_LIMIT));
+  const canPaginate = activeHasMore || totalPages > 1;
   const hasFilter = category || onlyImportant;
   const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
 
-  const loadMore = async () => {
+  const goToPage = async (nextPage) => {
+    const targetPage = Math.min(Math.max(1, nextPage), totalPages);
+    if (targetPage === activePage) return;
     if (loadingMore) return;
     setLoadingMore(true);
     try {
       if (isSearchMode) {
-        const paged = normalizePagedResponse(await searchArticles(debouncedSearch.trim(), searchPage + 1, PAGE_LIMIT));
-        setSearchResults(prev => prev.concat(paged.items));
+        const paged = normalizePagedResponse(await searchArticles(debouncedSearch.trim(), targetPage, PAGE_LIMIT));
+        setSearchResults(paged.items);
         setSearchPage(paged.page);
         setSearchHasMore(paged.hasMore);
         setSearchTotal(paged.total);
       } else {
-        const paged = normalizePagedResponse(await getArticles(days, page + 1, PAGE_LIMIT));
-        setNews(prev => prev.concat(paged.items));
+        const paged = normalizePagedResponse(await getArticles(days, targetPage, PAGE_LIMIT));
+        setNews(paged.items);
         setPage(paged.page);
         setHasMore(paged.hasMore);
         setTotal(paged.total);
       }
+      requestAnimationFrame(() => {
+        document.getElementById('news-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     } finally {
       setLoadingMore(false);
     }
@@ -461,11 +527,11 @@ export default function TinTuc() {
       )}
 
       {/* Count + clear */}
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+      <div id="news-list" className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
         <div className="section-label" style={{ marginBottom: 0 }}>
           {isLoading
             ? (isSearchMode ? 'Đang tìm...' : 'Đang tải...')
-            : `${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}${(isSearchMode ? searchTotal : total) ? ` / ${isSearchMode ? searchTotal : total} tổng` : ''}`
+            : `${canPaginate ? `Trang ${activePage}/${totalPages} · ` : ''}${filtered.length} bài${baseList.length !== filtered.length ? ` / ${baseList.length}` : ''}${activeTotal ? ` / ${activeTotal} tổng` : ''}`
           }
         </div>
         {hasFilter && (
@@ -489,10 +555,20 @@ export default function TinTuc() {
         </div>
       )}
       {filtered.map((a, i) => <NewsCard key={i} article={a} />)}
-      {!isLoading && canLoadMore && !hasFilter && (
-        <button className="btn ghost full" onClick={loadMore} disabled={loadingMore} style={{ marginTop: 8 }}>
-          {loadingMore ? <><RefreshCw size={16} className="spinner" /> Đang tải...</> : 'Xem thêm'}
-        </button>
+      {!isLoading && canPaginate && (
+        <>
+          <PaginationControls
+            currentPage={activePage}
+            totalPages={totalPages}
+            loading={loadingMore}
+            onPageChange={goToPage}
+          />
+          {loadingMore && (
+            <div className="row text-xs text-mute" style={{ justifyContent: 'center', gap: 5, marginTop: 8 }}>
+              <RefreshCw size={13} className="spinner" /> Đang tải trang...
+            </div>
+          )}
+        </>
       )}
     </div>
   );

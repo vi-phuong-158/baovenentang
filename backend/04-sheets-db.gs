@@ -541,36 +541,6 @@ function searchArticles(query, page, limit) {
 }
 
 /**
- * Lấy danh sách luận điểm phản bác.
- */
-function getRebuttals(searchKeyword) {
-  const sheet = getSheet_('PHAN_BAC');
-
-  if (sheet.getLastRow() <= 1) return [];
-
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-
-  let results = data.map(row => ({
-    date: row[0],
-    topic: row[1],
-    wrongClaim: row[2],
-    rebuttal: row[3],
-    evidence: row[4],
-    sources: row[5]
-  }));
-
-  if (searchKeyword) {
-    const keyword = searchKeyword.toString().toLowerCase();
-    results = results.filter(item =>
-      (item.topic || '').toString().toLowerCase().includes(keyword) ||
-      (item.rebuttal || '').toString().toLowerCase().includes(keyword)
-    );
-  }
-
-  return results;
-}
-
-/**
  * Lưu luận điểm phản bác mới.
  */
 function saveRebuttal(data) {
