@@ -3,6 +3,7 @@ import { Target, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { getQuiz, submitQuiz } from '../api.js';
 
 const TOTAL = 10;
+const QUIZ_TITLE = 'Kiểm tra nhận thức về Nghị quyết Đại hội Đảng toàn quốc lần thứ XIV';
 
 export default function Quiz() {
   const [screen, setScreen] = useState('start'); // start | question | result
@@ -59,18 +60,13 @@ export default function Quiz() {
   if (screen === 'start') return (
     <div className="page page-fade">
       <div className="page-header">
-        <h1>Quiz nhận thức</h1>
-        <p>Kiểm tra hiểu biết về chủ trương, đường lối</p>
+        <h1>{QUIZ_TITLE}</h1>
+        <p>{TOTAL} câu hỏi ôn tập trọng tâm</p>
       </div>
       <div className="card elevated" style={{ textAlign: 'center', padding: '28px 20px' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 6 }}>Kiểm tra nhận thức</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 6 }}>Nghị quyết Đại hội XIV</div>
         <div className="text-sm text-soft" style={{ marginBottom: 20 }}>{TOTAL} câu · ~3 phút · kết quả lưu tự động</div>
-        <div className="row" style={{ justifyContent: 'center', gap: 6, marginBottom: 24 }}>
-          <span className="pill ok">Chính trị</span>
-          <span className="pill yellow">An ninh</span>
-          <span className="pill">Pháp luật</span>
-        </div>
         <button className="btn primary full" onClick={start} disabled={loading}>
           {loading ? <><RefreshCw size={16} className="spinner" /> Đang tải...</> : '▶ Bắt đầu'}
         </button>

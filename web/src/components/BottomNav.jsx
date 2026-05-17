@@ -1,40 +1,40 @@
-import { Newspaper, Bot, Target, BookOpen, Bell } from 'lucide-react';
+import { Newspaper, Target } from 'lucide-react';
+import logo35 from '../../logo.png';
 
 const TABS = [
   { id: 'tin-tuc',  label: 'Tin tức',   Icon: Newspaper },
+  { id: 'troly35',  label: 'Trợ lý 35', center: true },
   { id: 'quiz',     label: 'Quiz',       Icon: Target },
-  { id: 'troly35',  label: 'Trợ lý 35', Icon: Bot,      center: true },
-  { id: 'thu-vien', label: 'Thư viện',  Icon: BookOpen },
-  { id: 'dang-ky',  label: 'Đăng ký',   Icon: Bell },
 ];
 
 export default function BottomNav({ active, onSelect }) {
   return (
     <nav role="tablist" aria-label="Điều hướng chính" style={{
       position: 'fixed',
-      bottom: 14,
-      borderRadius: 28,
-      padding: '9px 9px 9px',
+      bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      borderRadius: 999,
+      padding: '6px 12px',
       display: 'flex',
-      gap: 2,
-      alignItems: 'flex-end',
-      background: 'linear-gradient(180deg, rgba(255,255,255,.88) 0%, rgba(255,255,255,.66) 100%)',
-      backdropFilter: 'blur(36px) saturate(200%)',
-      WebkitBackdropFilter: 'blur(36px) saturate(200%)',
-      border: '1.5px solid rgba(255,255,255,.85)',
+      gap: 12,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      background: 'linear-gradient(180deg, rgba(255,255,255,.92) 0%, rgba(255,255,255,.78) 100%)',
+      backdropFilter: 'blur(28px) saturate(190%)',
+      WebkitBackdropFilter: 'blur(28px) saturate(190%)',
+      border: '1px solid rgba(255,255,255,.9)',
       boxShadow: [
-        '0 1.5px 0 rgba(255,255,255,.98) inset',
+        '0 1px 0 rgba(255,255,255,.98) inset',
         '0 -1px 0 rgba(26,20,16,.06) inset',
         '0 0 0 1px rgba(26,20,16,.04)',
-        '0 2px 6px rgba(26,20,16,.05)',
-        '0 14px 28px -8px rgba(26,20,16,.22)',
-        '0 36px 64px -16px rgba(26,20,16,.4)',
+        '0 8px 22px -10px rgba(26,20,16,.22)',
+        '0 20px 38px -18px rgba(26,20,16,.38)',
       ].join(', '),
       zIndex: 100,
-      maxWidth: 480,
+      maxWidth: 336,
       left: '50%',
       transform: 'translateX(-50%)',
-      width: 'calc(min(100%, 480px) - 24px)',
+      width: 'calc(100% - 88px)',
+      minWidth: 260,
     }}>
       {TABS.map(({ id, label, Icon, center }) => {
         const isActive = active === id;
@@ -48,50 +48,36 @@ export default function BottomNav({ active, onSelect }) {
               aria-label={label}
               onClick={() => onSelect(id)}
               style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                padding: 0,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              {/* FAB raised button */}
-              <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: 20,
-                background: isActive
-                  ? 'linear-gradient(145deg, #d32f2f 0%, #b71c1c 100%)'
-                  : 'linear-gradient(145deg, #e53935 0%, #c62828 100%)',
+                width: 52,
+                height: 52,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: isActive
-                  ? '0 0 0 3px rgba(211,47,47,.25), 0 8px 20px rgba(183,28,28,.55), inset 0 1px 0 rgba(255,255,255,.18)'
-                  : '0 4px 14px rgba(183,28,28,.45), inset 0 1px 0 rgba(255,255,255,.18)',
-                transform: isActive ? 'translateY(-14px) scale(1.05)' : 'translateY(-12px)',
-                transition: 'all .2s cubic-bezier(.34,1.56,.64,1)',
-                border: '2px solid rgba(255,255,255,.3)',
-              }}>
-                <Icon size={24} strokeWidth={2} color="#fff" />
-              </div>
-              <span style={{
-                fontSize: 10,
-                fontWeight: isActive ? 700 : 600,
-                fontFamily: 'var(--font-body)',
-                color: isActive ? '#c62828' : 'var(--ink-soft)',
-                lineHeight: 1,
-                marginTop: -2,
-                paddingBottom: 2,
-                transition: 'color .18s',
-              }}>
-                {label}
-              </span>
+                padding: 0,
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                position: 'relative',
+                transition: 'background .22s ease, transform .18s ease',
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(.96)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <img
+                src={logo35}
+                alt="Trợ lý 35"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  objectFit: 'contain',
+                  display: 'block',
+                  opacity: isActive ? 1 : .9,
+                  transition: 'opacity .2s ease',
+                }}
+              />
             </button>
           );
         }
@@ -105,30 +91,33 @@ export default function BottomNav({ active, onSelect }) {
             onClick={() => onSelect(id)}
             style={{
               flex: 1,
+              height: 44,
+              minWidth: 72,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 3,
-              padding: '9px 0 7px',
-              borderRadius: 18,
+              justifyContent: 'center',
+              gap: 2,
+              padding: '6px 8px',
+              borderRadius: 999,
               fontSize: 10,
-              fontWeight: 500,
+              fontWeight: isActive ? 700 : 600,
               fontFamily: 'var(--font-body)',
-              color: isActive ? '#fff' : 'var(--ink-soft)',
-              background: isActive ? 'var(--ink)' : 'transparent',
+              color: isActive ? 'var(--red)' : 'var(--ink-soft)',
+              background: isActive ? 'var(--red-soft)' : 'transparent',
               boxShadow: isActive
-                ? '0 6px 14px rgba(26,20,16,.3), inset 0 1px 0 rgba(255,255,255,.12)'
+                ? '0 1px 0 rgba(255,255,255,.8) inset, 0 6px 12px -8px rgba(184,50,39,.28)'
                 : 'none',
               border: 'none',
               cursor: 'pointer',
-              transition: 'background .18s, color .18s, transform .12s',
+              transition: 'background .22s ease, color .22s ease, transform .14s ease, box-shadow .22s ease',
               lineHeight: 1,
             }}
             onMouseDown={e => e.currentTarget.style.transform = 'scale(.94)'}
             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
-            <Icon size={18} strokeWidth={isActive ? 2.2 : 1.75} />
+            <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
             <span>{label}</span>
           </button>
         );

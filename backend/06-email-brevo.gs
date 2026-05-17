@@ -219,13 +219,13 @@ function buildEmailHTML(name, articles) {
           <!-- CTA -->
           <tr>
             <td style="padding:0 30px 30px;text-align:center;">
-              <a href="https://trandiadso.vn/quiz" 
+              <a href="https://baovenentang.vercel.app/" 
                  style="display:inline-block;background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;font-weight:bold;margin:5px;">
                 🧠 Làm Quiz hôm nay
               </a>
-              <a href="https://trandiadso.vn/phanbac" 
+              <a href="https://baovenentang.vercel.app/" 
                  style="display:inline-block;background:#34495e;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;font-weight:bold;margin:5px;">
-                📚 Thư viện phản bác
+                📚 Mở Trợ lý 35
               </a>
             </td>
           </tr>
@@ -238,8 +238,8 @@ function buildEmailHTML(name, articles) {
                 Bản tin tự động phục vụ công tác bảo vệ nền tảng tư tưởng của Đảng
               </p>
               <p style="margin:15px 0 0;font-size:12px;">
-                <a href="https://trandiadso.vn" style="color:#c0392b;text-decoration:none;">Trang chủ</a> &nbsp;|&nbsp;
-                <a href="https://t.me/trandiadso_phutho" style="color:#c0392b;text-decoration:none;">Telegram</a> &nbsp;|&nbsp;
+                <a href="https://baovenentang.vercel.app/" style="color:#c0392b;text-decoration:none;">Trang chủ</a> &nbsp;|&nbsp;
+                <a href="https://t.me/baovenentang" style="color:#c0392b;text-decoration:none;">Telegram</a> &nbsp;|&nbsp;
                 <a href="#" style="color:#999;text-decoration:none;">Hủy đăng ký</a>
               </p>
             </td>
@@ -311,7 +311,7 @@ function sendWelcomeEmail(subscriber) {
     </ul>
     <p>Bạn có thể truy cập website để tra cứu luận điểm phản bác và làm quiz kiểm tra nhận thức.</p>
     <div style="text-align:center;margin:30px 0;">
-      <a href="https://trandiadso.vn" style="background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;">
+      <a href="https://baovenentang.vercel.app/" style="background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;">
         Khám phá ngay
       </a>
     </div>
