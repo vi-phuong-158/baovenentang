@@ -1,90 +1,226 @@
-# 🛡️ TRẬN ĐỊA SỐ - BẢO VỆ NỀN TẢNG (ASSISTANT 3.5)
+# CLAUDE.md - Hướng dẫn làm việc trong dự án Trợ lý 35
 
-Dự án AI chuyên biệt hỗ trợ cán bộ, đoàn viên (PA01 - Công an tỉnh Phú Thọ) trong công tác bảo vệ nền tảng tư tưởng của Đảng, nhận diện và phản bác thông tin sai trái.
+Tài liệu này dành cho Claude/Codex/AI agent khi làm việc trong repository `baovenentang`.
 
-## 🏗️ Kiến trúc hệ thống
-- **Backend (Google Apps Script):** 
-  - `01-config.gs`: Quản lý cấu hình tập trung từ Script Properties.
-  - `02-news-crawler.gs`: Thu thập tin tức từ RSS (Nhân Dân, CAND, Chính phủ...) và HTML nguồn không có RSS.
-  - `03-gemini-ai.gs`: Xử lý ngôn ngữ tự nhiên (Tóm tắt, Phân tích, Embedding).
-  - `04-sheets-db.gs`: Giao tiếp với Google Sheets (Database).
-  - `05-telegram-bot.gs`: Tích hợp bot thông báo qua Telegram.
-  - `06-email-brevo.gs`: Gửi thông báo/email digest qua Brevo API.
-  - `07-main.gs`: Điểm khởi đầu (Entry points: `doGet`, `doPost`, `runDailyNewsBot`).
-  - `08-troly35.gs`: Logic cốt lõi của Trợ lý 35 (RAG, Pinecone integration).
-  - `09-tccs.gs`: Pipeline TCCS — Scrape Tạp chí Cộng sản, tạo chunk động (AI paragraph plan), đồng bộ Pinecone, và sinh PHAN_BAC_KHO tự động từ toàn văn bài.
-  - `11-bantin35.gs`: Module Bản tin 35 nội bộ — thu thập nguồn công khai cần theo dõi, phân tích AI, gửi Telegram/Email.
-- **Frontend (Static Web):**
-  - Đặt tại `/web`, deploy trên Vercel.
-  - Sử dụng React 18 + Vite (`src/App.jsx`, `src/pages/*`, `src/components/*`) kết hợp CSS hiện đại trong `src/index.css`.
-  - Bottom navigation hiện giữ 3 tab chính: `Tin tức`, `Trợ lý 35`, `Quiz`.
-  - `Trợ lý 35` là giao diện chat hỏi đáp đơn giản: nhập mã truy cập, hỏi, nhận câu trả lời dạng hội thoại, và xem thống kê xu hướng.
-  - `Tin tức` chứa luồng đọc/tìm kiếm bản tin và nút mở form `Theo dõi bản tin`; không dùng tab `Đăng ký` riêng.
-  - Kết nối với Backend qua Web App URL của Apps Script.
+## Tóm tắt dự án
 
-## 🚀 Lệnh & Quy trình vận hành (Apps Script)
-### Khởi tạo & Kiểm tra
-- `setupSystem()`: Khởi tạo các Sheet, tạo Trigger hàng ngày và cấu hình ban đầu.
-- `seedSampleData()`: Đổ dữ liệu mẫu cho Quiz và các luận điểm phản bác ban đầu.
-- `testRun()`: Kiểm tra toàn bộ luồng Crawl -> AI -> Telegram.
-- `showConfigSetupInstructions()`: Xem danh sách các Script Properties cần thiết.
+Đây là hệ thống Trợ lý 35 phục vụ công tác bảo vệ nền tảng tư tưởng:
 
-### Quản lý Trợ lý 35 (RAG)
-- `makeTroLy35AccessCodeHash('MA_CUA_BAN')`: Tạo mã hash SHA256 để điền vào cấu hình.
-- `seedTroLy35KnowledgeFromPhanBac()`: Chuyển dữ liệu từ Sheet `PHAN_BAC` sang kho tri thức `PHAN_BAC_KHO`.
-- `syncTroLy35KnowledgeToPinecone()`: Vector hóa và đồng bộ dữ liệu đã duyệt lên Pinecone.
-- `testTroLy35Setup()`: Kiểm tra kết nối Gemini và Pinecone.
-- `testTccsSingleUrl('URL')`: Kiểm tra extract/chunk plan động một bài Tạp chí Cộng sản.
-- `runTccsSaveLeninArticlePlannedDraft()`: Lưu toàn văn và các chunk chọn lọc draft cho bài Lenin đang dùng để test.
-- `runTccsSaveLeninArticleCoreDraft()`: Alias tương thích, trỏ sang chunk plan động.
-- `runTccsScrapeDrafts(2)`: Lưu bài/chunk chọn lọc TCCS mới vào staging Sheets, mặc định chạy lô nhỏ để tránh timeout Apps Script.
-- `syncTccsApprovedChunksToPinecone()`: Vector hóa chunk TCCS đã duyệt.
-- `generatePhanBacFromTccs(3)`: Tự động sinh entry PHAN_BAC_KHO từ toàn văn bài TCCS đã scrape (tối đa N bài/lần, tránh timeout). Entry sinh ra có status "Chờ duyệt", cần admin duyệt trước khi sync Pinecone.
-- `reviewPendingPhanBac()`: Xem danh sách entry PHAN_BAC_KHO đang chờ duyệt.
+- Frontend: React 18 + Vite trong `web/`.
+- Backend: Google Apps Script trong `backend/`.
+- Database: Google Sheets.
+- AI: Gemini text generation + Gemini embedding.
+- RAG: Pinecone vector database.
+- Tích hợp: Telegram Bot API, Brevo Email, Vercel API proxy.
 
-### Telegram & Webhook
-- `setTelegramWebhook()`: Kích hoạt Webhook để Bot Telegram có thể nhận tin nhắn.
+Ứng dụng web hiện có 3 tab chính:
 
-### Frontend Web
-- Làm việc trong thư mục `web/`.
-- `npm run build`: Kiểm tra build React/Vite trước khi deploy Vercel.
-- `npm run dev`: Chạy local khi cần kiểm tra giao diện tương tác.
-- Ưu tiên thay đổi nhỏ, đúng component; tránh chỉnh backend GAS nếu yêu cầu chỉ là UI.
+- `Tin tức`
+- `Trợ lý 35`
+- `Quiz`
 
-## 🌐 API Endpoints (doGet/doPost)
-- `GET ?action=today`: Lấy danh sách tin tức trong ngày.
-- `GET ?action=articles&days=7`: Lấy danh sách bản tin theo khoảng ngày.
-- `GET ?action=search&q=...`: Tìm kiếm trong bản tin.
-- `GET ?action=stats`: Lấy thống kê lượt dùng, bài viết.
-- `GET ?action=quiz&count=10`: Lấy bộ câu hỏi trắc nghiệm ngẫu nhiên.
-- `POST action: troly35_run`: Chạy phân tích/phản bác (Input: `mode`, `content`).
-- `POST action: troly35_trends`: Lấy thống kê xu hướng Trợ lý 35 theo mã truy cập.
-- `POST action: subscribe`: Đăng ký nhận tin qua Email/Telegram.
+Tính năng `Thư viện phản bác` công khai đã bị gỡ. Không re-add route/page/API public này nếu không có yêu cầu rõ ràng từ người dùng.
 
----
+## Trạng thái chức năng quan trọng
 
-## 🧠 NGUYÊN TẮC PHÁT TRIỂN (KARPATHY GUIDELINES)
+### Tin tức
 
-### 1. Suy nghĩ trước khi viết code (Think Before Coding)
-- **Không giả định:** Nếu yêu cầu không rõ ràng, hãy dừng lại và hỏi.
-- **Công khai sự nhầm lẫn:** Nếu có nhiều cách hiểu, hãy trình bày các phương án.
-- **Ưu tiên sự đơn giản:** Luôn đề xuất giải pháp đơn giản nhất trước.
+- File chính: `web/src/pages/TinTuc.jsx`.
+- UI dùng phân trang, hiện 10 bài/trang (`PAGE_LIMIT = 10`).
+- API frontend gọi `getArticles(days, page, limit)` và `searchArticles(q, page, limit)`.
+- Khi chuyển trang, danh sách được thay mới, không concat thêm.
+- Backend vẫn đọc/lọc/cache tập dữ liệu từ Google Sheets rồi slice trang trả về.
 
-### 2. Sự đơn giản là trên hết (Simplicity First)
-- **Code tối thiểu:** Chỉ viết mã cần thiết để giải quyết vấn đề.
-- **Không trừu tượng hóa sớm:** Tránh tạo các class/function phức tạp cho việc chỉ dùng 1 lần.
-- **Giới hạn GAS:** Nhớ rằng Apps Script có giới hạn thời gian chạy (6-30 phút) và quota UrlFetch.
+### Trợ lý 35
 
-### 3. Thay đổi mang tính "phẫu thuật" (Surgical Changes)
-- **Chỉ chạm vào những gì cần thiết:** Không tự ý refactor code xung quanh nếu không liên quan.
-- **Bảo vệ Metadata:** Không làm mất các docstring JSDoc quan trọng trong file `.gs`.
-- **Khớp phong cách:** Tuân thủ cách đặt tên và cấu trúc modular hiện tại.
+- File UI chính: `web/src/pages/TroLy35.jsx`.
+- Backend chính: `backend/08-troly35.gs`.
+- Có 3 mode:
+  - `rebuttal`
+  - `fact_check`
+  - `article_writer`
+- UI truyền mode đang chọn vào `troly35_run`.
+- Lịch sử lấy qua `troly35_history`.
+- Feedback tốt/xấu gửi qua `troly35_feedback`.
+- Backend lưu feedback vào `TROLY35_FEEDBACK` và cập nhật rating/note trong `TROLY35_HISTORY`.
 
-### 4. Thực thi theo mục tiêu (Goal-Driven Execution)
-- **Xác minh thực tế:** Sau khi sửa code, hãy nêu rõ hàm nào cần chạy (ví dụ: `testRun`) để kiểm tra.
-- **Lập kế hoạch từng bước:** 
-  1. Chỉnh sửa logic xử lý → `Logger.log` kiểm tra data.
-  2. Test end-to-end → Xác nhận kết quả trong Google Sheets.
+### Logo
 
----
-> *"Vũ khí không thay thế được chiến sĩ, nhưng giúp chiến sĩ chiến đấu hiệu quả hơn 10 lần."*
+- Logo app chính: `web/logo.png`.
+- `web/index.html` khai báo favicon/apple touch icon/OG image bằng `/logo.png`.
+- `BottomNav` và màn Trợ lý 35 import logo từ `../../logo.png`.
+
+### Backend Google Apps Script
+
+Các file quan trọng:
+
+- `backend/00-utils.gs`: helper chung.
+- `backend/01-config.gs`: cấu hình đọc từ Script Properties.
+- `backend/02-news-crawler.gs`: crawl RSS/HTML nguồn tin.
+- `backend/03-gemini-ai.gs`: Gemini text/embedding.
+- `backend/04-sheets-db.gs`: Google Sheets database.
+- `backend/05-telegram-bot.gs`: Telegram bot/webhook.
+- `backend/06-email-brevo.gs`: Brevo email.
+- `backend/07-main.gs`: `runDailyNewsBot`, `doGet`, `doPost`, setup/test.
+- `backend/08-troly35.gs`: Trợ lý 35, RAG, history, feedback.
+- `backend/09a` đến `09d`: pipeline TCCS.
+- `backend/11-bantin35.gs`: Bản tin 35 nội bộ.
+
+## Lệnh thường dùng
+
+### Frontend
+
+```powershell
+cd web
+npm install
+npm run dev
+npm run build
+npm run preview
+```
+
+Build phải pass trước khi hoàn tất thay đổi frontend có ảnh hưởng runtime:
+
+```powershell
+cd web
+npm.cmd run build
+```
+
+### Apps Script
+
+Nếu cần push code GAS bằng clasp:
+
+```powershell
+cd backend
+npx.cmd --yes @google/clasp@latest push --force
+```
+
+`backend/.clasp.json` bị ignore và không được commit.
+
+Sau khi `clasp push`, nếu Web App production đang pin version cũ, cần cập nhật deployment trong Apps Script UI.
+
+### Git
+
+Kiểm tra nhanh:
+
+```powershell
+git status --short
+git diff --stat
+git diff --ignore-cr-at-eol --stat
+```
+
+## Cấu hình và secret
+
+Không commit:
+
+- `.env`
+- `tools/.env`
+- `backend/.clasp.json`
+- API key Gemini/Pinecone/Brevo
+- Telegram token
+- Vercel token
+- access code thật của Trợ lý 35
+
+Backend GAS đọc cấu hình qua Script Properties trong `backend/01-config.gs`.
+
+Biến Vercel quan trọng:
+
+- `GAS_DEPLOYMENT_URL`
+- `GAS_API_TOKEN` hoặc `API_ACCESS_TOKEN`
+- `ADMIN_API_TOKEN`
+- `IP_HASH_SALT`
+
+Không đưa secret thật vào biến `VITE_*` vì sẽ lộ trong frontend bundle.
+
+## Quy tắc chỉnh sửa
+
+- Sửa đúng file/module liên quan, tránh refactor lan rộng.
+- Không chỉnh `web/dist`.
+- Không đổi schema Google Sheets nếu không thật sự cần.
+- Nếu đổi schema, cập nhật `SHEET_HEADERS` trong `backend/04-sheets-db.gs` và README.
+- Không xóa hoặc đổi thứ tự cột sheet khi code đang đọc bằng index.
+- Không re-add `web/src/pages/ThuVien.jsx`, `getRebuttals`, action `rebuttals`, hoặc lệnh Telegram `/phanbac` nếu không có yêu cầu rõ.
+- Giữ backend GAS tương thích V8.
+- Không dùng package Node mới nếu dự án chưa cần.
+- Ưu tiên helper/pattern hiện có.
+
+## Cảnh báo line ending
+
+Repo từng bị nhiễu CRLF/LF khiến hàng chục file hiện `M` dù không đổi nội dung.
+
+Trước khi commit, luôn kiểm tra:
+
+```powershell
+git diff --ignore-cr-at-eol --name-status
+git diff --ignore-cr-at-eol --stat
+```
+
+Nếu file chỉ khác line ending, không commit. Có thể restore các file nhiễu bằng:
+
+```powershell
+git restore --worktree -- path/to/file
+```
+
+Không chạy formatter toàn repo nếu không được yêu cầu.
+
+## Kiểm thử khuyến nghị
+
+### Khi sửa frontend
+
+- Chạy `npm.cmd run build` trong `web/`.
+- Nếu sửa UI đang chạy local, kiểm tra tại `http://127.0.0.1:5173/`.
+- Với Tin tức, kiểm tra phân trang và search.
+- Với Trợ lý 35, kiểm tra chọn mode, gửi prompt, history, feedback.
+
+### Khi sửa backend GAS
+
+Chạy trong Apps Script:
+
+- `showConfigSetupInstructions()`
+- `testRun()`
+- `testTroLy35Setup()`
+- `runBanTin35Digest(1)` nếu sửa Bản tin 35
+
+Nếu sửa API:
+
+- Kiểm tra `doGet`/`doPost` trong `backend/07-main.gs`.
+- Kiểm tra wrapper tương ứng trong `web/src/api.js`.
+- Kiểm tra proxy `web/api/gas.js` nếu action cần token/admin.
+
+## Public API hiện tại
+
+GET:
+
+- `today`
+- `articles`
+- `search`
+- `quiz`
+- `stats`
+- `feedback_stats` (cần token)
+
+POST:
+
+- `subscribe`
+- `submit_quiz`
+- `troly35_run`
+- `troly35_rate`
+- `troly35_feedback`
+- `troly35_history`
+- `troly35_trends`
+- `bantin35_generate`
+- `bantin35_latest`
+- `contact`
+
+## Ghi chú triển khai
+
+- Frontend production đi qua `/api/gas` trên Vercel.
+- Local development hiện gọi trực tiếp GAS URL trong `web/src/api.js`.
+- `web/vercel.json` có rewrite SPA và security headers.
+- `clasp push` chỉ cập nhật source code Apps Script, không đảm bảo deployment `/exec` đã dùng version mới.
+
+## Tài liệu liên quan
+
+- `README.md`: tài liệu tổng quan và vận hành chi tiết.
+- `backend/README.md`: hướng dẫn backend GAS.
+- `docs/SETUP.md`: ghi chú setup.
+- `docs/ke-hoach-troly35.md`: kế hoạch Trợ lý 35.
+- `docs/huong-dan-scrape-tccs.md`: hướng dẫn scrape TCCS.
