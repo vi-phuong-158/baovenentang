@@ -1,13 +1,19 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { useState, useEffect } from 'react';
 import { Lock, Key, Shield, Search, Edit3, Sparkles, Eraser, Copy, Star, TrendingUp, RefreshCw, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { runTroLy35, rateTroLy35, getTrends, sendFeedback } from '../api.js';
 =======
+=======
+>>>>>>> Stashed changes
 import { useEffect, useRef, useState } from 'react';
 import { Bot, Copy, Key, Lock, RefreshCw, Send, Trash2, TrendingUp } from 'lucide-react';
 import { getTrends, runTroLy35 } from '../api.js';
 import logo35 from '../../logo.png';
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 const ACCESS_KEY = 'troly35_access_code';
@@ -33,6 +39,7 @@ function getBestAnswer(res) {
   return answer || 'Tôi chưa tạo được câu trả lời phù hợp. Anh/chị vui lòng thử hỏi lại rõ hơn.';
 }
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 const PURIFY_CONFIG = { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'li'], ALLOWED_ATTR: [] };
 =======
@@ -46,6 +53,8 @@ function formatText(text) {
   const html = safe.split(/\n{2,}/).map(b => `<p>${b.replace(/\n/g, '<br>')}</p>`).join('');
   return DOMPurify.sanitize(html, PURIFY_CONFIG);
 =======
+=======
+>>>>>>> Stashed changes
 function MessageText({ text }) {
   const blocks = (text || '').split(/\n{2,}/);
 
@@ -58,6 +67,7 @@ function MessageText({ text }) {
       ))}
     </>
   );
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 }
 
@@ -85,6 +95,10 @@ function buildView(result, mode) {
     summary: Array.isArray(result.phien_ban_tom_tat) ? result.phien_ban_tom_tat : [],
   };
 =======
+=======
+}
+
+>>>>>>> Stashed changes
 function ChatMessage({ message, onCopy }) {
   const isUser = message.role === 'user';
 
@@ -132,7 +146,10 @@ function ChatMessage({ message, onCopy }) {
       </div>
     </div>
   );
+<<<<<<< Updated upstream
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
 }
 
 export default function TroLy35() {
@@ -148,6 +165,7 @@ export default function TroLy35() {
   const [runMsgType, setRunMsgType] = useState('neutral');
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   const [result, setResult] = useState(null);
   const [resultTab, setResultTab] = useState(0);
   const [requestId, setRequestId] = useState('');
@@ -160,6 +178,8 @@ export default function TroLy35() {
   const [feedbackReason, setFeedbackReason] = useState('');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   const [trends, setTrends] = useState(null);
@@ -179,11 +199,14 @@ export default function TroLy35() {
   const saveAccess = () => {
     const v = accessCode.trim();
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     if (!v) { sessionStorage.removeItem(ACCESS_KEY); localStorage.removeItem(ACCESS_KEY); setAccessMsg('Đã xóa mã.'); setAccessMsgType('neutral'); return; }
     if (remember) { localStorage.setItem(ACCESS_KEY, v); sessionStorage.removeItem(ACCESS_KEY); }
     else { sessionStorage.setItem(ACCESS_KEY, v); localStorage.removeItem(ACCESS_KEY); }
     setAccessMsg('Đã lưu mã truy cập.'); setAccessMsgType('success');
 =======
+=======
+>>>>>>> Stashed changes
     if (!v) {
       sessionStorage.removeItem(ACCESS_KEY);
       setAccessMsg('Đã xóa mã.');
@@ -194,6 +217,9 @@ export default function TroLy35() {
     sessionStorage.setItem(ACCESS_KEY, v);
     setAccessMsg('Đã lưu mã truy cập.');
     setAccessMsgType('success');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     loadTrends(v, trendWindow);
   };
@@ -204,6 +230,7 @@ export default function TroLy35() {
     try {
       const res = await getTrends({ accessCode: code, windowDays });
       if (res.success !== false) setTrends(res.data || res);
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
     } catch {}
     finally { setTrendsLoading(false); }
@@ -239,6 +266,10 @@ export default function TroLy35() {
     } catch {
       setTrends(null);
 >>>>>>> Stashed changes
+=======
+    } catch {
+      setTrends(null);
+>>>>>>> Stashed changes
     } finally {
       setTrendsLoading(false);
     }
@@ -255,6 +286,7 @@ export default function TroLy35() {
     }
   };
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   const view = result ? buildView(result.result, mode) : null;
   const analysis = result?.analysis || {};
@@ -290,6 +322,8 @@ export default function TroLy35() {
       setRunMsg(err.message || 'Không gửi được góp ý.');
       setRunMsgType('error');
 =======
+=======
+>>>>>>> Stashed changes
   const clearChat = () => {
     setMessages([]);
     setQuestion('');
@@ -348,7 +382,10 @@ export default function TroLy35() {
       setRunMsgType('error');
     } finally {
       setLoading(false);
+<<<<<<< Updated upstream
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
     }
   };
 
@@ -445,6 +482,7 @@ export default function TroLy35() {
         </form>
       </div>
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
       {/* Form */}
       <form onSubmit={run}>
@@ -630,6 +668,8 @@ export default function TroLy35() {
       )}
 
       {/* Trends */}
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
       <div className="card tinted" style={{ marginTop: 16 }}>

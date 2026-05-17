@@ -1,20 +1,28 @@
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 import { Newspaper, Target, BookOpen, Bell } from 'lucide-react';
 =======
 import { Newspaper, Target } from 'lucide-react';
 import logo35 from '../../logo.png';
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+import { Newspaper, Target } from 'lucide-react';
+import logo35 from '../../logo.png';
+>>>>>>> Stashed changes
 
 const TABS = [
   { id: 'tin-tuc',  label: 'Tin tức',   Icon: Newspaper },
   { id: 'troly35',  label: 'Trợ lý 35', center: true },
   { id: 'quiz',     label: 'Quiz',       Icon: Target },
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   { id: 'troly35',  label: 'Trợ lý 35', Icon: null,     center: true },
   { id: 'thu-vien', label: 'Thư viện',  Icon: BookOpen },
   { id: 'dang-ky',  label: 'Đăng ký',   Icon: Bell },
 =======
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
 ];
 
 export default function BottomNav({ active, onSelect }) {
@@ -58,6 +66,7 @@ export default function BottomNav({ active, onSelect }) {
               aria-label={label}
               onClick={() => onSelect(id)}
               style={{
+<<<<<<< Updated upstream
 <<<<<<< HEAD
                 flex: 1,
                 display: 'flex',
@@ -82,10 +91,15 @@ export default function BottomNav({ active, onSelect }) {
                 width: 52,
                 height: 52,
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+                width: 52,
+                height: 52,
+>>>>>>> Stashed changes
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+<<<<<<< Updated upstream
 <<<<<<< HEAD
                 color: '#c62f27',
                 boxShadow: isActive
@@ -136,6 +150,8 @@ export default function BottomNav({ active, onSelect }) {
                 {label}
               </span>
 =======
+=======
+>>>>>>> Stashed changes
                 padding: 0,
                 background: 'transparent',
                 border: 'none',
@@ -161,7 +177,10 @@ export default function BottomNav({ active, onSelect }) {
                   transition: 'opacity .2s ease',
                 }}
               />
+<<<<<<< Updated upstream
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
             </button>
           );
         }

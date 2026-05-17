@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 import { RefreshCw, ExternalLink, Newspaper, Users, BookOpen, Search, X, Bell } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles } from '../api.js';
@@ -6,6 +7,10 @@ import { getArticles, getStats, invalidateCache, searchArticles } from '../api.j
 import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+import { Bell, CheckCircle, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
+import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
+>>>>>>> Stashed changes
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -102,6 +107,16 @@ function normalizePagedResponse(res) {
 
 export default function TinTuc({ onNavigate }) {
 =======
+const SIGNUP_TOPICS = [
+  'Bảo vệ nền tảng tư tưởng',
+  'An ninh mạng',
+  'Chính sách pháp luật',
+  'Phòng chống tham nhũng',
+  'Đối ngoại - Chủ quyền',
+];
+
+const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
+
 const SIGNUP_TOPICS = [
   'Bảo vệ nền tảng tư tưởng',
   'An ninh mạng',
@@ -212,6 +227,7 @@ export default function TinTuc() {
   const canLoadMore = isSearchMode ? searchHasMore : hasMore;
   const hasFilter = category || onlyImportant;
   const clearFilters = () => { setCategory(''); setOnlyImportant(false); };
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   const loadMore = async () => {
     if (loadingMore) return;
@@ -233,6 +249,8 @@ export default function TinTuc() {
     } finally {
       setLoadingMore(false);
 =======
+=======
+>>>>>>> Stashed changes
   const setSignup = (key, value) => setSignupForm(form => ({ ...form, [key]: value }));
   const selectSignupChannel = (channel) => {
     setSignup('channel', channel);
@@ -266,7 +284,10 @@ export default function TinTuc() {
       setSignupError(err.message || 'Không đăng ký được. Thử lại sau.');
     } finally {
       setSignupLoading(false);
+<<<<<<< Updated upstream
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
     }
   };
 
@@ -297,6 +318,7 @@ export default function TinTuc() {
       )}
 
       {!isSearchMode && (
+<<<<<<< Updated upstream
 <<<<<<< HEAD
         <div className="card elevated" style={{
           marginBottom: 20,
@@ -340,6 +362,8 @@ export default function TinTuc() {
             Đăng ký
           </button>
 =======
+=======
+>>>>>>> Stashed changes
         <div className={`card ${showSignup ? 'elevated' : 'tinted'}`} style={{ marginBottom: 14 }}>
           {!showSignup && (
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -435,7 +459,10 @@ export default function TinTuc() {
               </button>
             </form>
           )}
+<<<<<<< Updated upstream
 >>>>>>> 5c84c024f65d235ed8281b993b6a05607b051336
+=======
+>>>>>>> Stashed changes
         </div>
       )}
 

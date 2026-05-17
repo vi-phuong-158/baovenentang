@@ -13,6 +13,9 @@ const DangKy = lazy(() => import('./pages/DangKy.jsx'));
 import TinTuc from './pages/TinTuc.jsx';
 import TroLy35 from './pages/TroLy35.jsx';
 import Quiz from './pages/Quiz.jsx';
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 const PAGES = {
@@ -40,6 +43,7 @@ export default function App() {
 
   return (
     <>
+<<<<<<< Updated upstream
 <<<<<<< HEAD
       <main id="main-content" tabIndex={-1}>
 =======
@@ -65,6 +69,8 @@ export default function App() {
         })}
       </main>
 =======
+=======
+>>>>>>> Stashed changes
       <div className="app-shell">
         {TAB_IDS.map(id => {
           if (!mounted.has(id)) return null;
@@ -81,6 +87,9 @@ export default function App() {
           );
         })}
       </div>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       <BottomNav active={tab} onSelect={handleSelect} />
     </>
