@@ -36,17 +36,27 @@ function fetchAllRSS() {
     followRedirects: true
   }));
 
-  let responses;
+  let responses = null;
   try {
     responses = UrlFetchApp.fetchAll(requests);
   } catch (error) {
-    Logger.log(`[RSS] fetchAll lỗi: ${error}`);
-    return allArticles;
+    Logger.log(`[RSS] fetchAll lỗi, chuyển sang fetch từng nguồn: ${error}`);
   }
 
-  responses.forEach((response, idx) => {
-    const source = RSS_SOURCES[idx];
+  RSS_SOURCES.forEach((source, idx) => {
     try {
+      let response;
+      if (responses) {
+        response = responses[idx];
+      } else {
+        try {
+          response = UrlFetchApp.fetch(source.url, { muteHttpExceptions: true, followRedirects: true });
+        } catch (e) {
+          Logger.log(`[RSS] Không thể kết nối ${source.name}: ${e}`);
+          return;
+        }
+      }
+
       if (response.getResponseCode() !== 200) {
         Logger.log(`[RSS] Lỗi ${response.getResponseCode()} từ ${source.name}`);
         return;

@@ -12,10 +12,51 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    #splash {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #fff;
+      gap: 20px;
+    }
+    #splash img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      box-shadow: 0 4px 16px rgba(184,50,39,.18);
+      animation: splashFade .5s ease-out;
+    }
+    #splash-ring {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #fde8e6;
+      border-top-color: #B83227;
+      border-radius: 50%;
+      animation: splashSpin .75s linear infinite;
+    }
+    #splash p {
+      margin: 0;
+      font-size: 14px;
+      color: #64748b;
+      font-family: sans-serif;
+      letter-spacing: .02em;
+    }
+    @keyframes splashSpin { to { transform: rotate(360deg); } }
+    @keyframes splashFade { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+  </style>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Bỏ qua điều hướng</a>
-  <div id="root"></div>
+  <div id="root">
+    <div id="splash">
+      <img src="/logo.png" alt="Trợ lý 35" width="80" height="80">
+      <div id="splash-ring"></div>
+      <p>Đang tải...</p>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

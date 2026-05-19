@@ -202,11 +202,6 @@ const RSS_SOURCES = [
     url: 'https://vietnamnet.vn/rss/chinh-tri.rss',
     name: 'Vietnamnet - Chính trị',
     priority: 2
-  },
-  {
-    url: 'https://huongsenviet.com/feed/',
-    name: 'Hương Sen Việt',
-    priority: 2
   }
 ];
 
@@ -249,25 +244,6 @@ const HTML_SOURCES = [
     ],
     contentPatterns: [
       /<div[^>]+class=["'][^"']*(?:news-detail|article-detail|content-detail|detail-content|entry-content|post-content)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
-      /<article[^>]*>([\s\S]*?)<\/article>/gi
-    ]
-  },
-  {
-    url: 'https://huongsenviet.com/',
-    listUrls: [
-      'https://huongsenviet.com/'
-    ],
-    name: 'Hương Sen Việt',
-    priority: 2,
-    articleUrlPatterns: [
-      /^https:\/\/huongsenviet\.com\/(?!category\/|tag\/|author\/|page\/|wp-|wp\/|feed\/|$)[^?#]+\/$/i
-    ],
-    excludeUrlPatterns: [
-      /\.(?:pdf|docx?|xlsx?|pptx?)(?:\?|$)/i,
-      /\/wp-admin|\/wp-content|\/wp-json|\/xmlrpc\.php/i
-    ],
-    contentPatterns: [
-      /<div[^>]+class=["'][^"']*(?:td-post-content|entry-content|post-content|article-content)[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi,
       /<article[^>]*>([\s\S]*?)<\/article>/gi
     ]
   },
