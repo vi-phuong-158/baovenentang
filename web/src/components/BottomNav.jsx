@@ -1,10 +1,10 @@
-import { Newspaper, Target } from 'lucide-react';
+import { BookOpen, Newspaper } from 'lucide-react';
 import logo35 from '../../logo.png';
 
 const TABS = [
   { id: 'tin-tuc', label: 'Tin tức', Icon: Newspaper },
   { id: 'troly35', label: 'Trợ lý 35', center: true },
-  { id: 'quiz',    label: 'Quiz',     Icon: Target   },
+  { id: 'hoc-tap', label: 'Học tập', Icon: BookOpen },
 ];
 
 export default function BottomNav({ active, onSelect }) {

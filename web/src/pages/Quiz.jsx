@@ -1,11 +1,23 @@
 import { useState } from 'react';
-import { Target, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { getQuiz, submitQuiz } from '../api.js';
 
 const TOTAL = 10;
 const QUIZ_TITLE = 'Kiểm tra nhận thức về Nghị quyết Đại hội Đảng toàn quốc lần thứ XIV';
 
-export default function Quiz() {
+function QuizFrame({ embedded, children }) {
+  return embedded
+    ? <div className="quiz-embedded">{children}</div>
+    : <div className="page page-fade">{children}</div>;
+}
+
+function QuizHeader({ embedded, children }) {
+  return embedded
+    ? <div className="quiz-embedded-header">{children}</div>
+    : <div className="page-header">{children}</div>;
+}
+
+export default function Quiz({ embedded = false }) {
   const [screen, setScreen] = useState('start'); // start | question | result
   const [questions, setQuestions] = useState([]);
   const [index, setIndex] = useState(0);
@@ -58,11 +70,11 @@ export default function Quiz() {
   const q = questions[index];
 
   if (screen === 'start') return (
-    <div className="page page-fade">
-      <div className="page-header">
+    <QuizFrame embedded={embedded}>
+      <QuizHeader embedded={embedded}>
         <h1>{QUIZ_TITLE}</h1>
         <p>{TOTAL} câu hỏi ôn tập trọng tâm</p>
-      </div>
+      </QuizHeader>
       <div className="card elevated" style={{ textAlign: 'center', padding: '28px 20px' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 6 }}>Nghị quyết Đại hội XIV</div>
@@ -72,17 +84,17 @@ export default function Quiz() {
         </button>
       </div>
       {error && <div className="msg error" style={{ marginTop: 12 }}>{error}</div>}
-    </div>
+    </QuizFrame>
   );
 
   if (screen === 'result') {
     const pct = Math.round(score / TOTAL * 100);
     const msg = pct >= 80 ? '🎉 Xuất sắc!' : pct >= 60 ? '👍 Tốt!' : '📚 Cần ôn thêm';
     return (
-      <div className="page page-fade">
-        <div className="page-header">
+      <QuizFrame embedded={embedded}>
+        <QuizHeader embedded={embedded}>
           <h1>Kết quả</h1>
-        </div>
+        </QuizHeader>
         <div className="card elevated" style={{ textAlign: 'center', padding: '28px 20px', marginBottom: 16 }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 52, fontWeight: 800, color: 'var(--red)', letterSpacing: '-1px' }}>{pct}%</div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{msg}</div>
@@ -103,15 +115,16 @@ export default function Quiz() {
             </div>
           </div>
         ))}
-      </div>
+      </QuizFrame>
     );
   }
 
   // Question screen
   const opts = Object.entries(q.options || {});
   return (
-    <div className="page page-fade">
-      <div className="page-header" style={{ paddingBottom: 14 }}>
+    <QuizFrame embedded={embedded}>
+      <QuizHeader embedded={embedded}>
+        <div style={{ paddingBottom: 14 }}>
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
           <span className="text-xs" style={{ color: 'rgba(255,255,255,.8)' }}>Câu {index + 1} / {TOTAL}</span>
           <span className="text-xs mono" style={{ color: 'rgba(255,255,255,.8)' }}>{score} đúng</span>
@@ -126,6 +139,7 @@ export default function Quiz() {
           ))}
         </div>
       </div>
+      </QuizHeader>
 
       <div className="card elevated" style={{ marginBottom: 12 }}>
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, lineHeight: 1.4 }}>
@@ -151,6 +165,6 @@ export default function Quiz() {
           );
         })}
       </div>
-    </div>
+    </QuizFrame>
   );
 }

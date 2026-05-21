@@ -5,12 +5,12 @@ import Skeleton from './components/Skeleton.jsx';
 
 const TinTuc = lazy(() => import('./pages/TinTuc.jsx'));
 const TroLy35 = lazy(() => import('./pages/TroLy35.jsx'));
-const Quiz    = lazy(() => import('./pages/Quiz.jsx'));
+const HocTap  = lazy(() => import('./pages/HocTap.jsx'));
 
 const PAGES = {
   'tin-tuc': TinTuc,
   'troly35': TroLy35,
-  'quiz':    Quiz,
+  'hoc-tap': HocTap,
 };
 
 const TAB_IDS = Object.keys(PAGES);
@@ -27,6 +27,7 @@ export default function App() {
       next.add(id);
       return next;
     });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
   };
 
   return (
