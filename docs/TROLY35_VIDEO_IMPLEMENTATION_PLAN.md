@@ -1,8 +1,73 @@
 # Kế hoạch triển khai module video Trợ lý 35
 
 Ngày lập: 24/05/2026
+Cập nhật: 24/05/2026 - điều chỉnh sau review khả thi.
 
 Tài liệu này chuyển nội dung đề xuất trong `docs/TROLY35_VIDEO_MODULE.md` thành kế hoạch triển khai theo giai đoạn, ưu tiên không ảnh hưởng workflow hiện tại của hệ thống Trợ lý 35.
+
+## 0. Điều chỉnh sau review (24/05/2026)
+
+Bản kế hoạch gốc đúng hướng về kiến trúc, nhưng có 7 điểm cần sửa trước khi bắt đầu code. Phần này ghi rõ thay đổi và lý do để tránh quay lại tranh luận sau.
+
+### 0.1. Lock file phải cross-platform ngay từ đầu
+
+- **Thay đổi:** không dùng `fcntl` trong `daily_run.py`. Viết helper `acquire_lock()` dùng `psutil.pid_exists(pid)` để kiểm tra job cũ còn sống không, hoạt động trên cả Windows và Linux.
+- **Lý do:** máy chạy hiện tại là Windows. `fcntl` chỉ có trên Unix, code mẫu trong `TROLY35_VIDEO_MODULE.md` §6 sẽ crash ngay lần chạy đầu. File MODULE có ghi chú "lưu ý Windows" nhưng để sau là sai thứ tự — lock là thứ phải có ngay từ ngày đầu để không tạo video trùng.
+
+### 0.2. PoC render video sớm trong Tuần 1, song song extractor
+
+- **Thay đổi:** không đợi tới Giai đoạn 3 mới đụng HyperFrames. Trong Tuần 1, làm song song:
+  - Track A: extractor + validator (như kế hoạch cũ).
+  - Track B: PoC HyperFrames render 1 scene tĩnh 9:16 trên máy local, đo thời gian render và mức RAM.
+- **Quyết định ở cuối Tuần 1:** nếu render 1 scene > 60s hoặc cài Puppeteer lỗi, fallback sang **MoviePy + Pillow** cho Giai đoạn 3.
+- **Lý do:** HyperFrames + Puppeteer + GSAP là phần rủi ro kỹ thuật cao nhất, nhưng kế hoạch cũ để tới Tuần 2 mới chạm. Nếu phát hiện không khả thi muộn, phải làm lại từ Giai đoạn 3. Bản tin chính luận chủ yếu là text + logo + ảnh tĩnh — MoviePy hoàn toàn đủ và rẻ hơn nhiều về độ phức tạp môi trường.
+
+### 0.3. TTS: thử edge-tts (miễn phí) trước, FPT.AI sau nếu cần
+
+- **Thay đổi:** thứ tự ưu tiên provider trong adapter TTS:
+  1. **edge-tts** (Microsoft Edge TTS, miễn phí, giọng `vi-VN-NamMinhNeural` nam Bắc và `vi-VN-HoaiMyNeural` nữ Bắc) — primary.
+  2. FPT.AI (`banmai`/`leminh`) — backup khi cần giọng chính luận đặc thù hơn.
+  3. Viettel AI — backup thứ hai.
+  4. OpenAI TTS — dự phòng cuối.
+- **Lý do:** FPT.AI free tier ~10k ký tự/tháng. Mỗi video 90 giây ≈ 1,500 ký tự, chạy 30 ngày = 45k ký tự → vượt free tier ngay tháng đầu, phải trả phí. edge-tts miễn phí không giới hạn, chất lượng tiếng Việt giọng Bắc tốt, đủ cho bản tin chính luận. Vẫn giữ adapter pattern để đổi provider không phải sửa code chính.
+
+### 0.4. Cập nhật tên model LLM
+
+- **Thay đổi:** trong `.env.example` và mọi tài liệu, đổi:
+  - `LLM_MODEL=claude-opus-4-5` → `LLM_MODEL=claude-sonnet-4-6` (mặc định).
+  - Ghi rõ có thể nâng lên `claude-opus-4-7` nếu cần chất lượng cao hơn cho scene khó.
+- **Lý do:** `claude-opus-4-5` đã không còn là model hiện hành. Task này là structured JSON output từ prompt cố định, temperature 0.2 — Sonnet 4.6 dư sức và rẻ hơn Opus đáng kể (~5x). Chỉ nâng Opus nếu thực tế thấy Sonnet output kém.
+
+### 0.5. Pipeline phải fail sớm khi chưa có bản tin mới
+
+- **Thay đổi:** thêm bước 00 trong `daily_run.py`: kiểm tra `today_news.md` (hoặc JSON tương đương) có timestamp trong vòng 2 giờ gần nhất không. Nếu không, exit code 2 và gửi thông báo nhẹ "chưa có bản tin mới, bỏ qua hôm nay", **không** notify_failure (vì không phải lỗi).
+- **Thay đổi cron:** dời từ 6:30 sáng → **7:30 sáng** để đảm bảo `runDailyNewsBot()` đã chạy xong.
+- **Lý do:** nếu cron video chạy trước khi bản tin text sẵn sàng, sẽ tạo video từ bản tin của ngày hôm trước hoặc rỗng — sai nội dung là rủi ro nghiêm trọng với nội dung chính luận.
+
+### 0.6. Giai đoạn 1 thuần local, KHÔNG sửa Apps Script
+
+- **Thay đổi:** Giai đoạn 1 không thêm endpoint export trong GAS nữa. Thay vào đó:
+  - Copy tay 3 bản tin thật gần nhất từ Telegram/Sheets thành 3 file `samples/news_YYYYMMDD.md`.
+  - Pipeline khô (extractor + validator + scenes.json) chạy hoàn toàn trên fixture local.
+  - Chỉ khi pipeline khô đã ổn (Giai đoạn 2 xong), mới đụng vào GAS để thêm endpoint export — sẽ làm trong Giai đoạn 4 hoặc 5.
+- **Lý do:** nguyên tắc số 1 là "không chạm luồng chính nếu chưa cần". Sửa `backend/07-main.gs` để thêm endpoint export là chạm vào file đã production. Trì hoãn việc này tới khi thật sự cần video chạy tự động giảm rủi ro phá vỡ webhook `/quiz`, `/start`, `runDailyNewsBot()`.
+
+### 0.7. Rút gọn lộ trình từ 6 giai đoạn ~4 tuần xuống MVP 2 tuần để đánh giá
+
+- **Thay đổi:** đặt **mốc Go/No-Go ở cuối Tuần 2**. Nếu sau 2 tuần chưa có `final.mp4` xem được trên máy local, dừng lại đánh giá lại scope — có thể module không khả thi với resource hiện tại.
+- **Lý do:** kế hoạch 6 giai đoạn dễ trôi 6-8 tuần mà không có sản phẩm nhìn thấy được. Mốc 2 tuần buộc team chốt sớm: HyperFrames hay MoviePy, edge-tts hay FPT.AI, fixture local hay export GAS.
+
+### 0.8. Tổng kết các thay đổi áp dụng vào từng giai đoạn
+
+| Giai đoạn | Thay đổi chính |
+| --- | --- |
+| 0 | Cài FFmpeg PATH, verify ngay; không cài clasp mới; không đăng ký FPT.AI vội |
+| 1 | Bỏ task "thêm endpoint GAS"; dùng fixture local copy tay |
+| 2 | Đổi default model `claude-sonnet-4-6`; thêm PoC HyperFrames song song |
+| 3 | Đổi default TTS provider sang `edge-tts`; có nhánh fallback MoviePy nếu HyperFrames PoC fail |
+| 4 | Lock file dùng `psutil` (không `fcntl`); thêm bước 00 check freshness bản tin |
+| 5 | Endpoint export GAS chuyển vào đây (nếu pipeline đã ổn định) |
+| 6 | Cron 7:30 sáng (không 6:30) |
 
 ## 1. Kết luận triển khai
 
@@ -60,6 +125,8 @@ Nếu bắt đầu từ ngày 25/05/2026, lộ trình thực tế nên chia như
 | 5 | 3-5 ngày | Duyệt/từ chối qua Telegram webhook | Trung bình thấp |
 | 6 | 2-4 tuần | Chạy thử vận hành, tinh chỉnh | Thấp nếu giữ duyệt thủ công |
 
+> **Mốc Go/No-Go cuối Tuần 2 (§0.7):** sau 2 tuần kể từ ngày bắt đầu, phải có `final.mp4` xem được trên máy local (kết quả của Giai đoạn 0+1+2+3). Nếu chưa có, dừng và đánh giá lại scope thay vì cố hoàn thành Giai đoạn 4-6.
+
 ## 4. Giai đoạn 0 - Chuẩn bị và chốt phạm vi
 
 Mục tiêu: bảo đảm module video có thể phát triển mà không chạm vào luồng chính.
@@ -71,7 +138,8 @@ Task cần làm:
   - Phương án B: dùng bản tin nội bộ từ `BANTIN35_REPORTS`.
   - Khuyến nghị: bắt đầu với dữ liệu có cấu trúc tốt nhất trong Sheets, sau đó mới xuất markdown nếu cần.
 - Xác định nhóm Telegram duyệt nội bộ và nhóm chính.
-- Cài FFmpeg trên máy/server chạy worker.
+- Cài FFmpeg trên máy/server chạy worker, verify `ffmpeg -version` chạy được trong PowerShell.
+- **Không** đăng ký FPT.AI TTS ở giai đoạn này (xem §0.3) — sẽ dùng edge-tts miễn phí làm primary, chỉ đăng ký FPT.AI nếu edge-tts không đủ chất lượng.
 - Chốt nơi chạy worker:
   - Máy Windows qua Task Scheduler.
   - Hoặc VPS chạy cron/PM2.
@@ -85,15 +153,20 @@ Tiêu chí hoàn thành:
 - Có nhóm duyệt nội bộ.
 - Có nguyên tắc: video lỗi không làm hỏng bản tin text.
 
-## 5. Giai đoạn 1 - Chuẩn hóa đầu vào
+## 5. Giai đoạn 1 - Chuẩn hóa đầu vào (chỉ local, không sửa GAS)
 
-Mục tiêu: tạo đầu vào ổn định cho video module.
+Mục tiêu: tạo đầu vào ổn định cho video module **mà không chạm Apps Script**.
+
+> **Điều chỉnh sau review (§0.6):** Giai đoạn này KHÔNG còn thêm endpoint GAS. Endpoint export chuyển sang Giai đoạn 5 và chỉ làm khi pipeline khô đã ổn định.
 
 Task cần làm:
 
-- Thêm endpoint hoặc hàm Apps Script để export bản tin mới nhất.
-- Output nên là JSON trước, markdown sau nếu cần.
-- Dữ liệu export tối thiểu gồm:
+- Copy tay 3 bản tin thật gần nhất từ Telegram/Sheets thành fixture local:
+  - `video_module/samples/news_YYYYMMDD_1.md`;
+  - `video_module/samples/news_YYYYMMDD_2.md`;
+  - `video_module/samples/news_YYYYMMDD_3.md`.
+- Định nghĩa schema JSON đầu vào (chưa cần script generate, viết tay 1 file `samples/sample_news.json` đối chiếu với 1 trong 3 file markdown để chốt cấu trúc).
+- Schema tối thiểu gồm:
   - ngày bản tin;
   - tiêu đề;
   - tổng hợp chung;
@@ -102,20 +175,20 @@ Task cần làm:
   - văn bản pháp luật nếu có;
   - thông điệp/ngữ cảnh chính;
   - website/caption mặc định.
-- Tạo fixture local:
-  - `video_module/input/sample_news.json`;
-  - `video_module/input/today_news.md` nếu vẫn muốn theo thiết kế ban đầu.
-- Viết script pull dữ liệu từ GAS/Sheets về local, ví dụ `scripts/00_fetch_input.py`.
 
 Tiêu chí hoàn thành:
 
-- Chạy một lệnh có thể tạo input local ổn định.
-- Có ít nhất 3 fixture từ bản tin thật để test.
-- Input không chứa API key hoặc thông tin nhạy cảm không cần thiết.
+- Có 3 file markdown bản tin thật trong `samples/`.
+- Có 1 file `sample_news.json` thể hiện schema.
+- Chưa đụng vào bất kỳ file nào trong `backend/`.
 
-## 6. Giai đoạn 2 - Pipeline khô: extractor, script generator, validator
+## 6. Giai đoạn 2 - Pipeline khô + PoC render (song song)
 
-Mục tiêu: từ input tạo được `scenes.json` hợp lệ, chưa tạo video.
+Mục tiêu: từ input tạo được `scenes.json` hợp lệ **VÀ** chốt được công nghệ render trước khi sang Giai đoạn 3.
+
+> **Điều chỉnh sau review (§0.2):** thêm Track B chạy song song với pipeline khô để chốt sớm HyperFrames có khả thi hay phải fallback MoviePy. Đây là cách tránh phát hiện rủi ro kỹ thuật muộn ở Giai đoạn 3.
+
+### Track A - Pipeline khô (như cũ)
 
 Task cần làm:
 
@@ -143,8 +216,8 @@ video_module/
   - không dùng LLM.
 - Viết `prompts/make_script.md`.
 - Viết `scripts/02_make_script.py`:
-  - gọi LLM qua biến môi trường;
-  - temperature thấp;
+  - gọi LLM qua biến môi trường `LLM_MODEL` (mặc định `claude-sonnet-4-6`, xem §0.4);
+  - temperature thấp (0.2);
   - bắt buộc JSON thuần;
   - retry khi parse lỗi.
 - Viết `scripts/03_validate_script.py`:
@@ -158,11 +231,27 @@ video_module/
   - `tests/test_extractor.py`;
   - `tests/test_validator.py`.
 
+### Track B - PoC render (song song với Track A)
+
+- Cài HyperFrames trong `video_module/hyperframes`.
+- Tạo composition tối giản 9:16 với 1 scene tĩnh (logo + tiêu đề).
+- Render thử bằng `npx hyperframes render`.
+- Đo:
+  - thời gian render 1 scene 6 giây;
+  - mức RAM peak;
+  - có cài đặt thêm gì ngoài hướng dẫn không.
+
+### Quyết định Go/No-Go cuối Giai đoạn 2
+
+- Nếu render 1 scene < 30s và môi trường ổn → Giai đoạn 3 dùng **HyperFrames**.
+- Nếu render > 60s, hoặc Puppeteer/Chromium lỗi không khắc phục được trong 1 ngày → Giai đoạn 3 fallback **MoviePy + Pillow** (xem §0.2).
+
 Tiêu chí hoàn thành:
 
 - Từ fixture thật tạo được `data/extracted_facts.json`.
 - Tạo được `data/scenes.json`.
 - Validator fail khi LLM bịa số hiệu văn bản.
+- Có quyết định rõ HyperFrames hay MoviePy cho Giai đoạn 3.
 - Chưa có bất kỳ lệnh gửi Telegram nào trong giai đoạn này.
 
 ## 7. Giai đoạn 3 - Voiceover và video local
@@ -176,15 +265,16 @@ Task cần làm:
   - đọc số hiệu văn bản theo từng chữ số;
   - mở rộng viết tắt như `BCA`, `UBND`, `TW`, `NĐ-CP`;
   - giữ nguyên text hiển thị, chỉ đổi lời đọc.
-- Viết adapter TTS:
+- Viết adapter TTS (xem §0.3, thứ tự ưu tiên đã đổi):
   - `scripts/tts/base.py`;
-  - `scripts/tts/fpt.py`;
-  - `scripts/tts/viettel.py`;
-  - `scripts/tts/openai_tts.py` nếu cần dự phòng.
-- Viết `scripts/04_make_voice.py`.
-- Cài và thử HyperFrames trong `video_module/hyperframes`.
-- Tạo composition 9:16 tối giản trước, sau đó mở rộng đủ 8 scene.
-- Viết `scripts/05_render_video.py`.
+  - `scripts/tts/edge.py` — **primary**, dùng edge-tts (miễn phí, không quota), giọng `vi-VN-NamMinhNeural` hoặc `vi-VN-HoaiMyNeural`;
+  - `scripts/tts/fpt.py` — backup;
+  - `scripts/tts/viettel.py` — backup thứ 2;
+  - `scripts/tts/openai_tts.py` — dự phòng cuối.
+- Viết `scripts/04_make_voice.py` đọc `TTS_PROVIDER` từ `.env`, mặc định `edge`.
+- Render video:
+  - Nếu Giai đoạn 2 chốt HyperFrames: mở rộng composition từ 1 scene PoC lên đủ 8 scene.
+  - Nếu chốt MoviePy: viết `scripts/05_render_video.py` dùng MoviePy + Pillow, không cần Node/HyperFrames.
 - Viết `scripts/06_compress_video.py` dùng FFmpeg.
 - Kiểm tra dung lượng video, mục tiêu dưới 50 MB.
 
@@ -224,12 +314,16 @@ Tiêu chí hoàn thành:
 - Nhóm chính chưa nhận video.
 - Có file pending review để đối chiếu.
 
-## 9. Giai đoạn 5 - Duyệt qua Telegram webhook Apps Script
+## 9. Giai đoạn 5 - Duyệt qua Telegram webhook Apps Script + endpoint export
 
-Mục tiêu: dùng webhook hiện có để xử lý nút duyệt/từ chối.
+Mục tiêu: dùng webhook hiện có để xử lý nút duyệt/từ chối, **và đây mới là lúc thêm endpoint export bản tin** (đã dời từ Giai đoạn 1, xem §0.6).
+
+> **Điều chỉnh sau review:** chỉ sửa GAS khi pipeline khô + render + TTS đã ổn định trên fixture local. Trước thời điểm này, mọi thay đổi Apps Script đều bị hoãn để bảo vệ luồng chính.
 
 Task cần làm:
 
+- Thêm endpoint hoặc action export bản tin mới nhất ra JSON (action mới, không sửa action cũ).
+- Viết `scripts/00_fetch_input.py` pull JSON từ GAS về `video_module/input/today_news.json`.
 - Sửa `backend/07-main.gs` để xử lý `callback_query`.
 - Thêm hàm xử lý approve/reject trong `backend/05-telegram-bot.gs` hoặc module riêng.
 - Kiểm tra người bấm nút:
@@ -264,6 +358,7 @@ Mục tiêu: chạy bán tự động hằng ngày, vẫn có người duyệt.
 Task cần làm:
 
 - Viết `daily_run.py` gom các bước:
+  - **00 check freshness** — kiểm tra bản tin có timestamp < 2h, nếu không thì exit code 2 và log "bỏ qua" (xem §0.5);
   - fetch input;
   - extract facts;
   - make script;
@@ -272,7 +367,8 @@ Task cần làm:
   - render;
   - compress;
   - post review.
-- Thêm lock file chống chạy trùng.
+- Thêm lock file cross-platform dùng `psutil.pid_exists()`, **không dùng `fcntl`** (xem §0.1). Verify lock chạy được trên Windows trước khi merge.
+- Cron / Task Scheduler đặt **7:30 sáng**, không phải 6:30 (xem §0.5) để chắc chắn `runDailyNewsBot()` đã chạy xong.
 - Thêm archive theo ngày:
 
 ```text
