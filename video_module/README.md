@@ -14,9 +14,9 @@ Module này **không** chạm vào luồng crawl, tóm tắt, gửi bản tin te
 
 | Giai đoạn | Mô tả | Trạng thái |
 |---|---|---|
-| 0 | Môi trường: Python ✅ Node ✅ FFmpeg ❌ | Cần cài FFmpeg |
-| 1 | Fixture bản tin + schema JSON | ✅ Hoàn thành |
-| 2 | Extractor + validator + scenes.json | Chưa bắt đầu |
+| 0 | Môi trường: Python ✅ Node ✅ FFmpeg ❌ (cần cài) | ⚠️ Cần cài FFmpeg trước Giai đoạn 3 |
+| 1 | Fixture bản tin + schema JSON | ✅ Hoàn thành 24/05/2026 |
+| 2 | Extractor + validator + scenes.json + PoC render | ⏳ Tiếp theo |
 | 3 | Voiceover + video local | Chưa bắt đầu |
 | 4 | Đăng nhóm duyệt Telegram | Chưa bắt đầu |
 | 5 | Duyệt qua webhook Apps Script + endpoint export GAS | Chưa bắt đầu |

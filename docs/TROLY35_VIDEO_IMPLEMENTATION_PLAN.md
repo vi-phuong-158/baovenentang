@@ -115,15 +115,15 @@ Các điểm chưa khớp với tài liệu module video:
 
 Nếu bắt đầu từ ngày 25/05/2026, lộ trình thực tế nên chia như sau.
 
-| Giai đoạn | Thời gian dự kiến | Mục tiêu chính | Mức ảnh hưởng workflow hiện tại |
-| --- | --- | --- | --- |
-| 0 | 1-2 ngày | Chốt đầu vào, môi trường, phạm vi | Không ảnh hưởng |
-| 1 | 2-4 ngày | Export bản tin thành dữ liệu cố định | Thấp |
-| 2 | 4-6 ngày | Tạo `scenes.json` và validator | Không ảnh hưởng gửi tin |
-| 3 | 4-7 ngày | Tạo voiceover và video local | Không ảnh hưởng gửi tin |
-| 4 | 3-5 ngày | Gửi video vào nhóm duyệt | Thấp |
-| 5 | 3-5 ngày | Duyệt/từ chối qua Telegram webhook | Trung bình thấp |
-| 6 | 2-4 tuần | Chạy thử vận hành, tinh chỉnh | Thấp nếu giữ duyệt thủ công |
+| Giai đoạn | Thời gian dự kiến | Mục tiêu chính | Mức ảnh hưởng workflow hiện tại | Trạng thái |
+| --- | --- | --- | --- | --- |
+| 0 | 1-2 ngày | Chốt đầu vào, môi trường, phạm vi | Không ảnh hưởng | ⚠️ Thiếu FFmpeg trong PATH |
+| 1 | 2-4 ngày | Fixture bản tin + schema JSON (local) | Không ảnh hưởng | ✅ Hoàn thành 24/05/2026 |
+| 2 | 4-6 ngày | Tạo `scenes.json`, validator + PoC render | Không ảnh hưởng gửi tin | ⏳ Tiếp theo |
+| 3 | 4-7 ngày | Tạo voiceover và video local | Không ảnh hưởng gửi tin | Chưa bắt đầu |
+| 4 | 3-5 ngày | Gửi video vào nhóm duyệt | Thấp | Chưa bắt đầu |
+| 5 | 3-5 ngày | Duyệt/từ chối qua Telegram webhook + endpoint export GAS | Trung bình thấp | Chưa bắt đầu |
+| 6 | 2-4 tuần | Chạy thử vận hành, tinh chỉnh | Thấp nếu giữ duyệt thủ công | Chưa bắt đầu |
 
 > **Mốc Go/No-Go cuối Tuần 2 (§0.7):** sau 2 tuần kể từ ngày bắt đầu, phải có `final.mp4` xem được trên máy local (kết quả của Giai đoạn 0+1+2+3). Nếu chưa có, dừng và đánh giá lại scope thay vì cố hoàn thành Giai đoạn 4-6.
 
