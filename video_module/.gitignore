@@ -1,0 +1,15 @@
+.env
+input/today_news.md
+data/extracted_facts.json
+data/scenes.json
+data/pending_review.json
+audio/voiceover.mp3
+output/
+archive/
+logs/
+*.log
+*.lock
+__pycache__/
+*.pyc
+node_modules/
+hyperframes/node_modules/

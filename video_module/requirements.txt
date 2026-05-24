@@ -1,0 +1,21 @@
+# Core
+python-dotenv>=1.0.0
+
+# LLM
+anthropic>=0.40.0
+
+# TTS
+edge-tts>=6.1.9        # primary TTS, miễn phí, giọng Bắc tốt
+
+# Video render (dùng nếu HyperFrames PoC fail — xem PLAN §0.2)
+# moviepy>=2.0.0
+# Pillow>=10.0.0
+
+# Lock file cross-platform (thay fcntl trên Windows — xem PLAN §0.1)
+psutil>=5.9.0
+
+# HTTP
+requests>=2.31.0
+
+# Utilities
+python-dateutil>=2.8.2
