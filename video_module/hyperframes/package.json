@@ -1,0 +1,13 @@
+{
+  "name": "troly35-video-composition",
+  "version": "1.0.0",
+  "description": "HyperFrames composition cho video bản tin Trợ lý 35 (9:16, 60-90s)",
+  "scripts": {
+    "poc": "npx hyperframes render --composition compositions/poc-single-scene.html --output ../output/poc_test.mp4 --width 1080 --height 1920 --fps 30",
+    "render": "npx hyperframes render --composition compositions/daily-news.html --output ../output/video_raw.mp4 --width 1080 --height 1920 --fps 30",
+    "preview": "npx hyperframes preview --composition compositions/daily-news.html"
+  },
+  "devDependencies": {
+    "hyperframes": "latest"
+  }
+}
