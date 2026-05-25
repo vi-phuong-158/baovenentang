@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--
+  Composition đầy đủ 8 scene — đọc dữ liệu từ ../data/scenes.json
+  Render: cd hyperframes && npm run render
+  Kết quả: ../output/video_raw.mp4 (1080x1920, 30fps)
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1080px;
+      background: #0a0a0a;
+      font-family: 'Be Vietnam Pro', Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Base clip layout ── */
+    .clip {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── Background gradients theo loại scene ── */
+    .bg-intro    { background: linear-gradient(180deg, #0d0000 0%, #2d0808 60%, #0d0000 100%); }
+    .bg-summary  { background: linear-gradient(180deg, #0a0a1a 0%, #001440 60%, #0a0a1a 100%); }
+    .bg-news     { background: linear-gradient(180deg, #0d0000 0%, #1a0808 60%, #0d0000 100%); }
+    .bg-briefs   { background: linear-gradient(180deg, #050510 0%, #0a0a30 60%, #050510 100%); }
+    .bg-message  { background: linear-gradient(180deg, #0a0500 0%, #1a1000 60%, #0a0500 100%); }
+    .bg-cta      { background: linear-gradient(180deg, #050505 0%, #101010 60%, #050505 100%); }
+
+    /* ── Decorative bars ── */
+    .bar-top, .bar-bottom {
+      position: absolute;
+      left: 0; right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, #cc0000, #ffcc00, #cc0000);
+    }
+    .bar-top    { top: 0; }
+    .bar-bottom { bottom: 0; }
+
+    /* ── Logo strip ── */
+    .logo-strip {
+      position: absolute;
+      top: 60px;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    .logo-icon  { font-size: 64px; }
+    .logo-text  { font-size: 36px; font-weight: 700; color: #ffffff; letter-spacing: 2px; }
+
+    /* ── Content area ── */
+    .content {
+      width: 100%;
+      padding: 0 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 48px;
+    }
+
+    /* ── Category badge ── */
+    .badge {
+      font-size: 32px;
+      font-weight: 600;
+      color: #ffcc00;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      border-bottom: 2px solid #cc0000;
+      padding-bottom: 8px;
+    }
+
+    /* ── Headline ── */
+    .headline {
+      font-size: 84px;
+      font-weight: 700;
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.15;
+    }
+
+    /* ── Body text ── */
+    .body-text {
+      font-size: 54px;
+      font-weight: 400;
+      color: #e0e0e0;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ── Subtitle / voiceover caption (nửa dưới) ── */
+    .subtitle-bar {
+      position: absolute;
+      bottom: 120px;
+      left: 60px; right: 60px;
+      text-align: center;
+      font-size: 52px;
+      font-weight: 500;
+      color: #ffffff;
+      line-height: 1.4;
+      text-shadow: 0 0 8px #000, 2px 2px 6px #000, -2px -2px 6px #000;
+    }
+
+    /* ── CTA scene ── */
+    .cta-url {
+      font-size: 44px;
+      color: #ffcc00;
+      text-decoration: none;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div
+  id="root"
+  data-composition-id="troly35-daily"
+  data-start="0"
+  data-width="1080"
+  data-height="1920"
+>
+
+  <!-- Scenes sẽ được inject bởi Python script 05_render_video.py -->
+  <!-- Placeholder dưới đây là cấu trúc mẫu cho 1 scene -->
+
+  <!-- SCENE: intro -->
+  <div class="clip bg-intro" data-start="0" data-duration="8" data-track-index="0" id="scene-intro">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🛡️</span>
+      <span class="logo-text">TRỢ LÝ 35</span>
+    </div>
+    <div class="content">
+      <div class="badge" id="intro-badge">BẢN TIN NGÀY</div>
+      <div class="headline" id="intro-headline"><!-- inject --></div>
+      <div class="body-text" id="intro-date"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="intro-subtitle"><!-- inject voiceover --></div>
+  </div>
+
+  <!-- SCENE: summary -->
+  <div class="clip bg-summary" data-start="8" data-duration="12" data-track-index="0" id="scene-summary">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">📋</span>
+      <span class="logo-text">TỔNG QUAN</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="summary-headline"><!-- inject --></div>
+      <div class="body-text" id="summary-text"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="summary-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: news1 -->
+  <div class="clip bg-news" data-start="20" data-duration="12" data-track-index="0" id="scene-news1">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🔴</span>
+      <span class="logo-text">TIN QUAN TRỌNG</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news1-headline"><!-- inject --></div>
+      <div class="body-text" id="news1-text"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="news1-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: news2 -->
+  <div class="clip bg-news" data-start="32" data-duration="12" data-track-index="0" id="scene-news2">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🔴</span>
+      <span class="logo-text">TIN QUAN TRỌNG</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news2-headline"><!-- inject --></div>
+      <div class="body-text" id="news2-text"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="news2-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: news3 -->
+  <div class="clip bg-news" data-start="44" data-duration="10" data-track-index="0" id="scene-news3">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🟡</span>
+      <span class="logo-text">HÔM NAY CẦN BIẾT</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news3-headline"><!-- inject --></div>
+      <div class="body-text" id="news3-text"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="news3-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: briefs -->
+  <div class="clip bg-briefs" data-start="54" data-duration="8" data-track-index="0" id="scene-briefs">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">📰</span>
+      <span class="logo-text">TIN NGẮN</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="briefs-headline"><!-- inject --></div>
+      <div class="body-text" id="briefs-text"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="briefs-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: message -->
+  <div class="clip bg-message" data-start="62" data-duration="8" data-track-index="0" id="scene-message">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">💬</span>
+      <span class="logo-text">THÔNG ĐIỆP</span>
+    </div>
+    <div class="content">
+      <div class="body-text" id="message-text" style="font-style: italic; color: #ffcc00;"><!-- inject --></div>
+    </div>
+    <div class="subtitle-bar" id="message-subtitle"><!-- inject --></div>
+  </div>
+
+  <!-- SCENE: cta -->
+  <div class="clip bg-cta" data-start="70" data-duration="7" data-track-index="0" id="scene-cta">
+    <div class="bar-top"></div>
+    <div class="bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🛡️</span>
+      <span class="logo-text">TRỢ LÝ 35</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="cta-headline" style="font-size: 72px;">Theo dõi thường xuyên</div>
+      <a class="cta-url" id="cta-url"><!-- inject website --></a>
+    </div>
+    <div class="subtitle-bar" id="cta-subtitle"><!-- inject --></div>
+  </div>
+
+</div><!-- #root -->
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script>
+  // Animation chung: fade-in + slide-up cho mỗi scene
+  function buildTimeline(sceneId, headlineId, textId, subtitleId) {
+    const tl = gsap.timeline({ paused: true });
+    const scene = document.getElementById(sceneId);
+    if (!scene) return tl;
+
+    const headline = document.getElementById(headlineId);
+    const text = document.getElementById(textId);
+    const subtitle = document.getElementById(subtitleId);
+    const logoStrip = scene.querySelector('.logo-strip');
+
+    // Bắt đầu ở trạng thái ẩn
+    gsap.set([logoStrip, headline, text, subtitle].filter(Boolean), { opacity: 0, y: 30 });
+
+    tl.to(logoStrip, { opacity: 1, y: 0, duration: 0.5 }, 0.2);
+    if (headline) tl.to(headline, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.5);
+    if (text)     tl.to(text,     { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.8);
+    if (subtitle) tl.to(subtitle, { opacity: 1, y: 0, duration: 0.5 }, 1.1);
+
+    return tl;
+  }
+
+  const mainTl = gsap.timeline({ paused: true });
+
+  // Mỗi scene được xử lý trong buildTimeline riêng
+  // 05_render_video.py sẽ inject dữ liệu từ scenes.json vào các element
+
+  window.__timelines = {
+    "troly35-daily": mainTl,
+  };
+</script>
+
+</body>
+</html>
