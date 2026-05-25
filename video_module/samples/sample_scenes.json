@@ -1,0 +1,81 @@
+{
+  "_comment": "Fixture scenes.json cho bản tin 22/5/2026 — dùng để test Giai đoạn 3 mà không cần gọi LLM",
+  "title": "Bản tin Trợ lý 35",
+  "date": "22/5/2026",
+  "weekday": "Thứ Sáu",
+  "duration_seconds": 75,
+  "scenes": [
+    {
+      "id": "intro",
+      "start": 0,
+      "duration": 7,
+      "headline": "Bản tin Trợ lý 35",
+      "text": "Thứ Sáu, ngày 22 tháng 5 năm 2026",
+      "voiceover": "Kính chào quý đồng chí. Đây là bản tin Trợ lý 35, ngày thứ Sáu, hai mươi hai tháng năm năm hai nghìn không trăm hai mươi sáu.",
+      "visual_hint": "logo nền đỏ đen"
+    },
+    {
+      "id": "summary",
+      "start": 7,
+      "duration": 11,
+      "headline": "Tổng quan ngày 22/5",
+      "text": "Chính phủ ban hành Nghị định 181/2026/NĐ-CP về quản lý doanh nghiệp nhà nước",
+      "voiceover": "Ngày hai mươi hai tháng năm, Chính phủ ban hành Nghị định số một tám một năm hai không hai sáu của Chính phủ, quy định tiêu chuẩn bổ nhiệm người quản lý doanh nghiệp nhà nước. Bộ Chính trị tiếp tục chỉ đạo triển khai Nghị quyết số năm mươi bảy của Bộ Chính trị về đột phá phát triển khoa học và công nghệ.",
+      "visual_hint": "nền xanh đậm"
+    },
+    {
+      "id": "news1",
+      "start": 18,
+      "duration": 12,
+      "headline": "Nghị định 181/2026/NĐ-CP",
+      "text": "Tiêu chuẩn bổ nhiệm người quản lý doanh nghiệp nhà nước",
+      "voiceover": "Nghị định số một tám một năm hai không hai sáu của Chính phủ, ban hành ngày hai mươi mốt tháng năm, quy định tiêu chuẩn và điều kiện bổ nhiệm, miễn nhiệm, khen thưởng, kỷ luật người quản lý doanh nghiệp nhà nước. Nghị định có hiệu lực từ ngày mười tháng bảy năm hai không hai sáu.",
+      "visual_hint": "nền đỏ tối"
+    },
+    {
+      "id": "news2",
+      "start": 30,
+      "duration": 12,
+      "headline": "Thông tư 23/2026/TT-BCA",
+      "text": "An ninh mạng hệ thống thông tin quan trọng quốc gia",
+      "voiceover": "Thông tư số hai mươi ba năm hai không hai sáu của Bộ Công an, ban hành ngày hai mươi tháng năm, hướng dẫn công tác bảo đảm an ninh mạng đối với hệ thống thông tin quan trọng về an ninh quốc gia, bao gồm hệ thống cấp độ bốn và cấp độ năm.",
+      "visual_hint": "nền đỏ tối"
+    },
+    {
+      "id": "news3",
+      "start": 42,
+      "duration": 10,
+      "headline": "Phòng chống bạo hành trẻ em",
+      "text": "Tăng cường phát hiện, tố giác hành vi bạo hành",
+      "voiceover": "Bộ Lao động Thương binh và Xã hội đề nghị các địa phương tăng cường truyền thông về phòng chống bạo lực trẻ em, đặc biệt trong môi trường gia đình và nhà trường.",
+      "visual_hint": "nền vàng tối"
+    },
+    {
+      "id": "briefs",
+      "start": 52,
+      "duration": 9,
+      "headline": "Tin ngắn trong ngày",
+      "text": "Việt Nam tăng 4 bậc về chỉ số đổi mới sáng tạo toàn cầu 2026",
+      "voiceover": "Việt Nam đứng thứ bốn mươi bốn trong bảng xếp hạng Chỉ số đổi mới sáng tạo toàn cầu năm hai không hai sáu, tăng bốn bậc so với năm trước, nhờ triển khai Nghị quyết số năm mươi bảy của Bộ Chính trị.",
+      "visual_hint": "nền xanh đậm"
+    },
+    {
+      "id": "message",
+      "start": 61,
+      "duration": 8,
+      "headline": "Thông điệp ngày",
+      "text": "Xây dựng đội ngũ cán bộ quản lý chuyên nghiệp, liêm chính",
+      "voiceover": "Việc ban hành Nghị định số một tám một năm hai không hai sáu của Chính phủ thể hiện quyết tâm của Đảng và Nhà nước trong xây dựng đội ngũ cán bộ quản lý doanh nghiệp nhà nước chuyên nghiệp, liêm chính.",
+      "visual_hint": "nền tối, văn bản vàng"
+    },
+    {
+      "id": "cta",
+      "start": 69,
+      "duration": 6,
+      "headline": "Theo dõi thường xuyên",
+      "text": "https://baovenentang.vercel.app/",
+      "voiceover": "Kính chào và hẹn gặp lại. Truy cập trang web Bảo vệ nền tảng để cập nhật thông tin hằng ngày.",
+      "visual_hint": "logo, nền đen"
+    }
+  ]
+}

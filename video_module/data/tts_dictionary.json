@@ -1,0 +1,65 @@
+{
+  "_comment": "Dictionary chuẩn hoá lời đọc cho TTS. Các key không phân biệt hoa/thường khi tra.",
+  "abbreviations": {
+    "BCA":     "Bộ Công an",
+    "BNG":     "Bộ Ngoại giao",
+    "BNV":     "Bộ Nội vụ",
+    "BTC":     "Bộ Tài chính",
+    "BGDĐT":  "Bộ Giáo dục và Đào tạo",
+    "BYT":    "Bộ Y tế",
+    "BTTTT":  "Bộ Thông tin và Truyền thông",
+    "BLĐTBXH": "Bộ Lao động Thương binh và Xã hội",
+    "BKHCN":  "Bộ Khoa học và Công nghệ",
+    "UBND":   "Ủy ban nhân dân",
+    "HĐND":   "Hội đồng nhân dân",
+    "TW":     "Trung ương",
+    "BCH":    "Ban Chấp hành",
+    "BCT":    "Bộ Chính trị",
+    "BBT":    "Ban Bí thư",
+    "BTG":    "Ban Tuyên giáo",
+    "BTCTW":  "Ban Tổ chức Trung ương",
+    "TCTW":   "Tổ chức Trung ương",
+    "QH":     "Quốc hội",
+    "CP":     "Chính phủ",
+    "TTg":    "Thủ tướng",
+    "GRDP":   "Tổng sản phẩm nội địa cấp tỉnh",
+    "GDP":    "Tổng sản phẩm quốc nội",
+    "WIPO":   "Tổ chức Sở hữu trí tuệ thế giới",
+    "CNTT":   "công nghệ thông tin",
+    "ATTT":   "an toàn thông tin",
+    "ANMXH":  "an ninh mạng xã hội"
+  },
+  "doc_type_prefix": {
+    "NĐ-CP":  "Nghị định của Chính phủ",
+    "TT-BCA": "Thông tư của Bộ Công an",
+    "TT-BNV": "Thông tư của Bộ Nội vụ",
+    "TT-BTC": "Thông tư của Bộ Tài chính",
+    "TT-BGDĐT": "Thông tư của Bộ Giáo dục và Đào tạo",
+    "TT-BYT": "Thông tư của Bộ Y tế",
+    "TT-BTTTT": "Thông tư của Bộ Thông tin và Truyền thông",
+    "QĐ-TTg": "Quyết định của Thủ tướng Chính phủ",
+    "QH15":   "Quốc hội",
+    "QH14":   "Quốc hội",
+    "NQ/TW":  "Nghị quyết của Bộ Chính trị",
+    "CT/TW":  "Chỉ thị của Ban Bí thư",
+    "QĐ/TW":  "Quyết định của Ban Chấp hành Trung ương",
+    "KH-UBND": "Kế hoạch của Ủy ban nhân dân",
+    "NQ-HĐND": "Nghị quyết của Hội đồng nhân dân"
+  },
+  "doc_type_label": {
+    "NĐ":  "Nghị định số",
+    "TT":  "Thông tư số",
+    "QĐ":  "Quyết định số",
+    "NQ":  "Nghị quyết số",
+    "CT":  "Chỉ thị số",
+    "KH":  "Kế hoạch số",
+    "L":   "Luật số"
+  },
+  "names": {
+    "_comment": "Thêm tên riêng hay bị TTS đọc sai vào đây (key = văn bản gốc, value = phiên âm đọc)"
+  },
+  "number_words": {
+    "0": "không", "1": "một", "2": "hai", "3": "ba", "4": "bốn",
+    "5": "năm",   "6": "sáu", "7": "bảy", "8": "tám", "9": "chín"
+  }
+}
