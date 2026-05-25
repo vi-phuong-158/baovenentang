@@ -137,6 +137,9 @@ def get_adapter(provider: str):
         voice = os.getenv("EDGE_TTS_VOICE", "vi-VN-NamMinhNeural")
         rate  = os.getenv("EDGE_TTS_RATE", "+0%")
         return EdgeTTS(voice=voice, rate=rate)
+    elif provider == "google":
+        from scripts.tts.google_tts import GoogleTTS
+        return GoogleTTS()
     elif provider == "fpt":
         from scripts.tts.fpt import FptTTS
         return FptTTS()
@@ -150,10 +153,10 @@ def get_adapter(provider: str):
         from scripts.tts.espeak import EspeakTTS
         return EspeakTTS()
     else:
-        raise ValueError(f"TTS provider không hợp lệ: {provider}. Chọn: edge | fpt | viettel | openai | espeak")
+        raise ValueError(f"TTS provider không hợp lệ: {provider}. Chọn: edge | google | fpt | viettel | openai | espeak")
 
 
-PROVIDER_FALLBACK_ORDER = ["edge", "fpt", "viettel", "openai", "espeak"]
+PROVIDER_FALLBACK_ORDER = ["google", "edge", "fpt", "viettel", "openai", "espeak"]
 
 
 def synthesize_with_fallback(text: str, output: Path, primary: str) -> str:

@@ -1,4 +1,5 @@
 .env
+credentials/
 input/today_news.md
 data/extracted_facts.json
 data/scenes.json
