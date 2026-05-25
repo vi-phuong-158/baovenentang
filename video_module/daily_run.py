@@ -133,8 +133,9 @@ def archive_outputs() -> None:
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-# Pipeline đầy đủ Giai đoạn 2+3+4 (bước 1-7)
+# Pipeline đầy đủ Giai đoạn 2+3+4+5 (bước 0-7)
 STEPS = [
+    ("Kéo bản tin",       ROOT / "scripts" / "00_fetch_input.py"),
     ("Trích facts",       ROOT / "scripts" / "01_extract_facts.py"),
     ("Sinh kịch bản",     ROOT / "scripts" / "02_make_script.py"),
     ("Validate kịch bản", ROOT / "scripts" / "03_validate_script.py"),
@@ -143,9 +144,6 @@ STEPS = [
     ("Nén + ghép audio",  ROOT / "scripts" / "06_compress_video.py"),
     ("Đăng nhóm duyệt",  ROOT / "scripts" / "07_post_telegram_review.py"),
 ]
-
-# Giai đoạn 5+ sẽ thêm:
-# ("Duyệt qua webhook", ROOT / "scripts" / "08_approve_webhook.py"),
 
 
 def run_step(name: str, script: Path) -> None:

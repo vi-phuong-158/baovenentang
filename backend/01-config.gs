@@ -59,6 +59,11 @@ const CONFIG_DEFAULTS = {
   // ===== Web App URL =====
   WEB_APP_URL: '',
 
+  // ===== Video module — Telegram review workflow =====
+  TELEGRAM_REVIEW_CHAT_ID: '',       // chat_id nhóm duyệt nội bộ (âm, -100xxxxxx)
+  TELEGRAM_MAIN_CHAT_ID: '',         // chat_id nhóm chính để đăng sau khi duyệt
+  TELEGRAM_APPROVER_IDS: '',         // user_id được phép duyệt, phân cách bằng dấu phẩy
+
   // ===== Cấu hình hoạt động =====
   MAX_ARTICLES_PER_DAY: 10,
   MAX_ARTICLES_TELEGRAM: 5,
@@ -161,6 +166,9 @@ function showConfigSetupInstructions() {
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
     TELEGRAM_WEBHOOK_SECRET: 'secret_ngau_nhien_cho_webhook_telegram',
+    TELEGRAM_REVIEW_CHAT_ID: '-100123456789',
+    TELEGRAM_MAIN_CHAT_ID: '-100987654321',
+    TELEGRAM_APPROVER_IDS: '111111111,222222222',
     API_ACCESS_TOKEN: 'token_ngau_nhien_cho_api_noi_bo',
     BREVO_API_KEY: 'xkeysib-...',
     SENDER_EMAIL: 'email-da-verify@domain.vn',
