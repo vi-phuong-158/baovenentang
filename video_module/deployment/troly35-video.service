@@ -1,0 +1,30 @@
+[Unit]
+Description=Trợ lý 35 — Video module daily run
+# Chạy sau khi có mạng (cần gọi GAS API và Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Đổi thành user thật đang chạy dự án
+User=ubuntu
+Group=ubuntu
+
+WorkingDirectory=/home/ubuntu/baovenentang/video_module
+
+# Đường dẫn python trong virtualenv (nếu dùng venv)
+ExecStart=/home/ubuntu/baovenentang/video_module/.venv/bin/python daily_run.py
+
+# Exit code 2 = "bỏ qua hôm nay" — không phải lỗi, không restart
+SuccessExitStatus=0 2
+
+# Giới hạn thời gian chạy tối đa 30 phút
+TimeoutStartSec=1800
+
+# Ghi log vào journal (xem bằng: journalctl -u troly35-video)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

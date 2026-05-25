@@ -1,29 +1,35 @@
 """
 Daily run cho video module Trợ lý 35.
-Chạy bằng cron / Task Scheduler lúc 7:30 sáng (sau khi Trợ lý 35 sinh bản tin).
+Chạy bằng cron / systemd timer lúc 7:30 sáng, sau khi runDailyNewsBot() GAS đã xong.
 
-Hiện tại (Giai đoạn 2): chạy Track A — extractor → LLM script → validator.
-Các bước render, TTS, Telegram sẽ được thêm ở Giai đoạn 3-4.
+Pipeline: fetch_input → extract_facts → make_script → validate → make_voice
+          → render_video → compress → post_telegram_review
+
+Exit codes:
+  0 — hoàn tất thành công
+  1 — lỗi nghiêm trọng (có thông báo Telegram)
+  2 — bỏ qua hôm nay (đã chạy rồi hoặc chưa có bản tin mới — không phải lỗi)
 """
 
-import sys
 import os
-import subprocess
-import logging
-import json
 import shutil
-from datetime import datetime, timezone
+import subprocess
+import sys
+import logging
+from datetime import datetime
 from pathlib import Path
 
 import psutil
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).parent
-DATE_STR = datetime.now().strftime("%Y%m%d")
-LOG_DIR = ROOT / "logs"
-LOG_FILE = LOG_DIR / f"run_{DATE_STR}.log"
-LOCK_FILE = LOG_DIR / "run.lock"
+ROOT       = Path(__file__).parent
+DATE_STR   = datetime.now().strftime("%Y%m%d")
+LOG_DIR    = ROOT / "logs"
+LOG_FILE   = LOG_DIR / f"run_{DATE_STR}.log"
+LOCK_FILE  = LOG_DIR / "run.lock"
 ARCHIVE_DIR = ROOT / "archive" / DATE_STR
+
+LOG_RETAIN_DAYS = 30   # xoá log cũ hơn N ngày
 
 LOG_DIR.mkdir(exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
@@ -40,14 +46,14 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+BOT_TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN", "")
 REVIEW_CHAT = os.getenv("TELEGRAM_REVIEW_CHAT_ID", "")
 
 
-# ── Lock file cross-platform (dùng psutil, không dùng fcntl) ────────────────
+# ── Lock file cross-platform (psutil, không dùng fcntl) ─────────────────────
 
 def acquire_lock() -> None:
-    """Chống chạy trùng: dùng PID file + psutil.pid_exists."""
+    """Chống chạy trùng: PID file + psutil.pid_exists (hoạt động cả Windows)."""
     if LOCK_FILE.exists():
         try:
             pid = int(LOCK_FILE.read_text().strip())
@@ -55,7 +61,7 @@ def acquire_lock() -> None:
                 log.error(f"Job khác đang chạy (PID {pid}). Dừng.")
                 sys.exit(0)
             else:
-                log.warning(f"Lock file cũ tồn tại (PID {pid} đã chết) — ghi đè.")
+                log.warning(f"Lock file cũ (PID {pid} đã chết) — ghi đè.")
         except (ValueError, OSError):
             pass
     LOCK_FILE.write_text(str(os.getpid()))
@@ -67,28 +73,17 @@ def release_lock() -> None:
     log.info("Lock released")
 
 
-# ── Kiểm tra freshness bản tin (bước 00) ────────────────────────────────────
+# ── Idempotency guard ────────────────────────────────────────────────────────
 
-def check_input_freshness(max_age_hours: int = 2) -> bool:
+def check_already_done() -> None:
     """
-    Trả về True nếu input/today_news.md tồn tại và được sửa trong vòng max_age_hours.
-    Exit code 2 nếu chưa có bản tin mới (không phải lỗi).
+    Nếu archive hôm nay đã có final.mp4, pipeline đã chạy xong rồi — bỏ qua.
+    Exit code 2 (không phải lỗi) để cron không báo động.
     """
-    input_file = ROOT / "input" / "today_news.md"
-    if not input_file.exists():
-        log.info("Chưa có input/today_news.md — bỏ qua hôm nay (exit 2).")
+    done_marker = ARCHIVE_DIR / "final.mp4"
+    if done_marker.exists():
+        log.info(f"Đã có {done_marker} — bỏ qua lần chạy trùng hôm nay (exit 2).")
         sys.exit(2)
-
-    mtime = datetime.fromtimestamp(input_file.stat().st_mtime)
-    age_hours = (datetime.now() - mtime).total_seconds() / 3600
-    if age_hours > max_age_hours:
-        log.info(
-            f"Bản tin cũ hơn {max_age_hours}h (tuổi: {age_hours:.1f}h) — bỏ qua hôm nay (exit 2)."
-        )
-        sys.exit(2)
-
-    log.info(f"Bản tin OK, tuổi: {age_hours:.1f}h")
-    return True
 
 
 # ── Notify lỗi qua Telegram ─────────────────────────────────────────────────
@@ -117,11 +112,11 @@ def notify_failure(step_name: str, error_detail: str) -> None:
 
 def archive_outputs() -> None:
     targets = [
-        ROOT / "input" / "today_news.md",
-        ROOT / "data" / "extracted_facts.json",
-        ROOT / "data" / "scenes.json",
-        ROOT / "data" / "pending_review.json",
-        ROOT / "audio" / "voiceover.mp3",
+        ROOT / "input"  / "today_news.md",
+        ROOT / "data"   / "extracted_facts.json",
+        ROOT / "data"   / "scenes.json",
+        ROOT / "data"   / "pending_review.json",
+        ROOT / "audio"  / "voiceover.mp3",
         ROOT / "output" / "final.mp4",
     ]
     for src in targets:
@@ -131,9 +126,23 @@ def archive_outputs() -> None:
     log.info(f"Archive: {ARCHIVE_DIR}/")
 
 
+# ── Log rotation ─────────────────────────────────────────────────────────────
+
+def rotate_old_logs() -> None:
+    """Xoá log cũ hơn LOG_RETAIN_DAYS ngày để tránh đĩa đầy."""
+    now = datetime.now()
+    deleted = 0
+    for log_file in LOG_DIR.glob("run_*.log"):
+        age_days = (now - datetime.fromtimestamp(log_file.stat().st_mtime)).days
+        if age_days > LOG_RETAIN_DAYS:
+            log_file.unlink(missing_ok=True)
+            deleted += 1
+    if deleted:
+        log.info(f"Xoá {deleted} log file cũ hơn {LOG_RETAIN_DAYS} ngày.")
+
+
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-# Pipeline đầy đủ Giai đoạn 2+3+4+5 (bước 0-7)
 STEPS = [
     ("Kéo bản tin",       ROOT / "scripts" / "00_fetch_input.py"),
     ("Trích facts",       ROOT / "scripts" / "01_extract_facts.py"),
@@ -154,8 +163,14 @@ def run_step(name: str, script: Path) -> None:
         text=True,
         cwd=ROOT,
     )
-    if r.stdout:
+    if r.stdout.strip():
         log.info(r.stdout.strip())
+    if r.stderr.strip():
+        # Luôn capture stderr vào log file; chỉ promote lên ERROR khi lỗi
+        if r.returncode != 0:
+            log.error(r.stderr.strip())
+        else:
+            log.debug(r.stderr.strip())
     if r.returncode != 0:
         detail = (r.stderr or r.stdout or "").strip()
         log.error(f"[LỖI] {name}\n{detail}")
@@ -164,13 +179,15 @@ def run_step(name: str, script: Path) -> None:
     log.info(f"[XONG] {name}")
 
 
+# ── Main ─────────────────────────────────────────────────────────────────────
+
 def main() -> None:
     acquire_lock()
     try:
         log.info(f"=== Video module Trợ lý 35 — {DATE_STR} ===")
 
-        # Bước 00: kiểm tra freshness (bật khi chạy production)
-        # check_input_freshness()  # Bỏ comment khi chạy cron thật
+        rotate_old_logs()
+        check_already_done()
 
         for name, script in STEPS:
             run_step(name, script)
