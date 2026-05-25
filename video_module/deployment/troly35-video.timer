@@ -1,0 +1,16 @@
+[Unit]
+Description=Trợ lý 35 — Kích hoạt video module lúc 7:30 sáng hàng ngày
+Requires=troly35-video.service
+
+[Timer]
+# 7:30 sáng múi giờ server (đặt Asia/Ho_Chi_Minh trong /etc/timezone)
+OnCalendar=*-*-* 07:30:00
+
+# Nếu server tắt lúc 7:30, chạy bù ngay khi khởi động lại
+Persistent=true
+
+# Jitter tối đa 60s để tránh tất cả server cùng gọi GAS một lúc
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

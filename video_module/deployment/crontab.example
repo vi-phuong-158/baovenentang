@@ -1,0 +1,17 @@
+# Crontab cho video module Trợ lý 35
+# Cài đặt: crontab -e  (chạy dưới user ubuntu, không dùng root)
+#
+# Giải thích lịch:
+#   30 7 * * *  = 7:30 sáng mỗi ngày
+#   runDailyNewsBot() GAS chạy lúc 6h → đảm bảo bản tin đã sẵn sàng lúc 7:30
+#
+# Đổi /home/ubuntu thành đường dẫn thật của dự án trước khi cài.
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Video module — chạy pipeline đầy đủ lúc 7:30 sáng
+30 7 * * * cd /home/ubuntu/baovenentang/video_module && /home/ubuntu/baovenentang/video_module/.venv/bin/python daily_run.py
+
+# (Tuỳ chọn) Dọn archive cũ hơn 60 ngày, chạy lúc 3h sáng ngày 1 mỗi tháng
+0 3 1 * * find /home/ubuntu/baovenentang/video_module/archive -maxdepth 1 -type d -mtime +60 -exec rm -rf {} +
