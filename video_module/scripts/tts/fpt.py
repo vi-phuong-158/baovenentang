@@ -2,7 +2,8 @@
 Adapter FPT.AI TTS — backup #1.
 Free tier: ~10k ký tự/tháng. Vượt thì trả phí.
 API: https://api.fpt.ai/hmi/tts/v5
-Voices: banmai (nữ Bắc), leminh (nam Bắc)
+Voices (Bắc): banmai (nữ), leminh (nam), thuminh (nữ)
+Voices (Nam): myan (nữ), giahuy (nam)
 """
 
 import logging
@@ -39,12 +40,11 @@ class FptTTS(TTSBase):
             "api-key": self.api_key,
             "voice":   self.voice,
             "speed":   self.speed,
-            "Content-Type": "application/json",
         }
         resp = requests.post(
             API_URL,
             headers=headers,
-            json=text,
+            data=text.encode("utf-8"),
             timeout=API_TIMEOUT,
         )
         resp.raise_for_status()
