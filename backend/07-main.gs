@@ -150,13 +150,18 @@ function doGet(e) {
         validateApiToken_(params, e);
         result = { success: true, data: getTroLy35FeedbackStats_() };
         break;
-        
+
+      case 'video_export':
+        validateApiToken_(params, e);
+        result = { success: true, data: exportVideoNewsJson_() };
+        break;
+
       default:
         result = { 
           success: true, 
           message: 'Trợ lý 35 API',
           version: '1.0',
-          endpoints: ['today', 'articles', 'search', 'quiz', 'stats'],
+          endpoints: ['today', 'articles', 'search', 'quiz', 'stats', 'video_export (token)'],
           postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest']
         };
     }
@@ -262,6 +267,9 @@ function doPost(e) {
       validateTelegramWebhook_(e);
       if (data.message) {
         handleTelegramMessage(data.message);
+      }
+      if (data.callback_query) {
+        handleVideoCallbackQuery(data.callback_query);
       }
       return ContentService.createTextOutput('OK');
     }
