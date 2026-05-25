@@ -120,6 +120,8 @@ def archive_outputs() -> None:
         ROOT / "input" / "today_news.md",
         ROOT / "data" / "extracted_facts.json",
         ROOT / "data" / "scenes.json",
+        ROOT / "audio" / "voiceover.mp3",
+        ROOT / "output" / "final.mp4",
     ]
     for src in targets:
         if src.exists():
@@ -130,17 +132,17 @@ def archive_outputs() -> None:
 
 # ── Steps ────────────────────────────────────────────────────────────────────
 
-# Giai đoạn 2: chỉ Track A (pipeline khô)
-STEPS_G2 = [
+# Pipeline đầy đủ Giai đoạn 2+3 (bước 1-6)
+STEPS = [
     ("Trích facts",       ROOT / "scripts" / "01_extract_facts.py"),
     ("Sinh kịch bản",     ROOT / "scripts" / "02_make_script.py"),
     ("Validate kịch bản", ROOT / "scripts" / "03_validate_script.py"),
+    ("Sinh voiceover",    ROOT / "scripts" / "04_make_voice.py"),
+    ("Render video",      ROOT / "scripts" / "05_render_video.py"),
+    ("Nén + ghép audio",  ROOT / "scripts" / "06_compress_video.py"),
 ]
 
-# Giai đoạn 3+ sẽ thêm:
-# ("Sinh voiceover",    ROOT / "scripts" / "04_make_voice.py"),
-# ("Render video",      ROOT / "scripts" / "05_render_video.py"),
-# ("Nén + ghép audio",  ROOT / "scripts" / "06_compress_video.py"),
+# Giai đoạn 4+ sẽ thêm:
 # ("Đăng nhóm duyệt",  ROOT / "scripts" / "07_post_telegram.py"),
 
 
@@ -170,11 +172,11 @@ def main() -> None:
         # Bước 00: kiểm tra freshness (bật khi chạy production)
         # check_input_freshness()  # Bỏ comment khi chạy cron thật
 
-        for name, script in STEPS_G2:
+        for name, script in STEPS:
             run_step(name, script)
 
         archive_outputs()
-        log.info("=== HOÀN TẤT — scenes.json đã validate ===")
+        log.info("=== HOÀN TẤT — final.mp4 sẵn sàng trong output/ ===")
 
     finally:
         release_lock()

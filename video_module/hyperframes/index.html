@@ -1,130 +1,269 @@
 <!DOCTYPE html>
-<!--
-  Track B PoC: render 1 scene tĩnh để đo thời gian và RAM.
-  Chạy: cd hyperframes && npm install && npm run poc
-  Kết quả expected: output/poc_test.mp4 (9:16, 6 giây)
-  Tiêu chí: thời gian render < 60s → HyperFrames khả thi cho Giai đoạn 3
--->
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 1080px; height: 1920px; background: #0a0a0a; font-family: 'Be Vietnam Pro', Arial, sans-serif; overflow: hidden; }
-
-    .scene-intro {
-      width: 1080px;
-      height: 1920px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, #1a0a0a 0%, #2d0808 50%, #1a0a0a 100%);
-      position: relative;
-    }
-
-    .top-bar {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      height: 8px;
-      background: linear-gradient(90deg, #cc0000, #ffcc00, #cc0000);
-    }
-
-    .bottom-bar {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      height: 8px;
-      background: linear-gradient(90deg, #cc0000, #ffcc00, #cc0000);
-    }
-
-    .logo-area {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 40px;
-    }
-
-    .logo-placeholder {
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: #cc0000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 80px;
-      opacity: 0;
-    }
-
-    .title {
-      font-size: 72px;
-      font-weight: 700;
-      color: #ffffff;
-      text-align: center;
-      text-transform: uppercase;
-      letter-spacing: 4px;
-      opacity: 0;
-    }
-
-    .subtitle {
-      font-size: 48px;
-      font-weight: 400;
-      color: #ffcc00;
-      text-align: center;
-      opacity: 0;
-    }
-
-    .date-badge {
-      margin-top: 60px;
-      padding: 20px 60px;
-      border: 2px solid #cc0000;
-      border-radius: 8px;
-      font-size: 42px;
-      color: #ffffff;
-      opacity: 0;
-    }
-  </style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:1080px; background:#000; font-family:'Be Vietnam Pro',Arial,sans-serif; overflow:hidden; }
+.scene {
+  position:absolute; top:0; left:0;
+  width:1080px; height:1920px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  opacity:0; overflow:hidden;
+}
+.bar { position:absolute; left:0; right:0; height:8px;
+       background:linear-gradient(90deg,#cc0000,#ffcc00,#cc0000); }
+.bar-top    { top:0; }
+.bar-bottom { bottom:0; }
+.logo-strip {
+  position:absolute; top:55px; left:0; right:0;
+  display:flex; align-items:center; justify-content:center; gap:16px;
+}
+.logo-icon { font-size:56px; }
+.logo-text { font-size:34px; font-weight:700; color:#fff; letter-spacing:3px; }
+.content {
+  width:100%; padding:0 80px; margin-top:40px;
+  display:flex; flex-direction:column; align-items:center; gap:40px;
+}
+.headline {
+  font-size:80px; font-weight:700; color:#fff;
+  text-align:center; line-height:1.2;
+}
+.body-text {
+  font-size:52px; color:#ddd; text-align:center; line-height:1.5;
+}
+.message-text {
+  font-size:52px; color:#ffcc00; text-align:center;
+  line-height:1.5; font-style:italic;
+}
+.cta-url { font-size:44px; color:#ffcc00; word-break:break-all; text-align:center; }
+.subtitle-bar {
+  position:absolute; bottom:110px; left:60px; right:60px;
+  text-align:center; font-size:50px; font-weight:500; color:#fff;
+  line-height:1.4;
+  text-shadow:0 0 8px #000,2px 2px 6px #000,-2px -2px 6px #000;
+}
+</style>
 </head>
 <body>
+<div id="root" data-composition-id="troly35-daily"
+     data-start="0" data-width="1080" data-height="1920"
+     style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#000;">
 
-<div
-  id="root"
-  data-composition-id="troly35-poc"
-  data-start="0"
-  data-width="1080"
-  data-height="1920"
->
-  <div class="clip" data-start="0" data-duration="6" data-track-index="0">
-    <div class="scene-intro">
-      <div class="top-bar"></div>
-
-      <div class="logo-area">
-        <div class="logo-placeholder" id="logo">🛡️</div>
-        <div class="title" id="title">Trợ lý 35</div>
-        <div class="subtitle" id="subtitle">Bảo vệ nền tảng tư tưởng</div>
-        <div class="date-badge" id="date">Thứ Sáu, 22/5/2026</div>
-      </div>
-
-      <div class="bottom-bar"></div>
+  <!-- intro: t=0..7s -->
+  <div class="scene" id="scene-intro"
+       data-start="0" data-duration="7" data-track-index="0"
+       style="background:#1a0505;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🛡️</span>
+      <span class="logo-text">BẢN TIN NGÀY</span>
     </div>
+    <div class="content">
+      <div class="headline" id="intro-headline">Bản tin Trợ lý 35</div>
+      <div class="body-text" id="intro-text">Thứ Sáu, ngày 22 tháng 5 năm 2026</div>
+    </div>
+    <div class="subtitle-bar" id="intro-subtitle">Kính chào quý đồng chí. Đây là bản tin Trợ lý 35, ngày thứ Sáu, hai mươi hai tháng năm năm hai nghìn…</div>
+  </div>
+
+  <!-- summary: t=7..18s -->
+  <div class="scene" id="scene-summary"
+       data-start="7" data-duration="11" data-track-index="0"
+       style="background:#050518;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">📋</span>
+      <span class="logo-text">TỔNG QUAN</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="summary-headline">Tổng quan ngày 22/5</div>
+      <div class="body-text" id="summary-text">Chính phủ ban hành Nghị định 181/2026/NĐ-CP về quản lý doanh nghiệp nhà nước</div>
+    </div>
+    <div class="subtitle-bar" id="summary-subtitle">Ngày hai mươi hai tháng năm, Chính phủ ban hành Nghị định số một tám một năm hai không hai sáu của C…</div>
+  </div>
+
+  <!-- news1: t=18..30s -->
+  <div class="scene" id="scene-news1"
+       data-start="18" data-duration="12" data-track-index="0"
+       style="background:#1a0808;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🔴</span>
+      <span class="logo-text">TIN QUAN TRỌNG</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news1-headline">Nghị định 181/2026/NĐ-CP</div>
+      <div class="body-text" id="news1-text">Tiêu chuẩn bổ nhiệm người quản lý doanh nghiệp nhà nước</div>
+    </div>
+    <div class="subtitle-bar" id="news1-subtitle">Nghị định số một tám một năm hai không hai sáu của Chính phủ, ban hành ngày hai mươi mốt tháng năm, …</div>
+  </div>
+
+  <!-- news2: t=30..42s -->
+  <div class="scene" id="scene-news2"
+       data-start="30" data-duration="12" data-track-index="0"
+       style="background:#1a0808;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🔴</span>
+      <span class="logo-text">TIN QUAN TRỌNG</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news2-headline">Thông tư 23/2026/TT-BCA</div>
+      <div class="body-text" id="news2-text">An ninh mạng hệ thống thông tin quan trọng quốc gia</div>
+    </div>
+    <div class="subtitle-bar" id="news2-subtitle">Thông tư số hai mươi ba năm hai không hai sáu của Bộ Công an, ban hành ngày hai mươi tháng năm, hướn…</div>
+  </div>
+
+  <!-- news3: t=42..52s -->
+  <div class="scene" id="scene-news3"
+       data-start="42" data-duration="10" data-track-index="0"
+       style="background:#1a1205;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🟡</span>
+      <span class="logo-text">HÔM NAY CẦN BIẾT</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="news3-headline">Phòng chống bạo hành trẻ em</div>
+      <div class="body-text" id="news3-text">Tăng cường phát hiện, tố giác hành vi bạo hành</div>
+    </div>
+    <div class="subtitle-bar" id="news3-subtitle">Bộ Lao động Thương binh và Xã hội đề nghị các địa phương tăng cường truyền thông về phòng chống bạo …</div>
+  </div>
+
+  <!-- briefs: t=52..61s -->
+  <div class="scene" id="scene-briefs"
+       data-start="52" data-duration="9" data-track-index="0"
+       style="background:#050512;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">📰</span>
+      <span class="logo-text">TIN NGẮN</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="briefs-headline">Tin ngắn trong ngày</div>
+      <div class="body-text" id="briefs-text">Việt Nam tăng 4 bậc về chỉ số đổi mới sáng tạo toàn cầu 2026</div>
+    </div>
+    <div class="subtitle-bar" id="briefs-subtitle">Việt Nam đứng thứ bốn mươi bốn trong bảng xếp hạng Chỉ số đổi mới sáng tạo toàn cầu năm hai không ha…</div>
+  </div>
+
+  <!-- message: t=61..69s -->
+  <div class="scene" id="scene-message"
+       data-start="61" data-duration="8" data-track-index="0"
+       style="background:#0a0a00;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">💬</span>
+      <span class="logo-text">THÔNG ĐIỆP</span>
+    </div>
+    <div class="content"><div class="message-text" id="message-text">Xây dựng đội ngũ cán bộ quản lý chuyên nghiệp, liêm chính</div>
+    </div>
+    <div class="subtitle-bar" id="message-subtitle">Việc ban hành Nghị định số một tám một năm hai không hai sáu của Chính phủ thể hiện quyết tâm của Đả…</div>
+  </div>
+
+  <!-- cta: t=69..75s -->
+  <div class="scene" id="scene-cta"
+       data-start="69" data-duration="6" data-track-index="0"
+       style="background:#050505;">
+    <div class="bar bar-top"></div>
+    <div class="bar bar-bottom"></div>
+    <div class="logo-strip">
+      <span class="logo-icon">🛡️</span>
+      <span class="logo-text">TRỢ LÝ 35</span>
+    </div>
+    <div class="content">
+      <div class="headline" id="cta-headline">Theo dõi thường xuyên</div>
+      <div class="cta-url" id="cta-url">https://baovenentang.vercel.app/</div>
+    </div>
+    <div class="subtitle-bar" id="cta-subtitle">Kính chào và hẹn gặp lại. Truy cập trang web Bảo vệ nền tảng để cập nhật thông tin hằng ngày.</div>
   </div>
 </div>
-
 <script src="./node_modules/gsap/dist/gsap.min.js"></script>
 <script>
+  gsap.set(['#scene-intro', '#scene-intro .logo-strip', '#intro-headline', '#intro-text', '#intro-url', '#intro-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-summary', '#scene-summary .logo-strip', '#summary-headline', '#summary-text', '#summary-url', '#summary-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news1', '#scene-news1 .logo-strip', '#news1-headline', '#news1-text', '#news1-url', '#news1-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news2', '#scene-news2 .logo-strip', '#news2-headline', '#news2-text', '#news2-url', '#news2-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news3', '#scene-news3 .logo-strip', '#news3-headline', '#news3-text', '#news3-url', '#news3-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-briefs', '#scene-briefs .logo-strip', '#briefs-headline', '#briefs-text', '#briefs-url', '#briefs-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-message', '#scene-message .logo-strip', '#message-headline', '#message-text', '#message-url', '#message-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-cta', '#scene-cta .logo-strip', '#cta-headline', '#cta-text', '#cta-url', '#cta-subtitle'], {opacity:0, y:30});
+
   const tl = gsap.timeline({ paused: true });
 
-  tl.to("#logo",     { opacity: 1, scale: 1.1, duration: 0.8, ease: "back.out(1.2)" }, 0.3)
-    .to("#logo",     { scale: 1.0, duration: 0.3 }, 1.1)
-    .to("#title",    { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.8)
-    .to("#subtitle", { opacity: 1, duration: 0.5, ease: "power2.out" }, 1.3)
-    .to("#date",     { opacity: 1, duration: 0.5, ease: "power2.out" }, 1.8)
-    .to({},          { duration: 0.001 }, 5.999); // hold đến đúng 6s
+  // intro: 0s → 7s
+  tl.to('#scene-intro', {opacity:1, duration:0.5}, 0.1);
+  tl.to('#scene-intro .logo-strip', {opacity:1, y:0, duration:0.5}, 0.2);
+  tl.to('#intro-headline', {opacity:1, y:0, duration:0.5}, 0.35);
+  tl.to('#intro-text, #intro-url', {opacity:1, duration:0.5}, 0.5);
+  tl.to('#intro-subtitle', {opacity:1, duration:0.5}, 0.7);
+  tl.to('#scene-intro', {opacity:0, duration:0.5}, 6.5);
 
-  window.__timelines = { "troly35-poc": tl };
+  // summary: 7s → 18s
+  tl.to('#scene-summary', {opacity:1, duration:0.5}, 7.1);
+  tl.to('#scene-summary .logo-strip', {opacity:1, y:0, duration:0.5}, 7.2);
+  tl.to('#summary-headline', {opacity:1, y:0, duration:0.5}, 7.35);
+  tl.to('#summary-text, #summary-url', {opacity:1, duration:0.5}, 7.5);
+  tl.to('#summary-subtitle', {opacity:1, duration:0.5}, 7.7);
+  tl.to('#scene-summary', {opacity:0, duration:0.5}, 17.5);
+
+  // news1: 18s → 30s
+  tl.to('#scene-news1', {opacity:1, duration:0.5}, 18.1);
+  tl.to('#scene-news1 .logo-strip', {opacity:1, y:0, duration:0.5}, 18.2);
+  tl.to('#news1-headline', {opacity:1, y:0, duration:0.5}, 18.35);
+  tl.to('#news1-text, #news1-url', {opacity:1, duration:0.5}, 18.5);
+  tl.to('#news1-subtitle', {opacity:1, duration:0.5}, 18.7);
+  tl.to('#scene-news1', {opacity:0, duration:0.5}, 29.5);
+
+  // news2: 30s → 42s
+  tl.to('#scene-news2', {opacity:1, duration:0.5}, 30.1);
+  tl.to('#scene-news2 .logo-strip', {opacity:1, y:0, duration:0.5}, 30.2);
+  tl.to('#news2-headline', {opacity:1, y:0, duration:0.5}, 30.35);
+  tl.to('#news2-text, #news2-url', {opacity:1, duration:0.5}, 30.5);
+  tl.to('#news2-subtitle', {opacity:1, duration:0.5}, 30.7);
+  tl.to('#scene-news2', {opacity:0, duration:0.5}, 41.5);
+
+  // news3: 42s → 52s
+  tl.to('#scene-news3', {opacity:1, duration:0.5}, 42.1);
+  tl.to('#scene-news3 .logo-strip', {opacity:1, y:0, duration:0.5}, 42.2);
+  tl.to('#news3-headline', {opacity:1, y:0, duration:0.5}, 42.35);
+  tl.to('#news3-text, #news3-url', {opacity:1, duration:0.5}, 42.5);
+  tl.to('#news3-subtitle', {opacity:1, duration:0.5}, 42.7);
+  tl.to('#scene-news3', {opacity:0, duration:0.5}, 51.5);
+
+  // briefs: 52s → 61s
+  tl.to('#scene-briefs', {opacity:1, duration:0.5}, 52.1);
+  tl.to('#scene-briefs .logo-strip', {opacity:1, y:0, duration:0.5}, 52.2);
+  tl.to('#briefs-headline', {opacity:1, y:0, duration:0.5}, 52.35);
+  tl.to('#briefs-text, #briefs-url', {opacity:1, duration:0.5}, 52.5);
+  tl.to('#briefs-subtitle', {opacity:1, duration:0.5}, 52.7);
+  tl.to('#scene-briefs', {opacity:0, duration:0.5}, 60.5);
+
+  // message: 61s → 69s
+  tl.to('#scene-message', {opacity:1, duration:0.5}, 61.1);
+  tl.to('#scene-message .logo-strip', {opacity:1, y:0, duration:0.5}, 61.2);
+  tl.to('#message-headline', {opacity:1, y:0, duration:0.5}, 61.35);
+  tl.to('#message-text, #message-url', {opacity:1, duration:0.5}, 61.5);
+  tl.to('#message-subtitle', {opacity:1, duration:0.5}, 61.7);
+  tl.to('#scene-message', {opacity:0, duration:0.5}, 68.5);
+
+  // cta: 69s → 75s
+  tl.to('#scene-cta', {opacity:1, duration:0.48}, 69.1);
+  tl.to('#scene-cta .logo-strip', {opacity:1, y:0, duration:0.48}, 69.2);
+  tl.to('#cta-headline', {opacity:1, y:0, duration:0.48}, 69.35);
+  tl.to('#cta-text, #cta-url', {opacity:1, duration:0.48}, 69.5);
+  tl.to('#cta-subtitle', {opacity:1, duration:0.48}, 69.7);
+  tl.to('#scene-cta', {opacity:0, duration:0.48}, 74.52);
+
+  tl.to({}, {duration:0.001}, 74.999);
+  window.__timelines = { 'troly35-daily': tl };
 </script>
-
 </body>
 </html>
