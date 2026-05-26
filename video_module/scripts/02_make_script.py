@@ -26,6 +26,7 @@ PROMPT_TEMPLATE = ROOT / "prompts" / "make_script.md"
 
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 MAX_RETRIES = 2
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def call_llm(prompt: str) -> dict:
         message = client.messages.create(
             model=LLM_MODEL,
             max_tokens=4096,
-            temperature=1,  # API yêu cầu temperature=1 khi dùng extended thinking; với sonnet-4-6 dùng 1 là default
+            temperature=LLM_TEMPERATURE,
             system=(
                 "Bạn là biên tập viên video bản tin chính luận. "
                 "Trả về JSON thuần, không có markdown code block, không có text nào khác ngoài JSON."
@@ -75,7 +76,7 @@ def call_llm(prompt: str) -> dict:
             return result
         except json.JSONDecodeError as e:
             log.warning(f"Parse JSON lỗi lần {attempt}: {e}")
-            log.debug(f"Raw output (200 ký tự đầu): {raw[:200]}")
+            log.warning(f"Raw output (500 ký tự đầu): {raw[:500]}")
             if attempt > MAX_RETRIES:
                 log.error("Hết retry — không parse được JSON.")
                 raise

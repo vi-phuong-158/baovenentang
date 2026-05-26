@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -29,6 +30,7 @@ DICT_FILE    = ROOT / "data" / "tts_dictionary.json"
 OUTPUT_AUDIO = ROOT / "audio" / "voiceover.mp3"
 
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge")
+TTS_PROVIDER_TIMEOUT = int(os.getenv("TTS_PROVIDER_TIMEOUT", "120"))
 AUDIO_SYNC_TOLERANCE_SECONDS = 0.5
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -325,19 +327,41 @@ def get_adapter(provider: str):
 PROVIDER_FALLBACK_ORDER = ["google", "edge", "fpt", "viettel", "openai", "espeak"]
 
 
-def synthesize_with_fallback(text: str, output: Path, primary: str) -> str:
-    """Thử primary trước, nếu fail thì thử lần lượt các fallback."""
+def synthesize_with_fallback(text: str, output: Path, primary: str,
+                              timeout: int = TTS_PROVIDER_TIMEOUT) -> str:
+    """Thử primary trước, nếu timeout/fail thì sang fallback kế tiếp.
+
+    Mỗi provider có giới hạn ``timeout`` giây để hoàn tất; nếu vượt
+    sẽ bỏ qua provider đó (thread chạy ngầm vẫn tiếp tục nhưng kết quả
+    bị bỏ) và chuyển sang provider khác.
+    """
     order = [primary] + [p for p in PROVIDER_FALLBACK_ORDER if p != primary]
+    last_err: Exception | None = None
     for provider in order:
         try:
             adapter = get_adapter(provider)
-            log.info(f"Thử TTS provider: {provider}")
-            adapter.synthesize(text, output)
+        except Exception as e:
+            log.warning(f"TTS provider '{provider}' khởi tạo lỗi: {e}")
+            last_err = e
+            continue
+
+        log.info(f"Thử TTS provider: {provider} (timeout={timeout}s)")
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"tts-{provider}")
+        try:
+            future = pool.submit(adapter.synthesize, text, output)
+            future.result(timeout=timeout)
             log.info(f"TTS thành công với provider: {provider}")
             return provider
+        except FutureTimeoutError:
+            last_err = TimeoutError(f"{provider} timeout {timeout}s")
+            log.warning(f"TTS provider '{provider}' timeout sau {timeout}s — chuyển provider khác")
         except Exception as e:
+            last_err = e
             log.warning(f"TTS provider '{provider}' thất bại: {e}")
-    raise RuntimeError("Tất cả TTS provider đều thất bại.")
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+    raise RuntimeError(f"Tất cả TTS provider đều thất bại. Lỗi cuối: {last_err}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

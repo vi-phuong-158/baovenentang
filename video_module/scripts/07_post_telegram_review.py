@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,6 +35,9 @@ REVIEW_CHAT = os.getenv("TELEGRAM_REVIEW_CHAT_ID", "")
 
 API_BASE = "https://api.telegram.org/bot"
 TIMEOUT  = 120   # sendVideo có thể chậm khi upload lần đầu
+MAX_RETRIES     = 3
+BACKOFF_SECONDS = (2, 4, 8)
+TRANSIENT_CODES = {429, 500, 502, 503, 504}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,14 +56,73 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _backoff(attempt: int) -> int:
+    idx = min(attempt - 1, len(BACKOFF_SECONDS) - 1)
+    return BACKOFF_SECONDS[idx]
+
+
 def _api(method: str, **kwargs) -> dict:
-    """Gọi Telegram Bot API, ẩn token khỏi log."""
+    """Gọi Telegram Bot API, ẩn token khỏi log.
+
+    Retry tối đa ``MAX_RETRIES`` lần với backoff 2/4/8s cho các lỗi tạm thời
+    (network timeout, connection error, HTTP 429/5xx). Lỗi vĩnh viễn
+    (chat_id sai, token sai…) fail ngay không retry.
+    """
     url = f"{API_BASE}{BOT_TOKEN}/{method}"
-    resp = requests.post(url, timeout=TIMEOUT, **kwargs)
-    data = resp.json()
-    if not data.get("ok"):
-        raise RuntimeError(f"Telegram API lỗi [{method}]: {data.get('description')}")
-    return data["result"]
+    last_err: Exception | None = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.post(url, timeout=TIMEOUT, **kwargs)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last_err = e
+            if attempt < MAX_RETRIES:
+                wait = _backoff(attempt)
+                log.warning(
+                    f"Telegram [{method}] lỗi mạng lần {attempt}/{MAX_RETRIES}: "
+                    f"{e.__class__.__name__} — chờ {wait}s rồi thử lại"
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(
+                f"Telegram API [{method}] mất kết nối sau {MAX_RETRIES} lần: {e}"
+            ) from e
+
+        try:
+            data = resp.json()
+        except ValueError as e:
+            last_err = e
+            if attempt < MAX_RETRIES:
+                wait = _backoff(attempt)
+                log.warning(
+                    f"Telegram [{method}] response không phải JSON lần {attempt}/{MAX_RETRIES}"
+                    f" — chờ {wait}s rồi thử lại"
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(
+                f"Telegram API [{method}] response không phải JSON: {resp.text[:200]}"
+            ) from e
+
+        if data.get("ok"):
+            return data["result"]
+
+        err_code = data.get("error_code", 0)
+        description = data.get("description", "")
+        if err_code in TRANSIENT_CODES and attempt < MAX_RETRIES:
+            retry_after = data.get("parameters", {}).get("retry_after")
+            wait = max(_backoff(attempt), int(retry_after) if retry_after else 0)
+            log.warning(
+                f"Telegram [{method}] lỗi tạm thời {err_code} lần {attempt}/{MAX_RETRIES}: "
+                f"{description} — chờ {wait}s rồi thử lại"
+            )
+            time.sleep(wait)
+            continue
+
+        # Lỗi vĩnh viễn (sai token, sai chat_id, sai payload…) — không retry
+        raise RuntimeError(f"Telegram API lỗi [{method}]: {description}")
+
+    raise RuntimeError(f"Telegram API [{method}] không thành công: {last_err}")
 
 
 def build_caption(date_str: str) -> str:
