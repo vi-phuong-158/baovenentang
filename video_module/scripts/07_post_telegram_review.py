@@ -35,9 +35,16 @@ REVIEW_CHAT = os.getenv("TELEGRAM_REVIEW_CHAT_ID", "")
 
 API_BASE = "https://api.telegram.org/bot"
 TIMEOUT  = 120   # sendVideo có thể chậm khi upload lần đầu
-MAX_RETRIES     = 3
-BACKOFF_SECONDS = (2, 4, 8)
-TRANSIENT_CODES = {429, 500, 502, 503, 504}
+MAX_RETRIES         = 3
+BACKOFF_SECONDS     = (2, 4, 8)
+TRANSIENT_CODES     = {429, 500, 502, 503, 504}
+MAX_RETRY_AFTER_SEC = 120  # cap retry_after từ Telegram để không treo cron quá lâu
+
+NETWORK_RETRY_EXCEPTIONS = (
+    requests.Timeout,
+    requests.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,7 +81,7 @@ def _api(method: str, **kwargs) -> dict:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             resp = requests.post(url, timeout=TIMEOUT, **kwargs)
-        except (requests.Timeout, requests.ConnectionError) as e:
+        except NETWORK_RETRY_EXCEPTIONS as e:
             last_err = e
             if attempt < MAX_RETRIES:
                 wait = _backoff(attempt)
@@ -110,8 +117,14 @@ def _api(method: str, **kwargs) -> dict:
         err_code = data.get("error_code", 0)
         description = data.get("description", "")
         if err_code in TRANSIENT_CODES and attempt < MAX_RETRIES:
-            retry_after = data.get("parameters", {}).get("retry_after")
+            params = data.get("parameters") or {}
+            retry_after = params.get("retry_after")
             wait = max(_backoff(attempt), int(retry_after) if retry_after else 0)
+            if wait > MAX_RETRY_AFTER_SEC:
+                log.warning(
+                    f"Telegram [{method}] yêu cầu chờ {wait}s — cap xuống {MAX_RETRY_AFTER_SEC}s"
+                )
+                wait = MAX_RETRY_AFTER_SEC
             log.warning(
                 f"Telegram [{method}] lỗi tạm thời {err_code} lần {attempt}/{MAX_RETRIES}: "
                 f"{description} — chờ {wait}s rồi thử lại"

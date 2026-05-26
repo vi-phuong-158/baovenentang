@@ -24,9 +24,19 @@ INPUT_FACTS = ROOT / "data" / "extracted_facts.json"
 OUTPUT_SCENES = ROOT / "data" / "scenes.json"
 PROMPT_TEMPLATE = ROOT / "prompts" / "make_script.md"
 
+def _env_float(name: str, default: float) -> float:
+    val = os.getenv(name, "").strip()
+    if not val:
+        return default
+    try:
+        return float(val)
+    except ValueError:
+        return default
+
+
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 MAX_RETRIES = 2
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0"))
+LLM_TEMPERATURE = _env_float("LLM_TEMPERATURE", 0.0)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)

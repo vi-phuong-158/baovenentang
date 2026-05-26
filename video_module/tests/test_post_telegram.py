@@ -290,3 +290,60 @@ def test_api_gives_up_after_max_retries(monkeypatch):
             post._api("sendVideo")
     # Đã sleep MAX_RETRIES - 1 = 2 lần
     assert len(sleeps) == post.MAX_RETRIES - 1
+
+
+def test_api_retries_on_chunked_encoding_error(monkeypatch):
+    """ChunkedEncodingError xảy ra khi upload video lớn bị reset giữa chừng."""
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "uploaded"}
+    calls = [_requests.exceptions.ChunkedEncodingError("reset"), ok]
+
+    def fake_post(url, **kw):
+        c = calls.pop(0)
+        if isinstance(c, Exception):
+            raise c
+        return c
+
+    with patch("requests.post", side_effect=fake_post), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("sendVideo")
+    assert result == "uploaded"
+
+
+def test_api_handles_parameters_null(monkeypatch):
+    """Telegram trả 'parameters': null không được crash AttributeError."""
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    transient = MagicMock()
+    transient.json.return_value = {
+        "ok": False, "error_code": 429,
+        "description": "Too Many Requests",
+        "parameters": None,
+    }
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "ok"}
+
+    with patch("requests.post", side_effect=[transient, ok]), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("sendVideo")
+    assert result == "ok"
+
+
+def test_api_caps_retry_after(monkeypatch):
+    """retry_after từ Telegram bị cap không vượt MAX_RETRY_AFTER_SEC."""
+    sleeps = []
+    monkeypatch.setattr(post.time, "sleep", lambda s: sleeps.append(s))
+    transient = MagicMock()
+    transient.json.return_value = {
+        "ok": False, "error_code": 429,
+        "description": "Flood control",
+        "parameters": {"retry_after": 3600},  # 1 giờ — quá dài
+    }
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "ok"}
+
+    with patch("requests.post", side_effect=[transient, ok]), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        post._api("sendVideo")
+
+    assert sleeps == [post.MAX_RETRY_AFTER_SEC]
