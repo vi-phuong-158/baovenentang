@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -157,14 +158,19 @@ STEPS = [
 ]
 
 
+STEP_TIMINGS: list[tuple[str, float]] = []
+
+
 def run_step(name: str, script: Path) -> None:
     log.info(f"[BẮT ĐẦU] {name}")
+    started = time.monotonic()
     r = subprocess.run(
         [sys.executable, str(script)],
         capture_output=True,
         text=True,
         cwd=ROOT,
     )
+    elapsed = time.monotonic() - started
     if r.stdout.strip():
         log.info(r.stdout.strip())
     if r.stderr.strip():
@@ -175,10 +181,22 @@ def run_step(name: str, script: Path) -> None:
             log.debug(r.stderr.strip())
     if r.returncode != 0:
         detail = (r.stderr or r.stdout or "").strip()
-        log.error(f"[LỖI] {name}\n{detail}")
+        log.error(f"[LỖI] {name} (sau {elapsed:.1f}s)\n{detail}")
         notify_failure(name, detail)
         sys.exit(1)
-    log.info(f"[XONG] {name}")
+    STEP_TIMINGS.append((name, elapsed))
+    log.info(f"[XONG] {name} ({elapsed:.1f}s)")
+
+
+def log_timing_summary() -> None:
+    if not STEP_TIMINGS:
+        return
+    total = sum(t for _, t in STEP_TIMINGS)
+    log.info("=== Tổng kết thời gian từng bước ===")
+    for name, t in STEP_TIMINGS:
+        pct = (t / total * 100) if total > 0 else 0
+        log.info(f"  {name:<22} {t:>6.1f}s  ({pct:>4.1f}%)")
+    log.info(f"  {'TỔNG':<22} {total:>6.1f}s")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -195,6 +213,7 @@ def main() -> None:
             run_step(name, script)
 
         archive_outputs()
+        log_timing_summary()
         log.info("=== HOÀN TẤT — final.mp4 sẵn sàng trong output/ ===")
 
     finally:

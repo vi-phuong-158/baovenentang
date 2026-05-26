@@ -48,11 +48,35 @@ function handleVideoCallbackQuery(callbackQuery) {
     return;
   }
 
+  // Idempotency: nếu video đã được duyệt/từ chối trước đó thì không xử lý lại.
+  // Sau khi xử lý, ta xoá inline_keyboard và sửa caption → 2 dấu hiệu đáng tin
+  // hơn so với chỉ check caption (caption có thể bị edit thủ công).
+  if (isAlreadyHandled_(callbackQuery.message)) {
+    answerCallbackQuery_(callbackId, 'ℹ️ Video này đã được xử lý trước đó.', true);
+    Logger.log(`[VideoReview] Bỏ qua callback duplicate cho message_id=${callbackQuery.message && callbackQuery.message.message_id}`);
+    return;
+  }
+
   if (data === 'approve') {
     handleVideoApprove_(callbackQuery, userName.trim());
   } else {
     handleVideoReject_(callbackQuery, userName.trim());
   }
+}
+
+function isAlreadyHandled_(message) {
+  if (!message) return false;
+  // Nếu inline_keyboard đã bị xoá → video đã xử lý
+  const rm = message.reply_markup;
+  if (!rm || !rm.inline_keyboard || rm.inline_keyboard.length === 0) {
+    return true;
+  }
+  // Fallback: check caption chứa cờ hiệu đã xử lý
+  const caption = message.caption || '';
+  if (/ĐÃ DUYỆT VÀ ĐĂNG|ĐÃ TỪ CHỐI/.test(caption)) {
+    return true;
+  }
+  return false;
 }
 
 // ── Approve ───────────────────────────────────────────────────────────────────
@@ -158,14 +182,17 @@ function copyMessageToChat_(fromChatId, messageId, toChatId, caption) {
 
 function editMessageCaption_(chatId, messageId, caption) {
   const url = `${TELEGRAM_API_BASE}${CONFIG.TELEGRAM_TOKEN}/editMessageCaption`;
+  // Đồng thời xoá inline_keyboard (gửi reply_markup rỗng) — bấm thêm sẽ không
+  // còn nút Duyệt/Từ chối, và idempotency check phát hiện được "đã xử lý".
   const resp = UrlFetchApp.fetch(url, {
     method: 'post',
     contentType: 'application/json',
     payload: JSON.stringify({
-      chat_id:    chatId,
-      message_id: messageId,
-      caption:    caption,
-      parse_mode: 'Markdown',
+      chat_id:      chatId,
+      message_id:   messageId,
+      caption:      caption,
+      parse_mode:   'Markdown',
+      reply_markup: { inline_keyboard: [] },
     }),
     muteHttpExceptions: true,
   });

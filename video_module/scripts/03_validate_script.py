@@ -20,17 +20,25 @@ CATEGORIES_FILE = ROOT / "assets" / "library" / "categories.json"
 REQUIRED_SCENE_IDS = {"intro", "summary", "news1", "news2", "news3", "briefs", "message", "cta"}
 
 
+_CATEGORIES_CACHE: tuple[float, set[str]] | None = None
+
+
 def _load_valid_categories() -> set[str]:
+    """Load categories.json với cache theo mtime — file mới sẽ tự reload."""
+    global _CATEGORIES_CACHE
     if not CATEGORIES_FILE.exists():
+        _CATEGORIES_CACHE = None
         return set()
+    mtime = CATEGORIES_FILE.stat().st_mtime
+    if _CATEGORIES_CACHE is not None and _CATEGORIES_CACHE[0] == mtime:
+        return _CATEGORIES_CACHE[1]
     try:
         data = json.loads(CATEGORIES_FILE.read_text(encoding="utf-8"))
-        return {c["key"] for c in data.get("categories", [])}
+        result = {c["key"] for c in data.get("categories", [])}
     except Exception:
-        return set()
-
-
-VALID_CATEGORIES = _load_valid_categories()
+        result = set()
+    _CATEGORIES_CACHE = (mtime, result)
+    return result
 DURATION_MIN = 60
 DURATION_MAX = 90
 MAX_TEXT_WORDS = 12
@@ -126,15 +134,16 @@ def validate(scenes: dict, facts: dict) -> list[str]:
             errors.append(f"Scene '{scene.get('id')}': voiceover rỗng")
 
     # 7. visual_category phải nằm trong enum (nếu categories.json đã có)
-    if VALID_CATEGORIES:
+    valid_categories = _load_valid_categories()
+    if valid_categories:
         for scene in scene_list:
             cat = scene.get("visual_category", "").strip()
             if not cat:
                 log.warning(f"Scene '{scene.get('id')}': thiếu visual_category — sẽ dùng 'default'")
-            elif cat not in VALID_CATEGORIES:
+            elif cat not in valid_categories:
                 errors.append(
                     f"Scene '{scene.get('id')}': visual_category '{cat}' không hợp lệ. "
-                    f"Hợp lệ: {sorted(VALID_CATEGORIES)}"
+                    f"Hợp lệ: {sorted(valid_categories)}"
                 )
 
     return errors

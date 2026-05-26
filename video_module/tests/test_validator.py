@@ -212,3 +212,50 @@ def test_find_doc_numbers_party():
 def test_find_doc_numbers_empty():
     found = find_doc_numbers("Không có số hiệu nào")
     assert found == set()
+
+
+# ── _load_valid_categories: mtime cache ─────────────────────────────────────
+
+def test_categories_cache_reloads_when_file_changes(tmp_path, monkeypatch):
+    """Khi categories.json bị sửa, cache phải tự reload theo mtime."""
+    cat_file = tmp_path / "categories.json"
+    cat_file.write_text(json.dumps({
+        "categories": [{"key": "alpha"}, {"key": "beta"}]
+    }), encoding="utf-8")
+
+    monkeypatch.setattr(_mod, "CATEGORIES_FILE", cat_file)
+    monkeypatch.setattr(_mod, "_CATEGORIES_CACHE", None)
+
+    first = _mod._load_valid_categories()
+    assert first == {"alpha", "beta"}
+
+    # Sửa file + đảm bảo mtime mới (Linux thường có resolution 1ms, sleep nhỏ là đủ)
+    import time
+    time.sleep(0.01)
+    cat_file.write_text(json.dumps({
+        "categories": [{"key": "alpha"}, {"key": "gamma"}]
+    }), encoding="utf-8")
+    # Force mtime mới
+    import os
+    new_mtime = os.path.getmtime(cat_file) + 1
+    os.utime(cat_file, (new_mtime, new_mtime))
+
+    second = _mod._load_valid_categories()
+    assert second == {"alpha", "gamma"}
+
+
+def test_categories_cache_returns_same_object_when_unchanged(tmp_path, monkeypatch):
+    cat_file = tmp_path / "categories.json"
+    cat_file.write_text(json.dumps({"categories": [{"key": "x"}]}), encoding="utf-8")
+    monkeypatch.setattr(_mod, "CATEGORIES_FILE", cat_file)
+    monkeypatch.setattr(_mod, "_CATEGORIES_CACHE", None)
+
+    a = _mod._load_valid_categories()
+    b = _mod._load_valid_categories()
+    assert a == b == {"x"}
+
+
+def test_categories_cache_empty_when_file_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(_mod, "CATEGORIES_FILE", tmp_path / "nope.json")
+    monkeypatch.setattr(_mod, "_CATEGORIES_CACHE", None)
+    assert _mod._load_valid_categories() == set()

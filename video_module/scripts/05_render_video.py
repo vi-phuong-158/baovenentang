@@ -504,18 +504,27 @@ def run(
         sys.exit(1)
 
     # Đảm bảo logo.png tồn tại trong thư mục hyperframes
-    src_logo = ROOT.parent / "web" / "logo.png"
-    if not src_logo.exists():
-        src_logo = ROOT.parent / "logo.png"
-    
-    if src_logo.exists():
+    candidates = [
+        ROOT.parent / "web" / "logo.png",
+        ROOT.parent / "logo.png",
+        HF_DIR / "logo.png",  # đã sẵn trong hyperframes từ lần render trước
+    ]
+    src_logo = next((p for p in candidates if p.exists()), None)
+    if src_logo is None:
+        log.error(
+            f"Không tìm thấy logo.png ở: {[str(p) for p in candidates]}. "
+            f"Logo là asset bắt buộc cho video bản tin."
+        )
+        sys.exit(1)
+
+    dest_logo = HF_DIR / "logo.png"
+    if src_logo.resolve() != dest_logo.resolve():
         try:
-            shutil.copy2(src_logo, HF_DIR / "logo.png")
-            log.info(f"Đã copy logo từ {src_logo} sang {HF_DIR / 'logo.png'}")
-        except Exception as e:
-            log.warning(f"Không thể copy logo.png: {e}")
-    else:
-        log.warning("Không tìm thấy logo.png ở thư mục gốc hoặc thư mục web")
+            shutil.copy2(src_logo, dest_logo)
+            log.info(f"Đã copy logo từ {src_logo} sang {dest_logo}")
+        except OSError as e:
+            log.error(f"Không thể copy logo.png: {e}")
+            sys.exit(1)
 
     scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
     n_scenes = len(scenes.get("scenes", []))
@@ -523,7 +532,10 @@ def run(
     log.info(f"Render {n_scenes} scenes, {total}s → {output.name}")
 
     # Chọn ảnh nền cho mỗi scene + copy vào hyperframes/library/
-    picker = ImagePicker()
+    # Seed picker theo ngày bản tin để render lại cùng ngày cho ra cùng bộ ảnh,
+    # bất kể múi giờ server hay thời điểm rerun.
+    scene_date = scenes.get("date") or scenes.get("date_label") or ""
+    picker = ImagePicker(seed=scene_date if scene_date else None)
     HF_LIB_DIR.mkdir(parents=True, exist_ok=True)
     # Xoá cache ảnh từ lần render trước để tránh tích lũy
     for old in HF_LIB_DIR.glob("*"):

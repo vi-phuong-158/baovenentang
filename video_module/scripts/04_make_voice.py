@@ -42,6 +42,7 @@ def _env_int(name: str, default: int) -> int:
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge")
 TTS_PROVIDER_TIMEOUT = _env_int("TTS_PROVIDER_TIMEOUT", 120)
 AUDIO_SYNC_TOLERANCE_SECONDS = 0.5
+TIMING_GAP_TOLERANCE_SECONDS = 0.05  # ngưỡng phát hiện khe hở giữa các scene (MP3 rounding)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -277,7 +278,7 @@ def sync_scene_timing_to_audio(scenes: dict, dictionary: dict, audio_duration: f
         duration = float(scene.get("duration", 0))
         if idx < len(scene_list) - 1:
             next_start = float(scene_list[idx + 1].get("start", 0))
-            if abs((start + duration) - next_start) > 0.0004:
+            if abs((start + duration) - next_start) > TIMING_GAP_TOLERANCE_SECONDS:
                 has_timing_gap = True
                 break
 

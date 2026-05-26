@@ -106,3 +106,57 @@ def test_token_not_in_log_url(caplog):
          caplog.at_level("INFO"):
         fetch.fetch_news_markdown()
     assert "SECRETTOKEN123" not in caplog.text
+
+
+def test_fetch_exits_on_non_json_response():
+    """GAS trả về HTML/text thay vì JSON (xảy ra khi GAS deploy lỗi)."""
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.status_code = 200
+    resp.text = "<html>Service unavailable</html>"
+    resp.json.side_effect = ValueError("Expecting value")
+    with patch("requests.get", return_value=resp), \
+         patch.object(fetch, "GAS_URL", "https://gas.example/exec"), \
+         patch.object(fetch, "GAS_TOKEN", "TOKEN"), \
+         pytest.raises(SystemExit) as exc:
+        fetch.fetch_news_markdown()
+    assert exc.value.code == 1
+
+
+def test_fetch_exits_when_data_not_dict():
+    """GAS response có 'success': true nhưng 'data' là list/None — sai cấu trúc."""
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {"success": True, "data": ["wrong", "shape"]}
+    with patch("requests.get", return_value=resp), \
+         patch.object(fetch, "GAS_URL", "https://gas.example/exec"), \
+         patch.object(fetch, "GAS_TOKEN", "TOKEN"), \
+         pytest.raises(SystemExit) as exc:
+        fetch.fetch_news_markdown()
+    assert exc.value.code == 1
+
+
+def test_fetch_exits_when_markdown_not_string():
+    """markdown là number/object thay vì string."""
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {
+        "success": True,
+        "data": {"markdown": 12345, "date": "x", "article_count": 0},
+    }
+    with patch("requests.get", return_value=resp), \
+         patch.object(fetch, "GAS_URL", "https://gas.example/exec"), \
+         patch.object(fetch, "GAS_TOKEN", "TOKEN"), \
+         pytest.raises(SystemExit) as exc:
+        fetch.fetch_news_markdown()
+    assert exc.value.code == 1
+
+
+def test_fetch_exits_on_connection_error():
+    import requests as _requests
+    with patch("requests.get", side_effect=_requests.ConnectionError("boom")), \
+         patch.object(fetch, "GAS_URL", "https://gas.example/exec"), \
+         patch.object(fetch, "GAS_TOKEN", "TOKEN"), \
+         pytest.raises(SystemExit) as exc:
+        fetch.fetch_news_markdown()
+    assert exc.value.code == 1
