@@ -21,6 +21,25 @@ QUY TẮC TUYỆT ĐỐI:
    - message: thông điệp ngày (8-10 giây)
    - cta: lời kêu gọi + website (6-8 giây)
 
+7. Mỗi scene PHẢI có field `visual_category` — chọn ĐÚNG MỘT trong các key sau, theo nội dung scene:
+   - `chinhphu`    — Chính phủ, Thủ tướng, Nghị định, công vụ
+   - `quochoi`     — Quốc hội, Luật, kỳ họp
+   - `bochinhtri`  — Bộ Chính trị, TW Đảng, Nghị quyết Đảng
+   - `bocongan`    — Bộ Công an, an ninh trật tự
+   - `anninhmang`  — an ninh mạng, hệ thống thông tin, cyber
+   - `kinhte`      — doanh nghiệp, kinh tế, tài chính
+   - `khoahoc`     — KHCN, đổi mới sáng tạo, AI
+   - `giaoduc`     — giáo dục, trẻ em, học sinh
+   - `yte`         — y tế, sức khỏe, bệnh viện
+   - `quocphong`   — quân đội, quốc phòng
+   - `doingoai`    — đối ngoại, quan hệ quốc tế
+   - `xahoi`       — xã hội, dân sinh, đô thị
+   - `phutho`      — Phú Thọ, địa phương
+   - `tuyengiao`   — tuyên giáo, tư tưởng, cờ Đảng
+   - `default`     — dùng cho intro, cta, message hoặc khi không chắc
+
+   Quy ước mặc định: intro → `tuyengiao`, message → `tuyengiao`, cta → `default`.
+
 FACTS:
 {{EXTRACTED_FACTS_JSON}}
 
@@ -41,7 +60,8 @@ Trả về JSON theo schema dưới đây và KHÔNG CÓ GÌ KHÁC (không markd
       "headline": "<≤6 từ>",
       "text": "<≤12 từ hiển thị>",
       "voiceover": "<lời đọc đầy đủ của scene>",
-      "visual_hint": "<gợi ý hình ảnh nền>"
+      "visual_category": "<một key trong danh sách trên>",
+      "visual_hint": "<gợi ý hình ảnh nền — dùng làm query fallback>"
     }
   ]
 }

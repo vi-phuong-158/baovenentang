@@ -1,0 +1,20 @@
+{
+  "_comment": "Danh sách category cố định cho ảnh nền video. LLM chọn 1 key cho mỗi scene. Renderer lấy ảnh ngẫu nhiên từ folder cùng tên.",
+  "categories": [
+    {"key": "chinhphu",    "label": "Chính phủ / Thủ tướng",       "hints": "Vietnam government building Hanoi, Vietnamese prime minister meeting, Ba Dinh Hall"},
+    {"key": "quochoi",     "label": "Quốc hội / Luật",             "hints": "Vietnam National Assembly, Vietnamese parliament session, Quoc Hoi Hanoi"},
+    {"key": "bochinhtri",  "label": "Bộ Chính trị / TW Đảng",      "hints": "Vietnam Communist Party congress, Vietnamese politburo meeting, party central committee"},
+    {"key": "bocongan",    "label": "Bộ Công an / ANTT",           "hints": "Vietnam police officer, Vietnamese public security, cong an uniform"},
+    {"key": "anninhmang",  "label": "An ninh mạng / Cyber",        "hints": "cyber security dark server room, data center network, padlock digital"},
+    {"key": "kinhte",      "label": "Kinh tế / Doanh nghiệp",      "hints": "Vietnam factory manufacturing, Vietnamese business office, Ho Chi Minh city skyline"},
+    {"key": "khoahoc",     "label": "Khoa học công nghệ / Đổi mới","hints": "science laboratory researcher, technology innovation, circuit board AI"},
+    {"key": "giaoduc",     "label": "Giáo dục / Trẻ em",           "hints": "Vietnamese school students classroom, Vietnam children school uniform, education asia"},
+    {"key": "yte",         "label": "Y tế / Sức khỏe",             "hints": "Vietnam hospital doctor, Vietnamese healthcare medical, nurse stethoscope"},
+    {"key": "quocphong",   "label": "Quốc phòng / Quân đội",       "hints": "Vietnam People Army soldiers, Vietnamese military parade, quan doi nhan dan"},
+    {"key": "doingoai",    "label": "Đối ngoại / Quốc tế",         "hints": "Vietnam diplomacy summit, Vietnamese foreign minister meeting, ASEAN summit"},
+    {"key": "xahoi",       "label": "Xã hội / Dân sinh",           "hints": "Vietnamese street life city, Hanoi street view, Vietnam community"},
+    {"key": "phutho",      "label": "Phú Thọ / Địa phương",        "hints": "Phu Tho province, Hung Kings Temple Den Hung, Viet Tri city"},
+    {"key": "tuyengiao",   "label": "Tuyên giáo / Tư tưởng",       "hints": "Vietnam communist party flag, hammer sickle red flag, party congress vietnam"},
+    {"key": "default",     "label": "Nền chung — cờ Đảng / Quốc kỳ","hints": "Vietnam flag waving, flag of Vietnam red yellow star, Vietnamese national flag"}
+  ]
+}

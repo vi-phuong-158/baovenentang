@@ -3,8 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <style>
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Bricolage+Grotesque:wght@700;800&display=swap');
+
 * { margin:0; padding:0; box-sizing:border-box; }
-body { width:1080px; background:#000; font-family:'Be Vietnam Pro',Arial,sans-serif; overflow:hidden; }
+body { 
+  width:1080px; 
+  background:#0C0B0A; 
+  font-family:'Be Vietnam Pro',Arial,sans-serif; 
+  overflow:hidden; 
+  -webkit-font-smoothing: antialiased;
+}
 .scene {
   position:absolute; top:0; left:0;
   width:1080px; height:1920px;
@@ -12,37 +20,149 @@ body { width:1080px; background:#000; font-family:'Be Vietnam Pro',Arial,sans-se
   align-items:center; justify-content:center;
   opacity:0; overflow:hidden;
 }
-.bar { position:absolute; left:0; right:0; height:8px;
-       background:linear-gradient(90deg,#cc0000,#ffcc00,#cc0000); }
+
+/* Background image layer (Ken Burns zoom target) */
+.bg-image {
+  position:absolute; top:0; left:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  z-index:0;
+  transform-origin: center center;
+  will-change: transform;
+}
+.bg-overlay {
+  position:absolute; top:0; left:0;
+  width:100%; height:100%;
+  background: linear-gradient(180deg, rgba(12,11,10,0.55) 0%, rgba(12,11,10,0.85) 100%);
+  z-index:1;
+  pointer-events:none;
+}
+.scene > .bar, .scene > .logo-strip, .scene > .content, .scene > .subtitle-bar {
+  z-index:2;
+}
+
+/* Background Gradients */
+.bg-intro {
+  background: radial-gradient(circle at 50% 50%, #4E1411 0%, #120302 100%);
+}
+.bg-summary {
+  background: radial-gradient(circle at 50% 50%, #0F2D59 0%, #050A10 100%);
+}
+.bg-news {
+  background: radial-gradient(circle at 50% 50%, #5E1A15 0%, #150403 100%);
+}
+.bg-briefs {
+  background: radial-gradient(circle at 50% 50%, #1C2333 0%, #07090D 100%);
+}
+.bg-message {
+  background: radial-gradient(circle at 50% 50%, #543E15 0%, #100B02 100%);
+}
+.bg-cta {
+  background: radial-gradient(circle at 50% 50%, #3B0D0B 0%, #0D0303 100%);
+}
+
+/* Borders & Decorative Elements */
+.bar { 
+  position:absolute; left:0; right:0; height:12px;
+  background:linear-gradient(90deg, #B83227 0%, #F4C20D 50%, #B83227 100%); 
+  box-shadow: 0 0 15px rgba(184, 50, 39, 0.4);
+}
 .bar-top    { top:0; }
 .bar-bottom { bottom:0; }
+
+/* Header Branding */
 .logo-strip {
-  position:absolute; top:55px; left:0; right:0;
-  display:flex; align-items:center; justify-content:center; gap:16px;
+  position:absolute; top:70px; left:60px; right:60px; height:120px;
+  display:flex; align-items:center; justify-content:center; gap:20px;
+  border-bottom:2px solid rgba(244, 194, 13, 0.2);
+  padding-bottom:24px;
 }
-.logo-icon { font-size:56px; }
-.logo-text { font-size:34px; font-weight:700; color:#fff; letter-spacing:3px; }
+.logo-img { 
+  height:90px; width:90px; 
+  border-radius:50%; 
+  object-fit:contain; 
+  border: 3px solid #F4C20D;
+  box-shadow: 0 0 20px rgba(244, 194, 13, 0.3);
+}
+.logo-text { 
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:38px; font-weight:800; color:#fff; 
+  text-transform:uppercase; letter-spacing:2px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+/* Content Area & Glass Card */
 .content {
-  width:100%; padding:0 80px; margin-top:40px;
-  display:flex; flex-direction:column; align-items:center; gap:40px;
+  position: absolute;
+  top: 240px; bottom: 380px; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 60px;
 }
+.content-card {
+  background: rgba(26, 20, 16, 0.55);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 2px solid rgba(244, 194, 13, 0.15);
+  border-radius: 36px;
+  padding: 60px 48px;
+  width: 960px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px;
+  text-align: center;
+}
+
+/* Typography styles */
 .headline {
-  font-size:80px; font-weight:700; color:#fff;
-  text-align:center; line-height:1.2;
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:60px; font-weight:800; color:#fff;
+  text-align:center; line-height:1.25; letter-spacing:-1px;
+  text-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 .body-text {
-  font-size:52px; color:#ddd; text-align:center; line-height:1.5;
+  font-family:'Be Vietnam Pro',sans-serif;
+  font-size:42px; font-weight:500; color:#E5DDC8; 
+  text-align:center; line-height:1.5;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .message-text {
-  font-size:52px; color:#ffcc00; text-align:center;
-  line-height:1.5; font-style:italic;
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:56px; font-weight:700; color:#F4C20D; 
+  text-align:center; line-height:1.4;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-.cta-url { font-size:44px; color:#ffcc00; word-break:break-all; text-align:center; }
+.cta-url { 
+  font-family:'Bricolage Grotesque',sans-serif;
+  font-size:52px; font-weight:800; color:#1A1410; 
+  background: linear-gradient(135deg, #F4C20D, #E5B205);
+  padding: 18px 44px;
+  border-radius: 99px;
+  box-shadow: 0 12px 28px rgba(244, 194, 13, 0.4);
+  border: 2px solid #FFFFFF;
+  display: inline-block;
+  letter-spacing: 1px;
+}
+
+/* Subtitle bubble */
 .subtitle-bar {
-  position:absolute; bottom:110px; left:60px; right:60px;
-  text-align:center; font-size:50px; font-weight:500; color:#fff;
-  line-height:1.4;
-  text-shadow:0 0 8px #000,2px 2px 6px #000,-2px -2px 6px #000;
+  position:absolute; bottom:140px; left:80px; right:80px;
+  padding: 28px 40px;
+  border-radius: 28px;
+  background: rgba(15, 13, 12, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  text-align:center; 
+  font-family:'Be Vietnam Pro',sans-serif;
+  font-size:44px; font-weight:600; color:#F4EFE3;
+  line-height:1.5; letter-spacing:0.5px;
+}
+.sub-word {
+  opacity: 0.35;
+  color: #A89D8A;
+  transition: color 0.12s ease, opacity 0.12s ease;
+  display: inline-block;
+  margin: 0 6px;
 }
 </style>
 </head>
@@ -52,213 +172,269 @@ body { width:1080px; background:#000; font-family:'Be Vietnam Pro',Arial,sans-se
      style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#000;">
 
   <!-- intro: t=0.0..7.068s -->
-  <div class="scene clip" id="scene-intro"
-       data-start="0.0" data-duration="7.068" data-track-index="0"
-       style="background:#1a0505;">
+  <div class="scene clip bg-intro" id="scene-intro"
+       data-start="0.0" data-duration="7.068" data-track-index="0">
+    <img class="bg-image" id="bg-intro" src="library/intro_tuyengiao_curated_8d2a595898.png" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">🛡️</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">BẢN TIN NGÀY</span>
     </div>
     <div class="content">
+      <div class="content-card">
+        
       <div class="headline" id="intro-headline">Bản tin Trợ lý 35</div>
       <div class="body-text" id="intro-text">Thứ Sáu, ngày 22 tháng 5 năm 2026</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="intro-subtitle">Kính chào quý đồng chí. Đây là bản tin Trợ lý 35, ngày thứ Sáu, hai mươi hai tháng năm năm hai nghìn…</div>
+    <div class="subtitle-bar" id="intro-subtitle"><span class="sub-word">Kính</span> <span class="sub-word">chào</span> <span class="sub-word">quý</span> <span class="sub-word">đồng</span> <span class="sub-word">chí.</span> <span class="sub-word">Đây</span> <span class="sub-word">là</span> <span class="sub-word">bản</span> <span class="sub-word">tin</span> <span class="sub-word">Trợ</span> <span class="sub-word">lý</span> <span class="sub-word">35,</span> <span class="sub-word">ngày</span> <span class="sub-word">thứ</span> <span class="sub-word">Sáu,</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">hai</span> <span class="sub-word">tháng</span> <span class="sub-word">năm</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">nghìn</span> <span class="sub-word">không</span> <span class="sub-word">trăm</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">sáu.</span> </div>
   </div>
 
   <!-- summary: t=7.068..23.726999999999997s -->
-  <div class="scene clip" id="scene-summary"
-       data-start="7.068" data-duration="16.659" data-track-index="0"
-       style="background:#050518;">
+  <div class="scene clip bg-summary" id="scene-summary"
+       data-start="7.068" data-duration="16.659" data-track-index="0">
+    <img class="bg-image" id="bg-summary" src="library/summary_chinhphu_04a4eea9dd.jpg" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">📋</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">TỔNG QUAN</span>
     </div>
     <div class="content">
+      <div class="content-card">
+        
       <div class="headline" id="summary-headline">Tổng quan ngày 22/5</div>
-      <div class="body-text" id="summary-text">Nghị định 181/2026/NĐ-CP về quản lý doanh nghiệp nhà nước</div>
+      <div class="body-text" id="summary-text">Nghị định <span style="white-space: nowrap;">181/2026/NĐ-CP</span> về quản lý doanh nghiệp nhà nước</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="summary-subtitle">Ngày hai mươi hai tháng năm, Chính phủ ban hành Nghị định số một tám một năm hai không hai sáu của C…</div>
+    <div class="subtitle-bar" id="summary-subtitle"><span class="sub-word">Ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">hai</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ,</span> <span class="sub-word">quy</span> <span class="sub-word">định</span> <span class="sub-word">tiêu</span> <span class="sub-word">chuẩn</span> <span class="sub-word">bổ</span> <span class="sub-word">nhiệm</span> <span class="sub-word">người</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước.</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị</span> <span class="sub-word">tiếp</span> <span class="sub-word">tục</span> <span class="sub-word">chỉ</span> <span class="sub-word">đạo</span> <span class="sub-word">triển</span> <span class="sub-word">khai</span> <span class="sub-word">Nghị</span> <span class="sub-word">quyết</span> <span class="sub-word">số</span> <span class="sub-word">năm</span> <span class="sub-word">mươi</span> <span class="sub-word">bảy</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị</span> <span class="sub-word">về</span> <span class="sub-word">đột</span> <span class="sub-word">phá</span> <span class="sub-word">phát</span> <span class="sub-word">triển</span> <span class="sub-word">khoa</span> <span class="sub-word">học</span> <span class="sub-word">và</span> <span class="sub-word">công</span> <span class="sub-word">nghệ.</span> </div>
   </div>
 
   <!-- news1: t=23.727..38.619s -->
-  <div class="scene clip" id="scene-news1"
-       data-start="23.727" data-duration="14.892" data-track-index="0"
-       style="background:#1a0808;">
+  <div class="scene clip bg-news" id="scene-news1"
+       data-start="23.727" data-duration="14.892" data-track-index="0">
+    <img class="bg-image" id="bg-news1" src="library/news1_chinhphu_e1de899404.jpg" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">🔴</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">TIN QUAN TRỌNG</span>
     </div>
     <div class="content">
-      <div class="headline" id="news1-headline">Nghị định 181/2026/NĐ-CP</div>
+      <div class="content-card">
+        
+      <div class="headline" id="news1-headline">Nghị định <span style="white-space: nowrap;">181/2026/NĐ-CP</span></div>
       <div class="body-text" id="news1-text">Tiêu chuẩn bổ nhiệm người quản lý doanh nghiệp nhà nước</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="news1-subtitle">Nghị định số một tám một năm hai không hai sáu của Chính phủ, ban hành ngày hai mươi mốt tháng năm, …</div>
+    <div class="subtitle-bar" id="news1-subtitle"><span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ,</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">mốt</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">quy</span> <span class="sub-word">định</span> <span class="sub-word">tiêu</span> <span class="sub-word">chuẩn</span> <span class="sub-word">và</span> <span class="sub-word">điều</span> <span class="sub-word">kiện</span> <span class="sub-word">bổ</span> <span class="sub-word">nhiệm,</span> <span class="sub-word">miễn</span> <span class="sub-word">nhiệm,</span> <span class="sub-word">khen</span> <span class="sub-word">thưởng,</span> <span class="sub-word">kỷ</span> <span class="sub-word">luật</span> <span class="sub-word">người</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước.</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">có</span> <span class="sub-word">hiệu</span> <span class="sub-word">lực</span> <span class="sub-word">từ</span> <span class="sub-word">ngày</span> <span class="sub-word">mười</span> <span class="sub-word">tháng</span> <span class="sub-word">bảy</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu.</span> </div>
   </div>
 
   <!-- news2: t=38.619..52.501999999999995s -->
-  <div class="scene clip" id="scene-news2"
-       data-start="38.619" data-duration="13.883" data-track-index="0"
-       style="background:#1a0808;">
+  <div class="scene clip bg-news" id="scene-news2"
+       data-start="38.619" data-duration="13.883" data-track-index="0">
+    <img class="bg-image" id="bg-news2" src="library/news2_anninhmang_39fb56f31a.jpg" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">🔴</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">TIN QUAN TRỌNG</span>
     </div>
     <div class="content">
-      <div class="headline" id="news2-headline">Thông tư 23/2026/TT-BCA</div>
+      <div class="content-card">
+        
+      <div class="headline" id="news2-headline">Thông tư <span style="white-space: nowrap;">23/2026/TT-BCA</span></div>
       <div class="body-text" id="news2-text">An ninh mạng hệ thống thông tin quan trọng quốc gia</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="news2-subtitle">Thông tư số hai mươi ba năm hai không hai sáu của Bộ Công an, ban hành ngày hai mươi tháng năm, hướn…</div>
+    <div class="subtitle-bar" id="news2-subtitle"><span class="sub-word">Thông</span> <span class="sub-word">tư</span> <span class="sub-word">số</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">ba</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Công</span> <span class="sub-word">an,</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">hướng</span> <span class="sub-word">dẫn</span> <span class="sub-word">công</span> <span class="sub-word">tác</span> <span class="sub-word">bảo</span> <span class="sub-word">đảm</span> <span class="sub-word">an</span> <span class="sub-word">ninh</span> <span class="sub-word">mạng</span> <span class="sub-word">đối</span> <span class="sub-word">với</span> <span class="sub-word">hệ</span> <span class="sub-word">thống</span> <span class="sub-word">thông</span> <span class="sub-word">tin</span> <span class="sub-word">quan</span> <span class="sub-word">trọng</span> <span class="sub-word">về</span> <span class="sub-word">an</span> <span class="sub-word">ninh</span> <span class="sub-word">quốc</span> <span class="sub-word">gia,</span> <span class="sub-word">bao</span> <span class="sub-word">gồm</span> <span class="sub-word">hệ</span> <span class="sub-word">thống</span> <span class="sub-word">cấp</span> <span class="sub-word">độ</span> <span class="sub-word">bốn</span> <span class="sub-word">và</span> <span class="sub-word">cấp</span> <span class="sub-word">độ</span> <span class="sub-word">năm.</span> </div>
   </div>
 
   <!-- news3: t=52.502..61.084s -->
-  <div class="scene clip" id="scene-news3"
-       data-start="52.502" data-duration="8.582" data-track-index="0"
-       style="background:#1a1205;">
+  <div class="scene clip bg-news" id="scene-news3"
+       data-start="52.502" data-duration="8.582" data-track-index="0">
+    <img class="bg-image" id="bg-news3" src="library/news3_giaoduc_bf00f6e588.jpg" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">🟡</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">HÔM NAY CẦN BIẾT</span>
     </div>
     <div class="content">
+      <div class="content-card">
+        
       <div class="headline" id="news3-headline">Phòng chống bạo hành trẻ em</div>
       <div class="body-text" id="news3-text">Tăng cường phát hiện, tố giác hành vi bạo hành</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="news3-subtitle">Bộ Lao động Thương binh và Xã hội đề nghị các địa phương tăng cường truyền thông về phòng chống bạo …</div>
+    <div class="subtitle-bar" id="news3-subtitle"><span class="sub-word">Bộ</span> <span class="sub-word">Lao</span> <span class="sub-word">động</span> <span class="sub-word">Thương</span> <span class="sub-word">binh</span> <span class="sub-word">và</span> <span class="sub-word">Xã</span> <span class="sub-word">hội</span> <span class="sub-word">đề</span> <span class="sub-word">nghị</span> <span class="sub-word">các</span> <span class="sub-word">địa</span> <span class="sub-word">phương</span> <span class="sub-word">tăng</span> <span class="sub-word">cường</span> <span class="sub-word">truyền</span> <span class="sub-word">thông</span> <span class="sub-word">về</span> <span class="sub-word">phòng</span> <span class="sub-word">chống</span> <span class="sub-word">bạo</span> <span class="sub-word">lực</span> <span class="sub-word">trẻ</span> <span class="sub-word">em,</span> <span class="sub-word">đặc</span> <span class="sub-word">biệt</span> <span class="sub-word">trong</span> <span class="sub-word">môi</span> <span class="sub-word">trường</span> <span class="sub-word">gia</span> <span class="sub-word">đình</span> <span class="sub-word">và</span> <span class="sub-word">nhà</span> <span class="sub-word">trường.</span> </div>
   </div>
 
   <!-- briefs: t=61.084..72.19s -->
-  <div class="scene clip" id="scene-briefs"
-       data-start="61.084" data-duration="11.106" data-track-index="0"
-       style="background:#050512;">
+  <div class="scene clip bg-briefs" id="scene-briefs"
+       data-start="61.084" data-duration="11.106" data-track-index="0">
+    <img class="bg-image" id="bg-briefs" src="library/briefs_khoahoc_d1659f8f4d.jpg" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">📰</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">TIN NGẮN</span>
     </div>
     <div class="content">
+      <div class="content-card">
+        
       <div class="headline" id="briefs-headline">Tin ngắn trong ngày</div>
       <div class="body-text" id="briefs-text">Việt Nam tăng bậc đổi mới sáng tạo 2026</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="briefs-subtitle">Việt Nam đứng thứ bốn mươi bốn trong bảng xếp hạng Chỉ số đổi mới sáng tạo toàn cầu năm hai không ha…</div>
+    <div class="subtitle-bar" id="briefs-subtitle"><span class="sub-word">Việt</span> <span class="sub-word">Nam</span> <span class="sub-word">đứng</span> <span class="sub-word">thứ</span> <span class="sub-word">bốn</span> <span class="sub-word">mươi</span> <span class="sub-word">bốn</span> <span class="sub-word">trong</span> <span class="sub-word">bảng</span> <span class="sub-word">xếp</span> <span class="sub-word">hạng</span> <span class="sub-word">Chỉ</span> <span class="sub-word">số</span> <span class="sub-word">đổi</span> <span class="sub-word">mới</span> <span class="sub-word">sáng</span> <span class="sub-word">tạo</span> <span class="sub-word">toàn</span> <span class="sub-word">cầu</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu,</span> <span class="sub-word">tăng</span> <span class="sub-word">bốn</span> <span class="sub-word">bậc</span> <span class="sub-word">so</span> <span class="sub-word">với</span> <span class="sub-word">năm</span> <span class="sub-word">trước,</span> <span class="sub-word">nhờ</span> <span class="sub-word">triển</span> <span class="sub-word">khai</span> <span class="sub-word">Nghị</span> <span class="sub-word">quyết</span> <span class="sub-word">số</span> <span class="sub-word">năm</span> <span class="sub-word">mươi</span> <span class="sub-word">bảy</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị.</span> </div>
   </div>
 
   <!-- message: t=72.19..83.04299999999999s -->
-  <div class="scene clip" id="scene-message"
-       data-start="72.19" data-duration="10.853" data-track-index="0"
-       style="background:#0a0a00;">
+  <div class="scene clip bg-message" id="scene-message"
+       data-start="72.19" data-duration="10.853" data-track-index="0">
+    <img class="bg-image" id="bg-message" src="library/message_tuyengiao_curated_8d2a595898.png" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">💬</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">THÔNG ĐIỆP</span>
     </div>
-    <div class="content"><div class="message-text" id="message-text">Xây dựng đội ngũ cán bộ quản lý chuyên nghiệp, liêm chính</div>
+    <div class="content">
+      <div class="content-card">
+        <div class="message-text" id="message-text">Xây dựng đội ngũ cán bộ quản lý chuyên nghiệp, liêm chính</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="message-subtitle">Việc ban hành Nghị định số một tám một năm hai không hai sáu của Chính phủ thể hiện quyết tâm của Đả…</div>
+    <div class="subtitle-bar" id="message-subtitle"><span class="sub-word">Việc</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ</span> <span class="sub-word">thể</span> <span class="sub-word">hiện</span> <span class="sub-word">quyết</span> <span class="sub-word">tâm</span> <span class="sub-word">của</span> <span class="sub-word">Đảng</span> <span class="sub-word">và</span> <span class="sub-word">Nhà</span> <span class="sub-word">nước</span> <span class="sub-word">trong</span> <span class="sub-word">xây</span> <span class="sub-word">dựng</span> <span class="sub-word">đội</span> <span class="sub-word">ngũ</span> <span class="sub-word">cán</span> <span class="sub-word">bộ</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước</span> <span class="sub-word">chuyên</span> <span class="sub-word">nghiệp,</span> <span class="sub-word">liêm</span> <span class="sub-word">chính.</span> </div>
   </div>
 
   <!-- cta: t=83.043..88.34400000000001s -->
-  <div class="scene clip" id="scene-cta"
-       data-start="83.043" data-duration="5.301" data-track-index="0"
-       style="background:#050505;">
+  <div class="scene clip bg-cta" id="scene-cta"
+       data-start="83.043" data-duration="5.301" data-track-index="0">
+    <img class="bg-image" id="bg-cta" src="library/cta_default_curated_8d2a595898.png" alt="">
+    <div class="bg-overlay"></div>
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
-      <span class="logo-icon">🛡️</span>
+      <img src="logo.png" class="logo-img" alt="Logo">
       <span class="logo-text">TRỢ LÝ 35</span>
     </div>
     <div class="content">
+      <div class="content-card">
+        
       <div class="headline" id="cta-headline">Theo dõi thường xuyên</div>
-      <div class="cta-url" id="cta-url">https://www.troly35.info.vn/</div>
+      <div class="cta-url" id="cta-url">troly35.info.vn</div>
+      </div>
     </div>
-    <div class="subtitle-bar" id="cta-subtitle">Kính chào và hẹn gặp lại. Truy cập trang web Bảo vệ nền tảng để cập nhật thông tin hằng ngày.</div>
+    <div class="subtitle-bar" id="cta-subtitle"><span class="sub-word">Kính</span> <span class="sub-word">chào</span> <span class="sub-word">và</span> <span class="sub-word">hẹn</span> <span class="sub-word">gặp</span> <span class="sub-word">lại.</span> <span class="sub-word">Truy</span> <span class="sub-word">cập</span> <span class="sub-word">trang</span> <span class="sub-word">web</span> <span class="sub-word">Bảo</span> <span class="sub-word">vệ</span> <span class="sub-word">nền</span> <span class="sub-word">tảng</span> <span class="sub-word">để</span> <span class="sub-word">cập</span> <span class="sub-word">nhật</span> <span class="sub-word">thông</span> <span class="sub-word">tin</span> <span class="sub-word">hằng</span> <span class="sub-word">ngày.</span> </div>
   </div>
 </div>
 <script src="./node_modules/gsap/dist/gsap.min.js"></script>
 <script>
-  gsap.set(['#scene-intro', '#scene-intro .logo-strip', '#intro-headline', '#intro-text', '#intro-url', '#intro-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-summary', '#scene-summary .logo-strip', '#summary-headline', '#summary-text', '#summary-url', '#summary-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-news1', '#scene-news1 .logo-strip', '#news1-headline', '#news1-text', '#news1-url', '#news1-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-news2', '#scene-news2 .logo-strip', '#news2-headline', '#news2-text', '#news2-url', '#news2-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-news3', '#scene-news3 .logo-strip', '#news3-headline', '#news3-text', '#news3-url', '#news3-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-briefs', '#scene-briefs .logo-strip', '#briefs-headline', '#briefs-text', '#briefs-url', '#briefs-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-message', '#scene-message .logo-strip', '#message-headline', '#message-text', '#message-url', '#message-subtitle'], {opacity:0, y:30});
-  gsap.set(['#scene-cta', '#scene-cta .logo-strip', '#cta-headline', '#cta-text', '#cta-url', '#cta-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-intro', '#scene-intro .logo-strip', '#scene-intro .content-card', '#intro-headline', '#intro-text', '#intro-url', '#intro-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-summary', '#scene-summary .logo-strip', '#scene-summary .content-card', '#summary-headline', '#summary-text', '#summary-url', '#summary-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news1', '#scene-news1 .logo-strip', '#scene-news1 .content-card', '#news1-headline', '#news1-text', '#news1-url', '#news1-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news2', '#scene-news2 .logo-strip', '#scene-news2 .content-card', '#news2-headline', '#news2-text', '#news2-url', '#news2-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-news3', '#scene-news3 .logo-strip', '#scene-news3 .content-card', '#news3-headline', '#news3-text', '#news3-url', '#news3-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-briefs', '#scene-briefs .logo-strip', '#scene-briefs .content-card', '#briefs-headline', '#briefs-text', '#briefs-url', '#briefs-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-message', '#scene-message .logo-strip', '#scene-message .content-card', '#message-headline', '#message-text', '#message-url', '#message-subtitle'], {opacity:0, y:30});
+  gsap.set(['#scene-cta', '#scene-cta .logo-strip', '#scene-cta .content-card', '#cta-headline', '#cta-text', '#cta-url', '#cta-subtitle'], {opacity:0, y:30});
 
   const tl = gsap.timeline({ paused: true });
 
   // intro: 0.0s → 7.068s
   tl.to('#scene-intro', {opacity:1, duration:0.5}, 0.1);
+  tl.fromTo('#bg-intro', {scale:1.0}, {scale:1.08, duration:7.068, ease:'none'}, 0.0);
   tl.to('#scene-intro .logo-strip', {opacity:1, y:0, duration:0.5}, 0.2);
+  tl.to('#scene-intro .content-card', {opacity:1, y:0, duration:0.5}, 0.25);
   tl.to('#intro-headline', {opacity:1, y:0, duration:0.5}, 0.35);
   tl.to('#intro-text, #intro-url', {opacity:1, duration:0.5}, 0.5);
-  tl.to('#intro-subtitle', {opacity:1, duration:0.5}, 0.7);
+  tl.to('#intro-subtitle', {opacity:1, duration:0.5}, 0.5);
+  tl.to('#scene-intro .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2096}, 0.7);
   tl.to('#scene-intro', {opacity:0, duration:0.5}, 6.568);
 
   // summary: 7.068s → 23.726999999999997s
   tl.to('#scene-summary', {opacity:1, duration:0.5}, 7.167999999999999);
+  tl.fromTo('#bg-summary', {scale:1.0}, {scale:1.08, duration:16.659, ease:'none'}, 7.068);
   tl.to('#scene-summary .logo-strip', {opacity:1, y:0, duration:0.5}, 7.268);
+  tl.to('#scene-summary .content-card', {opacity:1, y:0, duration:0.5}, 7.318);
   tl.to('#summary-headline', {opacity:1, y:0, duration:0.5}, 7.417999999999999);
   tl.to('#summary-text, #summary-url', {opacity:1, duration:0.5}, 7.568);
-  tl.to('#summary-subtitle', {opacity:1, duration:0.5}, 7.768);
+  tl.to('#summary-subtitle', {opacity:1, duration:0.5}, 7.568);
+  tl.to('#scene-summary .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2342}, 7.768);
   tl.to('#scene-summary', {opacity:0, duration:0.5}, 23.226999999999997);
 
   // news1: 23.727s → 38.619s
   tl.to('#scene-news1', {opacity:1, duration:0.5}, 23.827);
+  tl.fromTo('#bg-news1', {scale:1.0}, {scale:1.08, duration:14.892, ease:'none'}, 23.727);
   tl.to('#scene-news1 .logo-strip', {opacity:1, y:0, duration:0.5}, 23.927);
+  tl.to('#scene-news1 .content-card', {opacity:1, y:0, duration:0.5}, 23.977);
   tl.to('#news1-headline', {opacity:1, y:0, duration:0.5}, 24.077);
   tl.to('#news1-text, #news1-url', {opacity:1, duration:0.5}, 24.227);
-  tl.to('#news1-subtitle', {opacity:1, duration:0.5}, 24.427);
+  tl.to('#news1-subtitle', {opacity:1, duration:0.5}, 24.227);
+  tl.to('#scene-news1 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2321}, 24.427);
   tl.to('#scene-news1', {opacity:0, duration:0.5}, 38.119);
 
   // news2: 38.619s → 52.501999999999995s
   tl.to('#scene-news2', {opacity:1, duration:0.5}, 38.719);
+  tl.fromTo('#bg-news2', {scale:1.0}, {scale:1.08, duration:13.883, ease:'none'}, 38.619);
   tl.to('#scene-news2 .logo-strip', {opacity:1, y:0, duration:0.5}, 38.819);
+  tl.to('#scene-news2 .content-card', {opacity:1, y:0, duration:0.5}, 38.869);
   tl.to('#news2-headline', {opacity:1, y:0, duration:0.5}, 38.969);
   tl.to('#news2-text, #news2-url', {opacity:1, duration:0.5}, 39.119);
-  tl.to('#news2-subtitle', {opacity:1, duration:0.5}, 39.319);
+  tl.to('#news2-subtitle', {opacity:1, duration:0.5}, 39.119);
+  tl.to('#scene-news2 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2306}, 39.319);
   tl.to('#scene-news2', {opacity:0, duration:0.5}, 52.001999999999995);
 
   // news3: 52.502s → 61.084s
   tl.to('#scene-news3', {opacity:1, duration:0.5}, 52.602000000000004);
+  tl.fromTo('#bg-news3', {scale:1.0}, {scale:1.08, duration:8.582, ease:'none'}, 52.502);
   tl.to('#scene-news3 .logo-strip', {opacity:1, y:0, duration:0.5}, 52.702000000000005);
+  tl.to('#scene-news3 .content-card', {opacity:1, y:0, duration:0.5}, 52.752);
   tl.to('#news3-headline', {opacity:1, y:0, duration:0.5}, 52.852000000000004);
   tl.to('#news3-text, #news3-url', {opacity:1, duration:0.5}, 53.002);
-  tl.to('#news3-subtitle', {opacity:1, duration:0.5}, 53.202000000000005);
+  tl.to('#news3-subtitle', {opacity:1, duration:0.5}, 53.002);
+  tl.to('#scene-news3 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2171}, 53.202000000000005);
   tl.to('#scene-news3', {opacity:0, duration:0.5}, 60.584);
 
   // briefs: 61.084s → 72.19s
   tl.to('#scene-briefs', {opacity:1, duration:0.5}, 61.184000000000005);
+  tl.fromTo('#bg-briefs', {scale:1.0}, {scale:1.08, duration:11.106, ease:'none'}, 61.084);
   tl.to('#scene-briefs .logo-strip', {opacity:1, y:0, duration:0.5}, 61.284000000000006);
+  tl.to('#scene-briefs .content-card', {opacity:1, y:0, duration:0.5}, 61.334);
   tl.to('#briefs-headline', {opacity:1, y:0, duration:0.5}, 61.434000000000005);
   tl.to('#briefs-text, #briefs-url', {opacity:1, duration:0.5}, 61.584);
-  tl.to('#briefs-subtitle', {opacity:1, duration:0.5}, 61.784000000000006);
+  tl.to('#briefs-subtitle', {opacity:1, duration:0.5}, 61.584);
+  tl.to('#scene-briefs .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2251}, 61.784000000000006);
   tl.to('#scene-briefs', {opacity:0, duration:0.5}, 71.69);
 
   // message: 72.19s → 83.04299999999999s
   tl.to('#scene-message', {opacity:1, duration:0.5}, 72.28999999999999);
+  tl.fromTo('#bg-message', {scale:1.0}, {scale:1.08, duration:10.853, ease:'none'}, 72.19);
   tl.to('#scene-message .logo-strip', {opacity:1, y:0, duration:0.5}, 72.39);
+  tl.to('#scene-message .content-card', {opacity:1, y:0, duration:0.5}, 72.44);
   tl.to('#message-text, #message-url', {opacity:1, duration:0.5}, 72.69);
-  tl.to('#message-subtitle', {opacity:1, duration:0.5}, 72.89);
+  tl.to('#message-subtitle', {opacity:1, duration:0.5}, 72.69);
+  tl.to('#scene-message .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2245}, 72.89);
   tl.to('#scene-message', {opacity:0, duration:0.5}, 82.54299999999999);
 
   // cta: 83.043s → 88.34400000000001s
   tl.to('#scene-cta', {opacity:1, duration:0.42408}, 83.143);
+  tl.fromTo('#bg-cta', {scale:1.0}, {scale:1.08, duration:5.301, ease:'none'}, 83.043);
   tl.to('#scene-cta .logo-strip', {opacity:1, y:0, duration:0.42408}, 83.24300000000001);
+  tl.to('#scene-cta .content-card', {opacity:1, y:0, duration:0.42408}, 83.293);
   tl.to('#cta-headline', {opacity:1, y:0, duration:0.42408}, 83.393);
   tl.to('#cta-text, #cta-url', {opacity:1, duration:0.42408}, 83.543);
-  tl.to('#cta-subtitle', {opacity:1, duration:0.42408}, 83.74300000000001);
+  tl.to('#cta-subtitle', {opacity:1, duration:0.42408}, 83.543);
+  tl.to('#scene-cta .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.1953}, 83.74300000000001);
   tl.to('#scene-cta', {opacity:0, duration:0.42408}, 87.91992);
 
   tl.to({}, {duration:0.001}, 88.34299999999999);

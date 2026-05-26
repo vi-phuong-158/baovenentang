@@ -14,3 +14,5 @@ __pycache__/
 *.pyc
 node_modules/
 hyperframes/node_modules/
+hyperframes/library/
+assets/library/_cache/
