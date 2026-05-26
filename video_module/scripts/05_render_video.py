@@ -213,36 +213,32 @@ body {
   letter-spacing: 1px;
 }
 
-/* Subtitle bubble */
+/* Subtitle bubble — chia thành nhiều dòng ngắn, hiển thị lần lượt */
 .subtitle-bar {
   position:absolute; bottom:140px; left:80px; right:80px;
+  min-height: 140px;
   padding: 28px 40px;
   border-radius: 28px;
   background: rgba(15, 13, 12, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 140px;
-}
-.sub-phrase {
-  display: none;
-  opacity: 0;
-  text-align: center;
-  width: 100%;
   font-family:'Be Vietnam Pro',sans-serif;
-  font-size:44px; font-weight:600; color:#F4EFE3;
-  line-height:1.5; letter-spacing:0.5px;
 }
-.sub-word {
-  opacity: 0.32;
-  color: #9A8F7C;
-  display: inline-block;
-  margin: 0 6px;
-  text-shadow: 0 0 0px rgba(244, 194, 13, 0);
-  transform-origin: center bottom;
-  will-change: transform, opacity;
+.sub-line {
+  position: absolute;
+  left: 40px; right: 40px;
+  top: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 44px; font-weight: 600; color: #F4EFE3;
+  line-height: 1.35; letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  padding: 0 12px;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* Hook intro — punchy mở đầu để giữ chân người xem trong 3 giây đầu */
@@ -262,6 +258,57 @@ def _vo_preview(voiceover: str) -> str:
     return _e(voiceover.strip())
 
 
+SUB_MAX_WORDS = 9
+SUB_MAX_CHARS = 55
+
+
+def _split_chunks(text: str,
+                  max_words: int = SUB_MAX_WORDS,
+                  max_chars: int = SUB_MAX_CHARS) -> list[str]:
+    """Chia voiceover thành các đoạn ngắn để hiển thị phụ đề từng dòng.
+
+    Duyệt từng từ một và gom vào buffer; flush khi:
+      - gặp dấu kết câu (. ! ?) — luôn flush;
+      - gặp dấu phẩy / chấm phẩy / hai chấm và buffer đã có ít nhất 4 từ;
+      - thêm từ kế tiếp sẽ vượt ``max_words`` hoặc ``max_chars``.
+    """
+    text = (text or "").strip()
+    if not text:
+        return []
+
+    tokens = text.split()
+    chunks: list[str] = []
+    buf: list[str] = []
+    buf_chars = 0
+
+    def _flush() -> None:
+        nonlocal buf, buf_chars
+        if buf:
+            chunks.append(" ".join(buf))
+            buf = []
+            buf_chars = 0
+
+    for tok in tokens:
+        sep = 1 if buf else 0
+        new_chars = buf_chars + sep + len(tok)
+        if buf and (len(buf) + 1 > max_words or new_chars > max_chars):
+            _flush()
+            sep = 0
+            new_chars = len(tok)
+
+        buf.append(tok)
+        buf_chars = new_chars
+
+        last_char = tok[-1] if tok else ""
+        if last_char in ".!?":
+            _flush()
+        elif last_char in ",;:" and len(buf) >= 4:
+            _flush()
+
+    _flush()
+    return chunks
+
+
 # Regex phát hiện số hiệu văn bản để bọc trong white-space: nowrap
 DOC_NUM_RE = re.compile(r"(\b\d+/\d+/[A-ZĐa-zđ0-9-]+|\b\d+-[A-ZĐ]+/TW|\b\d+/[A-ZĐa-zđ]{2,8}-[A-ZĐa-zđ]{2,8})")
 
@@ -276,7 +323,7 @@ def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
 
     headline = wrap_doc_numbers(_e(scene.get("headline", "")))
     text     = wrap_doc_numbers(_e(scene.get("text", "")))
-    vo       = _vo_preview(scene.get("voiceover", ""))
+    sub_chunks = _split_chunks(scene.get("voiceover", "") or "")
 
     start = scene["start"]
     dur   = scene["duration"]
@@ -305,21 +352,21 @@ def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
       <div class="headline" id="{sid}-headline">{headline}</div>
       <div class="body-text" id="{sid}-text">{text}</div>'''
 
-    # Tách các từ trong subtitle thành các cụm nhỏ (mỗi cụm tối đa 5 từ) để hiển thị gọn gàng
-    words = vo.split()
-    chunk_size = 5
-    phrase_divs = []
-    
-    for idx, j in enumerate(range(0, len(words), chunk_size)):
-        chunk = words[j : j + chunk_size]
-        words_html = "".join(f'<span class="sub-word">{_e(w)}</span> ' for w in chunk)
-        phrase_divs.append(
-            f'      <div class="sub-phrase" id="phrase-{sid}-{idx}" style="display: none; opacity: 0;">\n'
-            f'        {words_html}\n'
-            f'      </div>'
+    # Phụ đề: mỗi đoạn 1 dòng, lần lượt fade-in / fade-out đè lên nhau
+    if sub_chunks:
+        sub_lines_html = "\n".join(
+            f'      <div class="sub-line" id="{sid}-sub-{i}">{_e(chunk)}</div>'
+            for i, chunk in enumerate(sub_chunks)
         )
-    phrase_html = "\n".join(phrase_divs)
-    
+        subtitle_html = (
+            f'    <div class="subtitle-bar" id="{sid}-subtitle">\n'
+            f'{sub_lines_html}\n'
+            f'    </div>'
+        )
+    else:
+        subtitle_html = ""
+
+
     return f"""
   <!-- {sid}: t={start}..{start+dur}s -->
   <div class="scene clip {bg_class}" id="scene-{sid}"
@@ -336,9 +383,7 @@ def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
         {body_html}
       </div>
     </div>
-    <div class="subtitle-bar" id="{sid}-subtitle">
-{phrase_html}
-    </div>
+{subtitle_html}
   </div>"""
 
 
@@ -362,63 +407,38 @@ def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
         dur   = s["duration"]
         fade  = min(0.5, dur * 0.08)
         out_t = start + dur - fade
- 
-        vo = s.get("voiceover", "").strip()
-        words = vo.split()
-        words_count = len(words)
-        
-        speech_start_delay = 0.4 if sid == "intro" else 0.5
-        speech_end_buffer = 0.6 if sid == "intro" else 0.7
-        speech_duration = max(0.5, dur - speech_start_delay - speech_end_buffer)
-        word_duration = speech_duration / max(1, words_count)
- 
+
+        sub_chunks = _split_chunks(s.get("voiceover", "") or "")
+        n_chunks = len(sub_chunks)
+        speech_duration = max(0.5, dur - 1.2)
+        sub_in_offset = 0.7   # giây sau khi scene bắt đầu thì dòng phụ đề đầu tiên hiện
+        chunk_fade = 0.25     # thời gian crossfade giữa 2 dòng phụ đề
+
         lines.append(f"  // {sid}: {start}s → {start+dur}s")
- 
-        if sid == "intro":
-            # HOOK 3 giây đầu: vào nhanh, pop scale, lộ trọn nội dung ngay đầu
-            lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:0.25}}, {start+0.05});")
-            lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:0.35}}, {start+0.1});")
-            lines.append(f"  tl.fromTo('#scene-{sid} .content-card', {{opacity:0, scale:0.82, y:0}}, {{opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(1.6)'}}, {start+0.18});")
-            lines.append(f"  tl.fromTo('#{sid}-headline', {{opacity:0, scale:0.6, y:0}}, {{opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(2)'}}, {start+0.32});")
-            lines.append(f"  tl.to('#{sid}-text', {{opacity:1, y:0, duration:0.4}}, {start+0.62});")
-        else:
-            lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
-            lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
-            lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
-            if sid != "message":
-                lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
-            lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
-            
-        # Thêm mốc hiện container của phụ đề
-        lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:0.2}}, {round(start + 0.2, 3)});")
-        
-        # Animate từng cụm từ (phrases)
-        for phrase_idx, j in enumerate(range(0, words_count, chunk_size)):
-            chunk = words[j : j + chunk_size]
-            start_w = j
-            phrase_start = round(start + speech_start_delay + start_w * word_duration, 3)
-            phrase_dur = round(len(chunk) * word_duration, 3)
-            phrase_end = round(phrase_start + phrase_dur, 3)
-            
-            phrase_id = f"#phrase-{sid}-{phrase_idx}"
-            
-            # Hiện cụm chữ hiện tại
-            lines.append(f"  tl.to('{phrase_id}', {{display:'block', opacity:1, duration:0.12}}, {phrase_start});")
-            
-            # Chạy karaoke cho các từ trong cụm này
-            if len(chunk) > 0:
+        lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
+        # Ken Burns: zoom nhẹ ảnh nền suốt thời lượng scene
+        lines.append(f"  tl.fromTo('#bg-{sid}', {{scale:1.0}}, {{scale:1.08, duration:{dur}, ease:'none'}}, {start});")
+        lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
+        lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
+        if sid != "message":
+            lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
+        lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
+
+        if n_chunks > 0:
+            lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:{fade}}}, {start+0.5});")
+            weights = [max(1, len(c.split())) for c in sub_chunks]
+            total_w = sum(weights)
+            t_cursor = start + sub_in_offset
+            for i, w in enumerate(weights):
                 lines.append(
-                    f"  tl.to('{phrase_id} .sub-word', {{keyframes:["
-                    "{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},"
-                    "{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}"
-                    f"], stagger:{round(word_duration, 4)}}}, {phrase_start});"
+                    f"  tl.to('#{sid}-sub-{i}', {{opacity:1, duration:{chunk_fade}}}, {t_cursor:.3f});"
                 )
-            
-            # Ẩn cụm chữ này khi đọc xong
-            lines.append(f"  tl.to('{phrase_id}', {{display:'none', opacity:0, duration:0.12}}, {phrase_end});")
-            
-        # Ẩn container phụ đề và scene khi kết thúc
-        lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:0, duration:{fade}}}, {out_t});")
+                if i > 0:
+                    lines.append(
+                        f"  tl.to('#{sid}-sub-{i-1}', {{opacity:0, duration:{chunk_fade}}}, {t_cursor:.3f});"
+                    )
+                t_cursor += speech_duration * (w / total_w)
+
         lines.append(f"  tl.to('#scene-{sid}', {{opacity:0, duration:{fade}}}, {out_t});")
         lines.append("")
 
@@ -442,6 +462,9 @@ def generate_index_html(scenes: dict, scene_bg_map: dict[str, str | None] | None
             f"  gsap.set(['#scene-{sid}', '#scene-{sid} .logo-strip', '#scene-{sid} .content-card', "
             f"'#{sid}-headline', '#{sid}-text', '#{sid}-url', '#{sid}-subtitle'], "
             f"{{opacity:0, y:30}});"
+        )
+        init_js_parts.append(
+            f"  gsap.set('#scene-{sid} .sub-line', {{opacity:0}});"
         )
 
     scene_divs   = "\n".join(build_scene_div(s, scene_bg_map.get(s["id"])) for s in scene_list)
