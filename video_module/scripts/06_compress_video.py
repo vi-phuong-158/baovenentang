@@ -10,6 +10,7 @@ Mục tiêu: < 50 MB. Nếu vượt, tăng CRF tự động.
 import subprocess
 import sys
 import logging
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -27,6 +28,24 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 
+def find_ffmpeg() -> str:
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return ffmpeg
+
+    winget_root = Path.home() / "AppData" / "Local" / "Microsoft" / "WinGet" / "Packages"
+    if winget_root.exists():
+        matches = sorted(
+            winget_root.glob("**/ffmpeg.exe"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if matches:
+            return str(matches[0])
+
+    return "ffmpeg"
+
+
 def _run_ffmpeg(cmd: list[str], label: str) -> None:
     log.info(f"FFmpeg [{label}]: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -39,7 +58,7 @@ def _run_ffmpeg(cmd: list[str], label: str) -> None:
 def merge_audio(video: Path, audio: Path, out: Path) -> None:
     """Ghép video_raw + voiceover.mp3 thành video có âm thanh."""
     cmd = [
-        "ffmpeg", "-y",
+        find_ffmpeg(), "-y",
         "-i", str(video),
         "-i", str(audio),
         "-c:v", "copy",
@@ -54,7 +73,7 @@ def merge_audio(video: Path, audio: Path, out: Path) -> None:
 def compress(src: Path, out: Path, crf: int = CRF_DEFAULT) -> None:
     """Nén H.264/AAC với CRF cho trước."""
     cmd = [
-        "ffmpeg", "-y",
+        find_ffmpeg(), "-y",
         "-i", str(src),
         "-c:v", "libx264",
         "-crf", str(crf),
