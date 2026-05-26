@@ -29,6 +29,7 @@ DICT_FILE    = ROOT / "data" / "tts_dictionary.json"
 OUTPUT_AUDIO = ROOT / "audio" / "voiceover.mp3"
 
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge")
+AUDIO_SYNC_TOLERANCE_SECONDS = 0.5
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -128,6 +129,128 @@ def build_full_script(scenes: dict, dictionary: dict) -> str:
     return ". ".join(parts) + "."
 
 
+def _skip_id3v2(data: bytes) -> int:
+    """Return byte offset after an optional ID3v2 tag."""
+    if len(data) < 10 or data[:3] != b"ID3":
+        return 0
+    size = 0
+    for b in data[6:10]:
+        size = (size << 7) | (b & 0x7F)
+    return 10 + size
+
+
+def get_mp3_duration_seconds(path: Path) -> float:
+    """Estimate MP3 duration by summing MPEG audio frame durations."""
+    data = path.read_bytes()
+    i = _skip_id3v2(data)
+    total = 0.0
+
+    bitrate_table = {
+        3: {
+            1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0],
+            2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 0],
+            3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0],
+        },
+        2: {
+            1: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0],
+            2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0],
+            3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0],
+        },
+    }
+    sample_rate_table = {
+        0: [11025, 12000, 8000, 0],
+        2: [22050, 24000, 16000, 0],
+        3: [44100, 48000, 32000, 0],
+    }
+
+    while i + 4 <= len(data):
+        header = int.from_bytes(data[i:i + 4], "big")
+        if (header & 0xFFE00000) != 0xFFE00000:
+            i += 1
+            continue
+
+        version_id = (header >> 19) & 0b11
+        layer_id = (header >> 17) & 0b11
+        bitrate_idx = (header >> 12) & 0b1111
+        sample_idx = (header >> 10) & 0b11
+        padding = (header >> 9) & 0b1
+
+        if version_id == 1 or layer_id == 0:
+            i += 1
+            continue
+
+        table_version = 3 if version_id == 3 else 2
+        bitrate = bitrate_table[table_version][layer_id][bitrate_idx] * 1000
+        sample_rate = sample_rate_table[version_id][sample_idx]
+        if bitrate <= 0 or sample_rate <= 0:
+            i += 1
+            continue
+
+        if layer_id == 3:
+            samples = 384
+            frame_len = int((12 * bitrate / sample_rate + padding) * 4)
+        elif layer_id == 2:
+            samples = 1152
+            frame_len = int(144 * bitrate / sample_rate + padding)
+        else:
+            samples = 1152 if version_id == 3 else 576
+            coeff = 144 if version_id == 3 else 72
+            frame_len = int(coeff * bitrate / sample_rate + padding)
+
+        if frame_len <= 4:
+            i += 1
+            continue
+
+        total += samples / sample_rate
+        i += frame_len
+
+    if total <= 0:
+        raise RuntimeError(f"Khong doc duoc duration MP3: {path}")
+    return total
+
+
+def sync_scene_timing_to_audio(scenes: dict, dictionary: dict, audio_duration: float) -> bool:
+    """Update scene starts/durations so visual timeline follows actual voiceover."""
+    scene_list = scenes.get("scenes", [])
+    if not scene_list:
+        return False
+
+    current_total = scenes.get("duration_seconds") or sum(float(s.get("duration", 0)) for s in scene_list)
+    has_timing_gap = False
+    for idx, scene in enumerate(scene_list):
+        start = float(scene.get("start", 0))
+        duration = float(scene.get("duration", 0))
+        if idx < len(scene_list) - 1:
+            next_start = float(scene_list[idx + 1].get("start", 0))
+            if abs((start + duration) - next_start) > 0.0004:
+                has_timing_gap = True
+                break
+
+    if abs(float(current_total) - audio_duration) <= AUDIO_SYNC_TOLERANCE_SECONDS and not has_timing_gap:
+        return False
+
+    weights = []
+    for scene in scene_list:
+        vo = normalize_text(scene.get("voiceover", "").strip(), dictionary)
+        weights.append(max(len(vo.split()), 1))
+
+    weight_total = sum(weights)
+    total_duration = round(audio_duration, 3)
+    starts = [0.0]
+    cursor = 0.0
+    for weight in weights[:-1]:
+        cursor += audio_duration * weight / weight_total
+        starts.append(round(cursor, 3))
+    starts.append(total_duration)
+
+    for idx, scene in enumerate(scene_list):
+        scene["start"] = starts[idx]
+        scene["duration"] = round(max(0.001, starts[idx + 1] - starts[idx]), 3)
+
+    scenes["duration_seconds"] = total_duration
+    return True
+
+
 # ── Adapter factory ───────────────────────────────────────────────────────────
 
 def get_adapter(provider: str):
@@ -196,6 +319,11 @@ def run(
 
     output.parent.mkdir(exist_ok=True)
     used_provider = synthesize_with_fallback(full_script, output, provider)
+
+    audio_duration = get_mp3_duration_seconds(output)
+    if sync_scene_timing_to_audio(scenes, dictionary, audio_duration):
+        scenes_file.write_text(json.dumps(scenes, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info(f"Da dong bo scenes.json theo voiceover: {audio_duration:.2f}s")
 
     size_kb = output.stat().st_size // 1024
     log.info(f"→ {output.name} ({size_kb} KB) via {used_provider}")

@@ -9,6 +9,7 @@ Output: output/video_raw.mp4
 import html
 import json
 import os
+import shutil
 import subprocess
 import sys
 import logging
@@ -31,6 +32,24 @@ BROWSER_PATH = os.getenv(
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
+
+
+def find_ffmpeg_dir() -> str | None:
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return str(Path(ffmpeg).parent)
+
+    winget_root = Path.home() / "AppData" / "Local" / "Microsoft" / "WinGet" / "Packages"
+    if winget_root.exists():
+        matches = sorted(
+            winget_root.glob("**/ffmpeg.exe"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if matches:
+            return str(matches[0].parent)
+
+    return None
 
 SCENE_META = {
     "intro":   {"icon": "🛡️", "label": "BẢN TIN NGÀY",      "bg": "#1a0505"},
@@ -129,7 +148,7 @@ def build_scene_div(scene: dict) -> str:
 
     return f"""
   <!-- {sid}: t={start}..{start+dur}s -->
-  <div class="scene" id="scene-{sid}"
+  <div class="scene clip" id="scene-{sid}"
        data-start="{start}" data-duration="{dur}" data-track-index="0"
        style="background:{bg};">
     <div class="bar bar-top"></div>
@@ -156,7 +175,8 @@ def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
         lines.append(f"  // {sid}: {start}s → {start+dur}s")
         lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
         lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
-        lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
+        if sid != "message":
+            lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
         lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
         lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:{fade}}}, {start+0.7});")
         lines.append(f"  tl.to('#scene-{sid}', {{opacity:0, duration:{fade}}}, {out_t});")
@@ -164,7 +184,8 @@ def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
 
     # Hold đến total duration
     lines.append(f"  tl.to({{}}, {{duration:0.001}}, {total_dur - 0.001});")
-    lines.append("  window.__timelines = { 'troly35-daily': tl };")
+    lines.append("  window.__timelines = window.__timelines || {};")
+    lines.append("  window.__timelines['troly35-daily'] = tl;")
     return "\n".join(lines)
 
 
@@ -231,12 +252,17 @@ def run(
     # Chạy hyperframes render
     output.parent.mkdir(exist_ok=True)
     env = os.environ.copy()
+    ffmpeg_dir = find_ffmpeg_dir()
+    if ffmpeg_dir:
+        env["PATH"] = ffmpeg_dir + os.pathsep + env.get("PATH", "")
+        log.info(f"FFmpeg: {ffmpeg_dir}")
     if BROWSER_PATH and Path(BROWSER_PATH).exists():
         env["HYPERFRAMES_BROWSER_PATH"] = BROWSER_PATH
         log.info(f"Browser: {BROWSER_PATH}")
 
+    npx_cmd = shutil.which("npx") or shutil.which("npx.cmd") or "npx"
     cmd = [
-        "npx", "hyperframes", "render", ".",
+        npx_cmd, "hyperframes", "render", ".",
         "-o", str(output),
         "--resolution", "portrait",
         "-f", "30",
