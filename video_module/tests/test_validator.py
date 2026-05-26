@@ -218,6 +218,7 @@ def test_find_doc_numbers_empty():
 
 def test_categories_cache_reloads_when_file_changes(tmp_path, monkeypatch):
     """Khi categories.json bị sửa, cache phải tự reload theo mtime."""
+    import os
     cat_file = tmp_path / "categories.json"
     cat_file.write_text(json.dumps({
         "categories": [{"key": "alpha"}, {"key": "beta"}]
@@ -229,15 +230,12 @@ def test_categories_cache_reloads_when_file_changes(tmp_path, monkeypatch):
     first = _mod._load_valid_categories()
     assert first == {"alpha", "beta"}
 
-    # Sửa file + đảm bảo mtime mới (Linux thường có resolution 1ms, sleep nhỏ là đủ)
-    import time
-    time.sleep(0.01)
     cat_file.write_text(json.dumps({
         "categories": [{"key": "alpha"}, {"key": "gamma"}]
     }), encoding="utf-8")
-    # Force mtime mới
-    import os
-    new_mtime = os.path.getmtime(cat_file) + 1
+    # Force mtime cách hẳn 60s để không phụ thuộc filesystem resolution
+    # (FAT có 2s precision, một số NFS mount có precision thấp)
+    new_mtime = os.path.getmtime(cat_file) + 60
     os.utime(cat_file, (new_mtime, new_mtime))
 
     second = _mod._load_valid_categories()
@@ -259,3 +257,50 @@ def test_categories_cache_empty_when_file_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(_mod, "CATEGORIES_FILE", tmp_path / "nope.json")
     monkeypatch.setattr(_mod, "_CATEGORIES_CACHE", None)
     assert _mod._load_valid_categories() == set()
+
+
+def test_categories_returns_frozenset_not_mutable(tmp_path, monkeypatch):
+    """Caller không được mutate cache vô tình."""
+    cat_file = tmp_path / "categories.json"
+    cat_file.write_text(json.dumps({"categories": [{"key": "x"}]}), encoding="utf-8")
+    monkeypatch.setattr(_mod, "CATEGORIES_FILE", cat_file)
+    monkeypatch.setattr(_mod, "_CATEGORIES_CACHE", None)
+
+    result = _mod._load_valid_categories()
+    import pytest
+    with pytest.raises(AttributeError):
+        result.add("malicious")  # frozenset không có .add
+
+
+# ── Date validation cho seed ImagePicker ────────────────────────────────────
+
+def test_validator_accepts_valid_scene_date():
+    scenes = _make_scenes()  # default date "22/5/2026"
+    facts = _make_facts()
+    errors = validate(scenes, facts)
+    # date hợp lệ — không có error nhắc đến 'date'
+    assert not any("date" in e.lower() and "format" in e.lower() for e in errors)
+
+
+def test_validator_rejects_missing_scene_date():
+    scenes = _make_scenes()
+    del scenes["date"]
+    facts = _make_facts()
+    errors = validate(scenes, facts)
+    assert any("date" in e.lower() for e in errors)
+
+
+def test_validator_rejects_bad_date_format():
+    scenes = _make_scenes()
+    scenes["date"] = "May 22, 2026"  # sai format
+    facts = _make_facts()
+    errors = validate(scenes, facts)
+    assert any("date" in e.lower() for e in errors)
+
+
+def test_validator_rejects_non_string_date():
+    scenes = _make_scenes()
+    scenes["date"] = 20260522
+    facts = _make_facts()
+    errors = validate(scenes, facts)
+    assert any("date" in e.lower() for e in errors)

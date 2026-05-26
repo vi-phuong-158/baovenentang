@@ -20,29 +20,36 @@ CATEGORIES_FILE = ROOT / "assets" / "library" / "categories.json"
 REQUIRED_SCENE_IDS = {"intro", "summary", "news1", "news2", "news3", "briefs", "message", "cta"}
 
 
-_CATEGORIES_CACHE: tuple[float, set[str]] | None = None
+_CATEGORIES_CACHE: tuple[float, frozenset[str]] | None = None
 
 
-def _load_valid_categories() -> set[str]:
-    """Load categories.json với cache theo mtime — file mới sẽ tự reload."""
+def _load_valid_categories() -> frozenset[str]:
+    """Load categories.json với cache theo mtime — file mới sẽ tự reload.
+
+    Trả về frozenset để caller không thể mutate vô tình làm hỏng cache.
+    """
     global _CATEGORIES_CACHE
     if not CATEGORIES_FILE.exists():
         _CATEGORIES_CACHE = None
-        return set()
+        return frozenset()
     mtime = CATEGORIES_FILE.stat().st_mtime
     if _CATEGORIES_CACHE is not None and _CATEGORIES_CACHE[0] == mtime:
         return _CATEGORIES_CACHE[1]
     try:
         data = json.loads(CATEGORIES_FILE.read_text(encoding="utf-8"))
-        result = {c["key"] for c in data.get("categories", [])}
+        result = frozenset(c["key"] for c in data.get("categories", []))
     except Exception:
-        result = set()
+        result = frozenset()
     _CATEGORIES_CACHE = (mtime, result)
     return result
 DURATION_MIN = 60
 DURATION_MAX = 90
 MAX_TEXT_WORDS = 12
 MAX_HEADLINE_WORDS = 6
+
+# Format date trong scenes.json (LLM sinh từ facts.date) — dùng làm seed
+# ImagePicker, phải ổn định giữa các lần chạy. Format dd/m/yyyy hoặc dd/mm/yyyy.
+SCENE_DATE_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
 
 # Dùng lại pattern từ extractor (suffix cho phép chữ số — QH15, QH14)
 GOV_DOC_RE = re.compile(
@@ -133,7 +140,14 @@ def validate(scenes: dict, facts: dict) -> list[str]:
         if not scene.get("voiceover", "").strip():
             errors.append(f"Scene '{scene.get('id')}': voiceover rỗng")
 
-    # 7. visual_category phải nằm trong enum (nếu categories.json đã có)
+    # 7a. scenes 'date' phải đúng format dd/m/yyyy (dùng làm seed ImagePicker)
+    scene_date = scenes.get("date", "")
+    if not isinstance(scene_date, str) or not SCENE_DATE_RE.match(scene_date.strip()):
+        errors.append(
+            f"scenes thiếu trường 'date' hoặc sai format dd/m/yyyy: {scene_date!r}"
+        )
+
+    # 7b. visual_category phải nằm trong enum (nếu categories.json đã có)
     valid_categories = _load_valid_categories()
     if valid_categories:
         for scene in scene_list:

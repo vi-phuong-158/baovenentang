@@ -273,12 +273,18 @@ def sync_scene_timing_to_audio(scenes: dict, dictionary: dict, audio_duration: f
 
     current_total = scenes.get("duration_seconds") or sum(float(s.get("duration", 0)) for s in scene_list)
     has_timing_gap = False
+    cumulative_drift = 0.0
     for idx, scene in enumerate(scene_list):
         start = float(scene.get("start", 0))
         duration = float(scene.get("duration", 0))
         if idx < len(scene_list) - 1:
             next_start = float(scene_list[idx + 1].get("start", 0))
-            if abs((start + duration) - next_start) > TIMING_GAP_TOLERANCE_SECONDS:
+            gap = abs((start + duration) - next_start)
+            cumulative_drift += gap
+            # Trigger re-sync nếu 1 khe quá lớn, HOẶC tổng drift cộng dồn vượt
+            # ngưỡng tổng — tránh trường hợp nhiều khe nhỏ dưới tolerance đơn lẻ
+            # nhưng cộng lại làm voice lệch animation cuối video.
+            if gap > TIMING_GAP_TOLERANCE_SECONDS or cumulative_drift > AUDIO_SYNC_TOLERANCE_SECONDS:
                 has_timing_gap = True
                 break
 

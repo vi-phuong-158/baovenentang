@@ -50,7 +50,12 @@ def fetch_news_markdown() -> str:
     except (requests.Timeout, requests.ConnectionError) as e:
         log.error(f"GAS không phản hồi: {e}")
         sys.exit(1)
-    resp.raise_for_status()
+
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        log.error(f"GAS trả về HTTP error (HTTP {resp.status_code}): {e}")
+        sys.exit(1)
 
     try:
         body = resp.json()

@@ -160,3 +160,17 @@ def test_fetch_exits_on_connection_error():
          pytest.raises(SystemExit) as exc:
         fetch.fetch_news_markdown()
     assert exc.value.code == 1
+
+
+def test_fetch_exits_on_http_error_clean():
+    """raise_for_status raise HTTPError → phải catch và sys.exit(1), không traceback."""
+    import requests as _requests
+    resp = MagicMock()
+    resp.status_code = 500
+    resp.raise_for_status.side_effect = _requests.HTTPError("500 Server Error")
+    with patch("requests.get", return_value=resp), \
+         patch.object(fetch, "GAS_URL", "https://gas.example/exec"), \
+         patch.object(fetch, "GAS_TOKEN", "TOKEN"), \
+         pytest.raises(SystemExit) as exc:
+        fetch.fetch_news_markdown()
+    assert exc.value.code == 1

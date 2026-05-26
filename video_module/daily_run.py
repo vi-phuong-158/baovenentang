@@ -203,6 +203,7 @@ def log_timing_summary() -> None:
 
 def main() -> None:
     acquire_lock()
+    STEP_TIMINGS.clear()  # reset bộ đếm để gọi main() lại trong cùng process không lẫn
     try:
         log.info(f"=== Video module Trợ lý 35 — {DATE_STR} ===")
 

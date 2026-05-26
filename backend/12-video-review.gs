@@ -48,32 +48,55 @@ function handleVideoCallbackQuery(callbackQuery) {
     return;
   }
 
-  // Idempotency: nếu video đã được duyệt/từ chối trước đó thì không xử lý lại.
-  // Sau khi xử lý, ta xoá inline_keyboard và sửa caption → 2 dấu hiệu đáng tin
-  // hơn so với chỉ check caption (caption có thể bị edit thủ công).
-  if (isAlreadyHandled_(callbackQuery.message)) {
-    answerCallbackQuery_(callbackId, 'ℹ️ Video này đã được xử lý trước đó.', true);
-    Logger.log(`[VideoReview] Bỏ qua callback duplicate cho message_id=${callbackQuery.message && callbackQuery.message.message_id}`);
+  // Idempotency 2 lớp để chống race khi 2 approver bấm gần đồng thời:
+  //  1) LockService global — chỉ 1 execution xử lý 1 lúc;
+  //  2) CacheService per-message_id — flag tồn tại 1h, bền hơn snapshot
+  //     reply_markup vì callback_query.message là snapshot lúc Telegram
+  //     gửi sự kiện, có thể outdated.
+  const message   = callbackQuery.message;
+  const chatId    = message && message.chat && message.chat.id;
+  const messageId = message && message.message_id;
+  const cacheKey  = `vr_handled_${chatId}_${messageId}`;
+  const cache     = CacheService.getScriptCache();
+  const lock      = LockService.getScriptLock();
+
+  if (!lock.tryLock(5000)) {
+    answerCallbackQuery_(callbackId, '⚠️ Hệ thống đang bận, thử lại sau vài giây.', true);
+    Logger.log(`[VideoReview] LockService busy, bỏ qua cb cho message_id=${messageId}`);
     return;
   }
+  try {
+    if (cache.get(cacheKey) || isAlreadyHandled_(message)) {
+      answerCallbackQuery_(callbackId, 'ℹ️ Video này đã được xử lý trước đó.', true);
+      Logger.log(`[VideoReview] Bỏ qua callback duplicate cho message_id=${messageId}`);
+      return;
+    }
+    // Đặt flag NGAY trước khi gọi Telegram API để execution khác (chờ lock) khi
+    // lấy được lock sẽ thấy flag và skip — kể cả nếu execution này crash giữa
+    // chừng cũng không xử lý lại trong 1h.
+    cache.put(cacheKey, '1', 3600);
 
-  if (data === 'approve') {
-    handleVideoApprove_(callbackQuery, userName.trim());
-  } else {
-    handleVideoReject_(callbackQuery, userName.trim());
+    if (data === 'approve') {
+      handleVideoApprove_(callbackQuery, userName.trim());
+    } else {
+      handleVideoReject_(callbackQuery, userName.trim());
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 
 function isAlreadyHandled_(message) {
-  if (!message) return false;
+  if (!message) return true;  // phantom callback → skip an toàn
   // Nếu inline_keyboard đã bị xoá → video đã xử lý
   const rm = message.reply_markup;
   if (!rm || !rm.inline_keyboard || rm.inline_keyboard.length === 0) {
     return true;
   }
-  // Fallback: check caption chứa cờ hiệu đã xử lý
+  // Fallback: caption bắt đầu bằng cờ hiệu chuẩn (prefix + markdown bold) —
+  // anchor đầu dòng để tránh false-positive khi nội dung bản tin trùng chữ.
   const caption = message.caption || '';
-  if (/ĐÃ DUYỆT VÀ ĐĂNG|ĐÃ TỪ CHỐI/.test(caption)) {
+  if (/^✅ \*ĐÃ DUYỆT VÀ ĐĂNG\*|^❌ \*ĐÃ TỪ CHỐI\*/.test(caption)) {
     return true;
   }
   return false;
