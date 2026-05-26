@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Bell, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
+import { Bell, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, MessageCircle, Newspaper, RefreshCw, Search, Send, Users, BookOpen, X } from 'lucide-react';
 import { getArticles, getStats, invalidateCache, searchArticles, subscribe } from '../api.js';
 
 function useDebounce(value, delay) {
@@ -85,6 +85,7 @@ const DAY_OPTIONS = [
 const PAGE_LIMIT = 10;
 
 const SIGNUP_TOPICS = [
+  'Tất cả',
   'Bảo vệ nền tảng tư tưởng',
   'An ninh mạng',
   'Chính sách pháp luật',
@@ -181,7 +182,7 @@ export default function TinTuc() {
   const [category, setCategory] = useState('');
   const [onlyImportant, setOnlyImportant] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
-  const [signupForm, setSignupForm] = useState({ name: '', email: '', organization: '', topics: '', channel: 'Email' });
+  const [signupForm, setSignupForm] = useState({ name: '', email: '', organization: '', topics: 'Tất cả', channel: 'Email' });
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [signupError, setSignupError] = useState('');
@@ -192,7 +193,7 @@ export default function TinTuc() {
   const load = async (d = days, forceRefresh = false) => {
     if (forceRefresh) {
       invalidateCache();
-      invalidateCache('stats');
+      invalidateCache('stats-v2');
     }
     setLoading(true);
     setError('');
@@ -290,15 +291,8 @@ export default function TinTuc() {
 
   const setSignupField = (key, value) => setSignupForm(f => ({ ...f, [key]: value }));
 
-  const selectSignupChannel = (channel) => {
-    setSignupField('channel', channel);
-    if (channel === 'Telegram') {
-      window.open(TELEGRAM_CHANNEL_URL, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   const resetSignup = () => {
-    setSignupForm({ name: '', email: '', organization: '', topics: '', channel: 'Email' });
+    setSignupForm({ name: '', email: '', organization: '', topics: 'Tất cả', channel: 'Email' });
     setSignupError('');
     setSignupSuccess(false);
   };
@@ -315,7 +309,7 @@ export default function TinTuc() {
       const res = await subscribe(signupForm);
       if (res.success === false) throw new Error(res.error || 'Có lỗi xảy ra.');
       setSignupSuccess(true);
-      invalidateCache('stats');
+      invalidateCache('stats-v2');
       load(days, true);
     } catch (err) {
       setSignupError(err.message || 'Không đăng ký được. Thử lại sau.');
@@ -368,17 +362,22 @@ export default function TinTuc() {
         <div className={`card ${showSignup ? 'elevated' : 'tinted'}`} style={{ marginBottom: 14 }}>
           {/* Collapsed state */}
           {!showSignup && (
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div className="row" style={{ gap: 10 }}>
                 <div className="chip red"><Bell size={16} /></div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15 }}>Theo dõi bản tin</div>
-                  <div className="text-sm text-soft">Nhận tin chọn lọc qua Email hoặc Telegram.</div>
+                  <div className="text-sm text-soft">Nhận bản tin qua Email hoặc theo dõi kênh Telegram.</div>
                 </div>
               </div>
-              <button className="btn primary sm" onClick={() => setShowSignup(true)} style={{ flexShrink: 0 }}>
-                Đăng ký
-              </button>
+              <div className="row" style={{ gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                <a className="btn ghost sm" href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer">
+                  <MessageCircle size={15} /> Theo dõi Telegram
+                </a>
+                <button className="btn primary sm" onClick={() => setShowSignup(true)}>
+                  Đăng ký Email
+                </button>
+              </div>
             </div>
           )}
 
@@ -388,7 +387,7 @@ export default function TinTuc() {
               <CheckCircle size={36} color="var(--ok)" style={{ margin: '0 auto 8px' }} />
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Đăng ký thành công!</div>
               <div className="text-sm text-soft" style={{ marginBottom: 14 }}>
-                Bạn sẽ nhận bản tin qua <strong>{signupForm.channel}</strong>.
+                Bạn sẽ nhận bản tin qua <strong>Email</strong>.
               </div>
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn ghost full" onClick={resetSignup}>Đăng ký thêm</button>
@@ -403,7 +402,7 @@ export default function TinTuc() {
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
                 <div className="row" style={{ gap: 8 }}>
                   <div className="chip red"><Bell size={15} /></div>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15 }}>Đăng ký bản tin</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15 }}>Đăng ký nhận Email</span>
                 </div>
                 <button type="button" onClick={() => setShowSignup(false)} style={{ color: 'var(--ink-mute)', display: 'flex' }} aria-label="Đóng">
                   <X size={18} />
@@ -445,17 +444,12 @@ export default function TinTuc() {
               </div>
 
               <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-                {['Email', 'Telegram'].map(channel => (
-                  <button
-                    key={channel}
-                    type="button"
-                    onClick={() => selectSignupChannel(channel)}
-                    className={`btn ${signupForm.channel === channel ? 'primary' : 'ghost'} sm`}
-                    style={{ flex: 1 }}
-                  >
-                    {channel === 'Email' ? '📧' : '💬'} {channel}
-                  </button>
-                ))}
+                <button type="button" className="btn primary sm" style={{ flex: 1 }}>
+                  📧 Nhận qua Email
+                </button>
+                <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="btn ghost sm" style={{ flex: 1 }}>
+                  <MessageCircle size={15} /> Theo dõi kênh Telegram
+                </a>
               </div>
 
               {signupError && <div className="msg error" style={{ marginBottom: 12 }}>{signupError}</div>}

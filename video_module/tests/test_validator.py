@@ -25,7 +25,7 @@ def _make_facts(doc_numbers: list[str] | None = None, date: str = "22/5/2026") -
         "legal_documents": docs,
         "top_news": [],
         "key_message": "",
-        "website": "https://baovenentang.vercel.app/",
+        "website": "https://www.troly35.info.vn/",
     }
 
 

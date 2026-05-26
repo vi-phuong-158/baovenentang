@@ -26,8 +26,26 @@ function truncateText_(text, maxLen) {
   return text.substring(0, maxLen) + '...';
 }
 
+function truncateAtWord_(text, maxLen) {
+  const value = cleanValue_(text);
+  if (!value || value.length <= maxLen) return value;
+  return value.substring(0, maxLen).replace(/\s+\S*$/, '') + '...';
+}
+
 function cleanValue_(value) {
   return value === undefined || value === null ? '' : value.toString().trim();
+}
+
+function normalizeNewsPriority_(priority) {
+  const value = cleanValue_(priority).toLowerCase();
+  if (value && value.indexOf('quan') !== -1 && value.indexOf('không quan') === -1) {
+    return 'Quan trọng';
+  }
+  return 'Bình thường';
+}
+
+function isImportantNewsArticle_(article) {
+  return normalizeNewsPriority_(article && article.priority) === 'Quan trọng';
 }
 
 function cleanText_(text) {

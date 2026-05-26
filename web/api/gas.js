@@ -8,7 +8,7 @@ const RATE_LIMIT_WINDOW = 60 * 1000;
 const RATE_LIMIT_MAX = 30;
 const ipHits = new Map();
 const TOKEN_INJECT_ACTIONS = new Set(['subscribe', 'submit_quiz', 'contact']);
-const ADMIN_ACTIONS = new Set(['bantin35_generate', 'feedback_stats']);
+const ADMIN_ACTIONS = new Set(['bantin35_generate', 'bantin35_setup_trigger', 'bantin35_trigger_status', 'feedback_stats']);
 
 function checkRateLimit(ip) {
   const now = Date.now();

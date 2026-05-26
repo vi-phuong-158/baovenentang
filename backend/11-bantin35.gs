@@ -6,8 +6,8 @@
  *
  * Luu y thiet ke:
  * - Khong theo doi du luan, binh luan ca nhan hay tai khoan ca nhan.
- * - API tra ban tin KHONG kem link; URL chi luu noi bo de chong trung
- *   va phuc vu kiem chung thu cong khi can.
+ * - Ban tin noi bo gui Telegram co kem link nguon de can bo phu trach
+ *   kiem chung thu cong khi can.
  * - Khong tu dong dang, chia se, hoac tao chien dich phan hoi.
  * ============================================================
  */
@@ -81,7 +81,10 @@ const BANTIN35_SHEET_HEADERS = {
     'Thời gian tạo', 'Cửa sổ ngày', 'Nguồn', 'Số mục',
     'Tiêu đề bản tin', 'Tóm tắt chung', 'Chủ đề nổi bật JSON',
     'Luận điểm chính JSON', 'Khuyến nghị theo dõi JSON',
-    'Bản tin không link', 'Trạng thái'
+    'Bản tin nội bộ', 'Trạng thái',
+    'Tóm tắt rủi ro', 'Luận điểm nhạy cảm JSON',
+    'Khung diễn giải JSON', 'Điểm cần kiểm chứng JSON',
+    'Ưu tiên xử lý JSON', 'Link nguồn JSON'
   ],
   BANTIN35_LOG: [
     'Thời gian', 'Action', 'Nguồn/URL', 'Trạng thái', 'Message'
@@ -125,10 +128,20 @@ const BANTIN35_ANALYSIS_SCHEMA = {
           }
         },
         main_narratives: { type: 'array', items: { type: 'string' } },
+        risk_summary: { type: 'string' },
+        sensitive_claims_summary: { type: 'array', items: { type: 'string' } },
+        framing_patterns: { type: 'array', items: { type: 'string' } },
+        verification_needed: { type: 'array', items: { type: 'string' } },
+        response_priority: { type: 'array', items: { type: 'string' } },
         recommended_follow_up: { type: 'array', items: { type: 'string' } },
         editor_note: { type: 'string' }
       },
-      required: ['title', 'overview', 'top_topics', 'main_narratives', 'recommended_follow_up', 'editor_note']
+      required: [
+        'title', 'overview', 'top_topics', 'main_narratives',
+        'risk_summary', 'sensitive_claims_summary', 'framing_patterns',
+        'verification_needed', 'response_priority',
+        'recommended_follow_up', 'editor_note'
+      ]
     }
   },
   required: ['item_summaries', 'report']
@@ -268,7 +281,6 @@ function sendBanTin35DigestNotifications(report) {
   if (!report) return;
 
   sendBanTin35TelegramDigest_(report);
-  sendBanTin35EmailDigest_(report);
 }
 
 function initializeBanTin35Sheets() {
@@ -433,17 +445,19 @@ function banTin35AnalyzeItems_(items) {
   }));
 
   const prompt = `Bạn là trợ lý biên tập Bản tin 35 nội bộ.
-Nhiệm vụ: đọc các mục nội dung từ một số nguồn đối lập/hải ngoại, gom chủ đề trùng nhau và viết bản tin ngắn gọn bằng tiếng Việt có dấu đầy đủ.
+Nhiệm vụ: đọc các mục nội dung từ một số nguồn công khai cần theo dõi, gom chủ đề trùng nhau và viết bản tin nghiệp vụ ngắn gọn bằng tiếng Việt có dấu đầy đủ.
 
 QUY TẮC BẮT BUỘC:
-1. Chỉ tóm tắt và phân loại nội dung; không viết lời kêu gọi hành động, không công kích cá nhân.
-2. Không tạo link, không đưa URL vào kết quả.
-3. Không suy diễn dư luận xã hội. Chỉ viết về "nhóm nguồn được quét" hoặc "các bài được quét".
+1. Chỉ tóm tắt, phân loại, đánh giá mức cần chú ý; không viết lời kêu gọi hành động, không công kích cá nhân.
+2. Không tạo link, không đưa URL vào kết quả. Hệ thống sẽ tự gắn link nguồn sau.
+3. Không suy diễn dư luận xã hội. Chỉ viết về "bài viết", "nguồn được quét" hoặc "nhóm nội dung được quét".
 4. Tránh lặp cụm "các nguồn này đang tập trung vào". Mỗi ý viết thẳng vào nội dung chính.
-5. Bỏ qua mục ít giá trị nghiệp vụ như tin tổng hợp, chương trình, diễn đàn, văn hóa giải trí nếu không liên quan trực tiếp Việt Nam, chính trị, an ninh, đối ngoại, kinh tế hoặc thông tin sai lệch.
-6. overview tối đa 3 câu. top_topics tối đa 4 mục. main_narratives tối đa 5 mục, mỗi mục tối đa 25 từ. recommended_follow_up tối đa 3 mục.
-7. Nếu nội dung có tính một chiều, thiếu căn cứ, hoặc có dấu hiệu bôi nhọ/xuyên tạc, ghi nhận ở sensitive_claims/framing.
-8. Trả về JSON đúng schema, toàn bộ nội dung tiếng Việt có dấu.
+5. Bỏ qua hoặc hạ ưu tiên mục ít giá trị nghiệp vụ như tin tổng hợp, chương trình, diễn đàn, văn hóa giải trí nếu không liên quan trực tiếp Việt Nam, chính trị, an ninh, đối ngoại, kinh tế hoặc thông tin sai lệch.
+6. overview tối đa 3 câu. top_topics tối đa 4 mục. main_narratives tối đa 5 mục, mỗi mục tối đa 25 từ.
+7. risk_summary tối đa 2 câu. sensitive_claims_summary, framing_patterns, verification_needed, response_priority và recommended_follow_up tối đa 4 mục mỗi loại.
+8. Nếu bài nêu cáo buộc hoặc nhận định một chiều, phải viết theo dạng gián tiếp như "bài viết cho rằng/nêu/đặt vấn đề", không biến cáo buộc thành khẳng định sự thật.
+9. Nếu nội dung thiếu căn cứ, một chiều, hoặc có dấu hiệu bôi nhọ/xuyên tạc, ghi nhận ở sensitive_claims/framing và phần tổng hợp tương ứng.
+10. Trả về JSON đúng schema, toàn bộ nội dung tiếng Việt có dấu.
 
 DANH SÁCH NỘI DUNG:
 ${JSON.stringify(aiInput, null, 2)}`;
@@ -478,6 +492,11 @@ NẾU KHÔNG DÙNG SCHEMA, HÃY TRẢ VỀ ĐÚNG JSON OBJECT THEO MẪU SAU, KH
     "overview": "tóm tắt chung ngắn gọn",
     "top_topics": [{"topic": "chủ đề", "count": 1, "summary": "tóm tắt 1 câu"}],
     "main_narratives": ["nội dung chính"],
+    "risk_summary": "nhận định ngắn về mức rủi ro thông tin",
+    "sensitive_claims_summary": ["luận điểm/cáo buộc cần chú ý"],
+    "framing_patterns": ["cách đặt vấn đề nổi bật"],
+    "verification_needed": ["điểm cần kiểm chứng trước khi sử dụng"],
+    "response_priority": ["việc cần ưu tiên xử lý hoặc theo dõi"],
     "recommended_follow_up": ["việc cần theo dõi tiếp"],
     "editor_note": "ghi chú biên tập"
   }
@@ -541,7 +560,13 @@ function banTin35SaveReport_(report, rawItems, startedAt) {
     overview: cleanValue_(report.overview),
     topTopics: Array.isArray(report.top_topics) ? report.top_topics : [],
     mainNarratives: Array.isArray(report.main_narratives) ? report.main_narratives : [],
+    riskSummary: cleanValue_(report.risk_summary),
+    sensitiveClaimsSummary: Array.isArray(report.sensitive_claims_summary) ? report.sensitive_claims_summary : [],
+    framingPatterns: Array.isArray(report.framing_patterns) ? report.framing_patterns : [],
+    verificationNeeded: Array.isArray(report.verification_needed) ? report.verification_needed : [],
+    responsePriority: Array.isArray(report.response_priority) ? report.response_priority : [],
     recommendedFollowUp: Array.isArray(report.recommended_follow_up) ? report.recommended_follow_up : [],
+    sourceLinks: banTin35BuildSourceLinks_(rawItems),
     editorNote: cleanValue_(report.editor_note),
     status: 'Draft'
   });
@@ -558,7 +583,13 @@ function banTin35SaveReport_(report, rawItems, startedAt) {
     JSON.stringify(normalized.mainNarratives),
     JSON.stringify(normalized.recommendedFollowUp),
     normalized.reportText,
-    normalized.status
+    normalized.status,
+    normalized.riskSummary,
+    JSON.stringify(normalized.sensitiveClaimsSummary),
+    JSON.stringify(normalized.framingPatterns),
+    JSON.stringify(normalized.verificationNeeded),
+    JSON.stringify(normalized.responsePriority),
+    JSON.stringify(normalized.sourceLinks)
   ]);
 
   return normalized;
@@ -580,7 +611,13 @@ function banTin35GetLatestReport_() {
     mainNarratives: banTin35SafeJson_(row[7], []),
     recommendedFollowUp: banTin35SafeJson_(row[8], []),
     reportText: cleanValue_(row[9]),
-    status: cleanValue_(row[10])
+    status: cleanValue_(row[10]),
+    riskSummary: cleanValue_(row[11]),
+    sensitiveClaimsSummary: banTin35SafeJson_(row[12], []),
+    framingPatterns: banTin35SafeJson_(row[13], []),
+    verificationNeeded: banTin35SafeJson_(row[14], []),
+    responsePriority: banTin35SafeJson_(row[15], []),
+    sourceLinks: banTin35SafeJson_(row[16], [])
   };
 }
 
@@ -605,15 +642,64 @@ function banTin35PolishReport_(report) {
     .filter(Boolean)
     .slice(0, 5);
 
+  polished.riskSummary = banTin35LimitSentences_(banTin35CleanOutputText_(polished.riskSummary), 2);
+
+  polished.sensitiveClaimsSummary = banTin35UniqueTexts_(polished.sensitiveClaimsSummary || [])
+    .map(item => banTin35LimitWords_(banTin35CleanOutputText_(item), 30))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  polished.framingPatterns = banTin35UniqueTexts_(polished.framingPatterns || [])
+    .map(item => banTin35LimitWords_(banTin35CleanOutputText_(item), 26))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  polished.verificationNeeded = banTin35UniqueTexts_(polished.verificationNeeded || [])
+    .map(item => banTin35LimitWords_(banTin35CleanOutputText_(item), 28))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  polished.responsePriority = banTin35UniqueTexts_(polished.responsePriority || [])
+    .map(item => banTin35LimitWords_(banTin35CleanOutputText_(item), 28))
+    .filter(Boolean)
+    .slice(0, 4);
+
   polished.recommendedFollowUp = banTin35UniqueTexts_(polished.recommendedFollowUp || [])
     .map(item => banTin35LimitWords_(banTin35CleanOutputText_(item), 30))
     .filter(Boolean)
     .slice(0, 3);
 
+  polished.sourceLinks = (Array.isArray(polished.sourceLinks) ? polished.sourceLinks : [])
+    .map(item => ({
+      title: banTin35LimitWords_(banTin35CleanOutputText_(item && item.title), 18),
+      source: banTin35CleanOutputText_(item && item.source),
+      url: cleanValue_(item && item.url)
+    }))
+    .filter(item => item.title && /^https?:\/\//i.test(item.url))
+    .slice(0, 8);
+
   polished.editorNote = banTin35CleanOutputText_(polished.editorNote) ||
     'Bản tin nội bộ, cần cán bộ phụ trách kiểm duyệt trước khi sử dụng.';
 
   return polished;
+}
+
+function banTin35BuildSourceLinks_(items) {
+  const seen = {};
+  return (items || [])
+    .map(item => ({
+      title: cleanValue_(item.title),
+      source: cleanValue_(item.sourceName),
+      url: cleanValue_(item.link)
+    }))
+    .filter(item => {
+      if (!item.title || !/^https?:\/\//i.test(item.url)) return false;
+      const key = item.url.toLowerCase();
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    })
+    .slice(0, 8);
 }
 
 function banTin35CleanOutputText_(value) {
@@ -695,155 +781,77 @@ function sendBanTin35TelegramDigest_(report) {
   }
 }
 
-function sendBanTin35EmailDigest_(report) {
-  if (!hasRequiredConfig_(REQUIRED_BREVO_CONFIG)) {
-    Logger.log('[BanTin35][Email] Bo qua vi thieu BREVO_API_KEY hoac SENDER_EMAIL');
-    return;
-  }
-
-  const subscribers = getSubscribers('Email');
-  if (subscribers.length === 0) {
-    Logger.log('[BanTin35][Email] Khong co subscriber email');
-    return;
-  }
-
-  let sent = 0;
-  let failed = 0;
-
-  subscribers.forEach(subscriber => {
-    try {
-      const result = sendEmailViaBrevo({
-        toEmail: subscriber.email,
-        toName: subscriber.name,
-        subject: `Bản tin 35 nội bộ - ${new Date().toLocaleDateString('vi-VN')}`,
-        htmlContent: banTin35BuildEmailHtml_(subscriber.name, report)
-      });
-
-      if (result.success) {
-        sent++;
-      } else {
-        failed++;
-        Logger.log(`[BanTin35][Email] Loi gui cho ${subscriber.email}: ${result.error}`);
-      }
-
-      Utilities.sleep(100);
-    } catch (error) {
-      failed++;
-      Logger.log(`[BanTin35][Email] Exception ${subscriber.email}: ${error}`);
-    }
-  });
-
-  Logger.log(`[BanTin35][Email] Da gui: ${sent}, that bai: ${failed}`);
-}
-
 function banTin35BuildTelegramMessage_(report) {
   const topicLines = (report.topTopics || [])
-    .slice(0, 5)
+    .slice(0, 4)
     .map((item, index) =>
       `${index + 1}. ${escapeMarkdown(item.topic || 'Chưa rõ')} (${Number(item.count) || 0} mục): ${escapeMarkdown(item.summary || '')}`
     )
     .join('\n');
 
-  const narrativeLines = (report.mainNarratives || [])
+  const narrativeLines = banTin35BuildTelegramList_(report.mainNarratives || [], 5, 150);
+  const sensitiveLines = banTin35BuildTelegramList_(report.sensitiveClaimsSummary || [], 4, 150);
+  const framingLines = banTin35BuildTelegramList_(report.framingPatterns || [], 3, 130);
+  const verificationLines = banTin35BuildTelegramList_(report.verificationNeeded || [], 3, 130);
+  const priorityLines = banTin35BuildTelegramList_(report.responsePriority || [], 3, 130);
+  const followUpLines = banTin35BuildTelegramList_(report.recommendedFollowUp || [], 3, 130);
+  const linkLines = (report.sourceLinks || [])
     .slice(0, 6)
-    .map((item, index) => `${index + 1}. ${escapeMarkdown(item)}`)
-    .join('\n');
-
-  const followUpLines = (report.recommendedFollowUp || [])
-    .slice(0, 5)
-    .map((item, index) => `${index + 1}. ${escapeMarkdown(item)}`)
+    .map((item, index) => {
+      const title = escapeMarkdown(banTin35LimitWords_(item.title || item.source || 'Nguồn', 12));
+      const source = item.source ? ` - ${escapeMarkdown(item.source)}` : '';
+      return `${index + 1}. [${title}${source}](${item.url})`;
+    })
     .join('\n');
 
   let message = `*BẢN TIN 35 NỘI BỘ*\n`;
   message += `${escapeMarkdown(new Date(report.generatedAt).toLocaleString('vi-VN'))}\n`;
   message += `Nguồn tổng hợp: ${escapeMarkdown(report.sourceNames || '')}\n`;
   message += `Số mục đọc: ${Number(report.itemCount) || 0}\n\n`;
-  message += `*Tóm tắt chung*\n${escapeMarkdown(report.overview || 'Chưa có tóm tắt.')}\n\n`;
+  message += `*Tóm tắt điều hành*\n${escapeMarkdown(report.overview || 'Chưa có tóm tắt.')}\n\n`;
   message += `*Chủ đề nổi bật*\n${topicLines || 'Chưa xác định.'}\n\n`;
   message += `*Nội dung chính*\n${narrativeLines || 'Chưa xác định.'}\n\n`;
+  message += `*Mức rủi ro*\n${escapeMarkdown(report.riskSummary || 'Chưa có tóm tắt rủi ro.')}\n\n`;
+  message += `*Luận điểm cần chú ý*\n${sensitiveLines || 'Chưa xác định.'}\n\n`;
+  message += `*Khung diễn giải*\n${framingLines || 'Chưa xác định.'}\n\n`;
+  message += `*Ưu tiên xử lý*\n${priorityLines || 'Chưa có.'}\n\n`;
+  message += `*Điểm cần kiểm chứng*\n${verificationLines || 'Chưa có.'}\n\n`;
   message += `*Gợi ý theo dõi tiếp*\n${followUpLines || 'Chưa có.'}\n\n`;
-  message += `_Bản tin nội bộ, không kèm link nguồn. Cần cán bộ phụ trách kiểm duyệt trước khi sử dụng._`;
+  message += `*Link nguồn*\n${linkLines || 'Chưa có link nguồn.'}\n\n`;
 
-  return message.length > 4000 ? message.substring(0, 3990) + '...' : message;
+  const footer = `_Bản tin nội bộ, có kèm link nguồn để kiểm chứng. Cần cán bộ phụ trách kiểm duyệt trước khi sử dụng._`;
+  message += footer;
+
+  if (message.length > 4000) {
+    const compactLinks = (report.sourceLinks || [])
+      .slice(0, 3)
+      .map((item, index) => {
+        const title = escapeMarkdown(banTin35LimitWords_(item.title || item.source || 'Nguồn', 10));
+        const source = item.source ? ` - ${escapeMarkdown(item.source)}` : '';
+        return `${index + 1}. [${title}${source}](${item.url})`;
+      })
+      .join('\n');
+
+    message = `*BẢN TIN 35 NỘI BỘ*\n`;
+    message += `${escapeMarkdown(new Date(report.generatedAt).toLocaleString('vi-VN'))}\n`;
+    message += `Nguồn tổng hợp: ${escapeMarkdown(report.sourceNames || '')}\n`;
+    message += `Số mục đọc: ${Number(report.itemCount) || 0}\n\n`;
+    message += `*Tóm tắt điều hành*\n${escapeMarkdown(truncateAtWord_(report.overview || 'Chưa có tóm tắt.', 500))}\n\n`;
+    message += `*Mức rủi ro*\n${escapeMarkdown(truncateAtWord_(report.riskSummary || 'Chưa có tóm tắt rủi ro.', 260))}\n\n`;
+    message += `*Ưu tiên xử lý*\n${priorityLines || 'Chưa có.'}\n\n`;
+    message += `*Điểm cần kiểm chứng*\n${verificationLines || 'Chưa có.'}\n\n`;
+    message += `*Link nguồn*\n${compactLinks || 'Chưa có link nguồn.'}\n\n`;
+    message += footer;
+  }
+
+  return message;
 }
 
-function banTin35BuildEmailHtml_(name, report) {
-  const safeName = banTin35EscapeHtml_(name || 'đồng chí');
-  const topics = banTin35ListToHtml_(report.topTopics || [], item =>
-    `<strong>${banTin35EscapeHtml_(item.topic || 'Chưa rõ')}</strong> (${Number(item.count) || 0} mục): ${banTin35EscapeHtml_(item.summary || '')}`
-  );
-  const narratives = banTin35ListToHtml_(report.mainNarratives || [], item => banTin35EscapeHtml_(item));
-  const followUp = banTin35ListToHtml_(report.recommendedFollowUp || [], item => banTin35EscapeHtml_(item));
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:20px 0;">
-    <tr>
-      <td align="center">
-        <table width="680" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5;">
-          <tr>
-            <td style="background:#8b0000;color:#ffffff;padding:24px 28px;">
-              <h1 style="margin:0;font-size:24px;">BẢN TIN 35 NỘI BỘ</h1>
-              <p style="margin:8px 0 0;font-size:13px;color:#f8d7da;">${banTin35EscapeHtml_(new Date(report.generatedAt).toLocaleString('vi-VN'))}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:24px 28px;color:#222;font-size:15px;line-height:1.6;">
-              <p style="margin-top:0;">Xin chao <strong>${safeName}</strong>,</p>
-              <p>Hệ thống gửi bản tin tổng hợp nội dung chính từ các nguồn công khai cần theo dõi. Bản tin không kèm link nguồn.</p>
-              <p style="color:#666;font-size:13px;">Nguồn tổng hợp: ${banTin35EscapeHtml_(report.sourceNames || '')}<br>Số mục đọc: ${Number(report.itemCount) || 0}</p>
-
-              <h2 style="font-size:18px;color:#8b0000;margin:24px 0 8px;">I. Tóm tắt chung</h2>
-              <p>${banTin35TextToHtml_(report.overview || 'Chưa có tóm tắt.')}</p>
-
-              <h2 style="font-size:18px;color:#8b0000;margin:24px 0 8px;">II. Chủ đề nổi bật</h2>
-              ${topics || '<p>Chưa xác định.</p>'}
-
-              <h2 style="font-size:18px;color:#8b0000;margin:24px 0 8px;">III. Nội dung chính</h2>
-              ${narratives || '<p>Chưa xác định.</p>'}
-
-              <h2 style="font-size:18px;color:#8b0000;margin:24px 0 8px;">IV. Gợi ý theo dõi tiếp</h2>
-              ${followUp || '<p>Chưa có.</p>'}
-
-              <div style="margin-top:24px;padding:14px 16px;background:#f8f8f8;border-left:4px solid #8b0000;color:#555;font-size:13px;">
-                Bản tin nội bộ, cần cán bộ phụ trách kiểm duyệt trước khi sử dụng. Nội dung chỉ phản ánh các chủ đề trong nhóm nguồn công khai được quét, không suy diễn dư luận xã hội.
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-function banTin35ListToHtml_(items, renderItem) {
-  if (!items || items.length === 0) return '';
-  return `<ol style="padding-left:22px;margin-top:8px;">${items
-    .slice(0, 8)
-    .map(item => `<li style="margin-bottom:8px;">${renderItem(item)}</li>`)
-    .join('')}</ol>`;
-}
-
-function banTin35TextToHtml_(text) {
-  return banTin35EscapeHtml_(text).replace(/\n/g, '<br>');
-}
-
-function banTin35EscapeHtml_(value) {
-  if (value === undefined || value === null) return '';
-  return value.toString()
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function banTin35BuildTelegramList_(items, limit, maxLen) {
+  return (items || [])
+    .slice(0, limit)
+    .map((item, index) => `${index + 1}. ${escapeMarkdown(truncateAtWord_(item, maxLen))}`)
+    .join('\n');
 }
 
 function banTin35ReportForApi_(report) {
@@ -858,7 +866,13 @@ function banTin35ReportForApi_(report) {
     overview: report.overview,
     topTopics: report.topTopics,
     mainNarratives: report.mainNarratives,
+    riskSummary: report.riskSummary,
+    sensitiveClaimsSummary: report.sensitiveClaimsSummary,
+    framingPatterns: report.framingPatterns,
+    verificationNeeded: report.verificationNeeded,
+    responsePriority: report.responsePriority,
     recommendedFollowUp: report.recommendedFollowUp,
+    sourceLinks: report.sourceLinks,
     reportText: report.reportText,
     status: report.status
   };
@@ -870,7 +884,14 @@ function banTin35BuildReportText_(report) {
   ).join('\n');
 
   const narratives = (report.mainNarratives || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  const sensitiveClaims = (report.sensitiveClaimsSummary || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  const framing = (report.framingPatterns || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  const verification = (report.verificationNeeded || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  const priority = (report.responsePriority || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
   const followUp = (report.recommendedFollowUp || []).map((item, index) => `${index + 1}. ${item}`).join('\n');
+  const links = (report.sourceLinks || []).map((item, index) =>
+    `${index + 1}. ${item.title || item.source || 'Nguồn'} - ${item.url || ''}`
+  ).join('\n');
 
   return [
     report.title,
@@ -887,8 +908,24 @@ function banTin35BuildReportText_(report) {
     'III. Nội dung chính',
     narratives || 'Chưa xác định luận điểm chính.',
     '',
-    'IV. Gợi ý theo dõi tiếp',
+    'IV. Luận điểm/cách đặt vấn đề cần chú ý',
+    sensitiveClaims || 'Chưa xác định luận điểm nhạy cảm nổi bật.',
+    '',
+    'V. Khung diễn giải nổi bật',
+    framing || 'Chưa xác định khung diễn giải nổi bật.',
+    '',
+    'VI. Mức rủi ro và ưu tiên xử lý',
+    report.riskSummary || 'Chưa có tóm tắt rủi ro.',
+    priority ? `\n${priority}` : '',
+    '',
+    'VII. Điểm cần kiểm chứng',
+    verification || 'Chưa có điểm kiểm chứng riêng.',
+    '',
+    'VIII. Gợi ý theo dõi tiếp',
     followUp || 'Chưa có gợi ý theo dõi.',
+    '',
+    'IX. Link nguồn',
+    links || 'Chưa có link nguồn.',
     '',
     'Ghi chú biên tập',
     report.editorNote || 'Bản tin nội bộ, cần cán bộ phụ trách kiểm duyệt trước khi sử dụng.'
@@ -917,7 +954,7 @@ function banTin35GetStoredItemsForDigest_(limit) {
     title: cleanValue_(row[2]),
     description: cleanValue_(row[5]),
     publishedAt: row[3] || row[0] || '',
-    link: '',
+    link: cleanValue_(row[11]),
     content: cleanValue_(row[4] || row[5] || row[2]).substring(0, BANTIN35_MAX_CONTENT_CHARS),
     contentHash: cleanValue_(row[12])
   })).filter(item => item.title || item.content);
@@ -947,6 +984,10 @@ function banTin35NormalizeAnalysis_(analysis, items) {
   normalized.report = normalized.report || {};
   normalized.report.top_topics = Array.isArray(normalized.report.top_topics) ? normalized.report.top_topics : [];
   normalized.report.main_narratives = Array.isArray(normalized.report.main_narratives) ? normalized.report.main_narratives : [];
+  normalized.report.sensitive_claims_summary = Array.isArray(normalized.report.sensitive_claims_summary) ? normalized.report.sensitive_claims_summary : [];
+  normalized.report.framing_patterns = Array.isArray(normalized.report.framing_patterns) ? normalized.report.framing_patterns : [];
+  normalized.report.verification_needed = Array.isArray(normalized.report.verification_needed) ? normalized.report.verification_needed : [];
+  normalized.report.response_priority = Array.isArray(normalized.report.response_priority) ? normalized.report.response_priority : [];
   normalized.report.recommended_follow_up = Array.isArray(normalized.report.recommended_follow_up) ? normalized.report.recommended_follow_up : [];
 
   return normalized;
@@ -970,6 +1011,11 @@ function banTin35BuildFallbackAnalysis_(items) {
       overview: `Hệ thống đã lấy ${items.length} mục mới nhưng AI phân tích bị lỗi; cần đọc thủ công.`,
       top_topics: [],
       main_narratives: items.slice(0, 5).map(item => item.title),
+      risk_summary: 'Chưa có phân tích rủi ro tự động; cần đọc thủ công trước khi sử dụng.',
+      sensitive_claims_summary: [],
+      framing_patterns: [],
+      verification_needed: ['Đối chiếu thủ công từng link nguồn và kiểm tra log Gemini.'],
+      response_priority: ['Chạy lại phân tích khi Gemini ổn định.'],
       recommended_follow_up: ['Kiểm tra log và chạy lại khi Gemini ổn định.'],
       editor_note: 'Bản fallback, không nên sử dụng như bản tin chính thức.'
     }

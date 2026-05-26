@@ -10,7 +10,7 @@ const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
 /**
  * Gửi bản tin hàng ngày qua Telegram Channel
  */
-function sendTelegramDailyDigest(articles) {
+function sendTelegramDailyDigest(articles, digestOverview) {
   if (!articles || articles.length === 0) {
     Logger.log('[Telegram] Không có bài để gửi');
     return;
@@ -21,7 +21,7 @@ function sendTelegramDailyDigest(articles) {
     return;
   }
   
-  const message = buildTelegramDigest(articles);
+  const message = buildTelegramDigest(articles, digestOverview);
   
   try {
     sendTelegramMessage(CONFIG.TELEGRAM_CHANNEL, message);
@@ -34,57 +34,140 @@ function sendTelegramDailyDigest(articles) {
 /**
  * Xây dựng nội dung bản tin Telegram
  */
-function buildTelegramDigest(articles) {
+function buildTelegramDigest(articles, digestOverview) {
   const today = formatVietnameseDate(new Date());
+  const maxItems = getTelegramDigestMaxItems_();
+  const selectedArticles = (articles || []).slice(0, maxItems);
+  const siteUrl = getPublicSiteUrl_();
   
   let msg = `🛡️ *BẢN TIN TRỢ LÝ 35*\n`;
   msg += `📅 _${today}_\n`;
   msg += `━━━━━━━━━━━━━━━━━\n\n`;
+
+  const overviewText = buildTelegramOverviewSection_(digestOverview || buildDailyNewsOverviewFallback_(selectedArticles));
+  if (overviewText) {
+    msg += overviewText;
+  }
   
   // Phân loại theo mức ưu tiên
-  const important = articles.filter(a => a.priority === 'Quan trọng');
-  const normal = articles.filter(a => a.priority === 'Bình thường');
+  const important = selectedArticles.filter(isImportantNewsArticle_);
+  const normal = selectedArticles.filter(a => !isImportantNewsArticle_(a));
+  const footer = `━━━━━━━━━━━━━━━━━\n` +
+    `✅ Gõ /quiz để kiểm tra nhận thức\n` +
+    `🌐 Web: ${siteUrl}`;
+  const maxMessageLength = 3900;
   
   // Tin quan trọng
   if (important.length > 0) {
-    msg += `🔴 *TIN QUAN TRỌNG*\n\n`;
+    let section = '';
     important.slice(0, 3).forEach((a, idx) => {
-      const icon = CATEGORIES[a.category] || '📰';
-      msg += `${icon} *${escapeMarkdown(a.title)}*\n`;
-      msg += `${escapeMarkdown(a.summary)}\n`;
-      msg += `📌 [Đọc đầy đủ](${a.link})\n\n`;
+      const item = buildTelegramArticleItem_(a, true);
+      if ((msg + `🔴 *TIN QUAN TRỌNG*\n\n` + section + item + footer).length <= maxMessageLength) {
+        section += item;
+      }
     });
+    if (section) msg += `🔴 *TIN QUAN TRỌNG*\n\n${section}`;
   }
   
   // Tin bình thường
   if (normal.length > 0) {
-    msg += `🟡 *HÔM NAY CẦN BIẾT*\n\n`;
-    normal.slice(0, 4).forEach(a => {
-      const icon = CATEGORIES[a.category] || '📰';
-      msg += `${icon} *${escapeMarkdown(a.title)}*\n`;
-      msg += `${escapeMarkdown((a.summary || '').substring(0, 200))}...\n`;
-      msg += `[Đọc thêm](${a.link})\n\n`;
+    let section = '';
+    normal.slice(0, maxItems - Math.min(important.length, 3)).forEach(a => {
+      const item = buildTelegramArticleItem_(a, false);
+      if ((msg + `🟡 *HÔM NAY CẦN BIẾT*\n\n` + section + item + footer).length <= maxMessageLength) {
+        section += item;
+      }
     });
+    if (section) msg += `🟡 *HÔM NAY CẦN BIẾT*\n\n${section}`;
   }
   
   // Thông điệp ngày
-  const messageOfDay = articles.find(a => a.message);
+  const messageOfDay = selectedArticles.find(a => a.message);
   if (messageOfDay && messageOfDay.message) {
-    msg += `━━━━━━━━━━━━━━━━━\n`;
-    msg += `💬 *THÔNG ĐIỆP NGÀY*\n`;
-    msg += `_"${escapeMarkdown(messageOfDay.message)}"_\n\n`;
+    const messageSection = `━━━━━━━━━━━━━━━━━\n` +
+      `💬 *THÔNG ĐIỆP NGÀY*\n` +
+      `_"${escapeMarkdown(truncateAtWord_(messageOfDay.message, 220))}"_\n\n`;
+    if ((msg + messageSection + footer).length <= maxMessageLength) {
+      msg += messageSection;
+    }
   }
   
-  msg += `━━━━━━━━━━━━━━━━━\n`;
-  msg += `✅ Gõ /quiz để kiểm tra nhận thức\n`;
-  msg += `🌐 Web: https://baovenentang.vercel.app/`;
-  
-  // Telegram giới hạn 4096 ký tự/tin
-  if (msg.length > 4000) {
-    msg = msg.substring(0, 3990) + '...';
-  }
+  msg += footer;
   
   return msg;
+}
+
+function buildTelegramArticleItem_(article, isImportant) {
+  const icon = CATEGORIES[article.category] || '📰';
+  const title = escapeMarkdown(truncateAtWord_(article.title || '', 140));
+  const summaryLength = isImportant ? 220 : 180;
+  const summary = escapeMarkdown(trimTelegramSummary_(article.summary, summaryLength));
+  const label = isImportant ? 'Đọc đầy đủ' : 'Đọc thêm';
+  const source = article.source ? `Nguồn: ${escapeMarkdown(article.source)}\n` : '';
+
+  return `${icon} *${title}*\n` +
+    source +
+    `${summary}\n` +
+    `[${label}](${article.link})\n\n`;
+}
+
+function getTelegramDigestMaxItems_() {
+  return Math.max(10, Number(CONFIG.MAX_ARTICLES_TELEGRAM) || 10);
+}
+
+function trimTelegramSummary_(summary, maxLength) {
+  const text = (summary || '').toString().trim();
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).replace(/\s+\S*$/, '') + '...';
+}
+
+function buildTelegramOverviewSection_(overview) {
+  if (!overview) return '';
+
+  let section = `📌 *TỔNG HỢP - ĐÁNH GIÁ CHUNG*\n`;
+  section += `${escapeMarkdown(truncateAtWord_(overview.overview || '', 650))}\n`;
+
+  if (overview.generalAssessment && !isSimilarTelegramText_(overview.overview, overview.generalAssessment)) {
+    section += `${escapeMarkdown(truncateAtWord_(overview.generalAssessment, 450))}\n`;
+  }
+
+  if (overview.whyItMatters) {
+    section += `\n*Vì sao cần chú ý:* ${escapeMarkdown(truncateAtWord_(overview.whyItMatters, 220))}\n`;
+  }
+
+  if (overview.importantPoints && overview.importantPoints.length > 0) {
+    section += `\n*Điểm cần chú ý:*\n`;
+    overview.importantPoints.slice(0, 3).forEach((item, index) => {
+      section += `${index + 1}. ${escapeMarkdown(truncateAtWord_(item, 180))}\n`;
+    });
+  }
+
+  if (overview.watchPoints && overview.watchPoints.length > 0) {
+    section += `\n*Cần theo dõi tiếp:*\n`;
+    overview.watchPoints.slice(0, 3).forEach((item, index) => {
+      section += `${index + 1}. ${escapeMarkdown(truncateAtWord_(item, 160))}\n`;
+    });
+  }
+
+  section += `\n━━━━━━━━━━━━━━━━━\n\n`;
+  return section;
+}
+
+function isSimilarTelegramText_(left, right) {
+  const a = normalizeTelegramCompareText_(left);
+  const b = normalizeTelegramCompareText_(right);
+  if (!a || !b) return false;
+  return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+}
+
+function normalizeTelegramCompareText_(text) {
+  return cleanValue_(text)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 /**
@@ -149,6 +232,7 @@ function handleTelegramMessage(message) {
  * Lệnh /start
  */
 function handleStartCommand(chatId, userName) {
+  const siteUrl = getPublicSiteUrl_();
   const msg = `🛡️ *Chào mừng ${userName} đến TRỢ LÝ 35!*\n\n` +
     `Đây là nền tảng bản tin tự động về:\n` +
     `📰 Tin chính thống hàng ngày\n` +
@@ -157,7 +241,7 @@ function handleStartCommand(chatId, userName) {
     `/quiz - Kiểm tra nhận thức\n` +
     `/dangky - Đăng ký nhận email\n` +
     `/help - Trợ giúp\n\n` +
-    `🌐 Web: https://baovenentang.vercel.app/`;
+    `🌐 Web: ${siteUrl}`;
     
   sendTelegramMessage(chatId, msg);
 }
@@ -246,9 +330,10 @@ function handlePendingQuizAnswer_(chatId, text, userName) {
  * Lệnh /dangky
  */
 function handleSubscribeCommand(chatId) {
+  const siteUrl = getPublicSiteUrl_();
   const msg = `📝 *ĐĂNG KÝ NHẬN BẢN TIN EMAIL*\n\n` +
     `Để nhận bản tin chi tiết qua email, vui lòng truy cập mục Tin tức:\n` +
-    `🌐 https://baovenentang.vercel.app/\n\n` +
+    `🌐 ${siteUrl}\n\n` +
     `Hoặc tiếp tục theo dõi channel này để nhận tin nhanh hàng ngày!`;
   
   sendTelegramMessage(chatId, msg);
@@ -258,6 +343,7 @@ function handleSubscribeCommand(chatId) {
  * Lệnh /help
  */
 function handleHelpCommand(chatId) {
+  const siteUrl = getPublicSiteUrl_();
   const msg = `❓ *HƯỚNG DẪN SỬ DỤNG*\n\n` +
     `*Các lệnh khả dụng:*\n\n` +
     `📰 /start - Bắt đầu\n` +
@@ -265,7 +351,7 @@ function handleHelpCommand(chatId) {
     `📧 /dangky - Đăng ký nhận email\n` +
     `❓ /help - Hiển thị trợ giúp này\n\n` +
     `*Liên hệ:* @baovenentang\n` +
-    `*Web:* https://baovenentang.vercel.app/`;
+    `*Web:* ${siteUrl}`;
   
   sendTelegramMessage(chatId, msg);
 }

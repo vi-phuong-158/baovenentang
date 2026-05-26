@@ -16,6 +16,7 @@ from datetime import datetime
 ROOT = Path(__file__).parent.parent
 INPUT_FILE = ROOT / "input" / "today_news.md"
 OUTPUT_FILE = ROOT / "data" / "extracted_facts.json"
+DEFAULT_WEBSITE = "https://www.troly35.info.vn/"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -193,9 +194,9 @@ def extract_website(text: str) -> str:
     urls = re.findall(r"https?://[^\s\)\]]+", text)
     # Ưu tiên URL của baovenentang
     for url in reversed(urls):
-        if "baovenentang" in url or "vercel" in url:
+        if "troly35.info.vn" in url or "baovenentang" in url or "vercel" in url:
             return url
-    return urls[-1] if urls else "https://baovenentang.vercel.app/"
+    return urls[-1] if urls else DEFAULT_WEBSITE
 
 
 def run(input_path: Path = INPUT_FILE) -> dict:

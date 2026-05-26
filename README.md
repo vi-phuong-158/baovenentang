@@ -38,7 +38,7 @@ Trợ lý 35 là một hệ thống bán tự động giúp:
 - Tổ chức quiz lý luận chính trị và lưu kết quả.
 - Gửi bản tin qua Telegram và Email.
 - Xây dựng kho tri thức RAG từ `PHAN_BAC_KHO` và các bài Tạp chí Cộng sản đã duyệt.
-- Tạo Bản tin 35 nội bộ từ các nguồn công khai cần theo dõi, chỉ phục vụ tham khảo nội bộ.
+- Tạo Bản tin 35 nội bộ từ các nguồn công khai cần theo dõi, có link nguồn để kiểm chứng thủ công, chỉ phục vụ tham khảo nội bộ.
 
 Ứng dụng public hiện có 3 tab chính:
 
@@ -106,7 +106,8 @@ Giao diện chat nội bộ có mã truy cập:
 
 - Module `backend/11-bantin35.gs`.
 - Thu thập nội dung công khai từ một số nguồn định nghĩa sẵn.
-- AI tóm tắt chủ đề, luận điểm nhạy cảm, mức rủi ro và khuyến nghị theo dõi.
+- AI tóm tắt chủ đề, luận điểm nhạy cảm, khung diễn giải, mức rủi ro, điểm cần kiểm chứng và khuyến nghị theo dõi.
+- Bản tin 35 nội bộ chỉ gửi qua Telegram, có kèm link nguồn phục vụ kiểm chứng; không gửi qua Email.
 - Không tự động đăng, chia sẻ hoặc tạo chiến dịch phản hồi.
 - API nội bộ:
   - `bantin35_generate`
@@ -331,7 +332,7 @@ Thêm các key sau tùy module dùng:
 | `SENDER_NAME` | Email | Tên người gửi |
 | `ADMIN_EMAIL` | Thông báo lỗi | Tùy chọn |
 | `MAX_ARTICLES_PER_DAY` | Daily bot | Mặc định 10 |
-| `MAX_ARTICLES_TELEGRAM` | Daily bot | Mặc định 5 |
+| `MAX_ARTICLES_TELEGRAM` | Daily bot | Mặc định 10 |
 | `RUN_HOUR` | Trigger tin tức | Mặc định 6 |
 | `TCCS_BASE_URL` | TCCS | Mặc định `https://www.tapchicongsan.org.vn` |
 | `TCCS_SECTION_PATH` | TCCS | Section phản bác |
@@ -342,6 +343,7 @@ Thêm các key sau tùy module dùng:
 | `BANTIN35_MAX_ITEMS_PER_SOURCE` | Bản tin 35 | Mặc định 5 |
 | `BANTIN35_LOOKBACK_DAYS` | Bản tin 35 | Mặc định 7 |
 | `BANTIN35_REQUEST_DELAY_MS` | Bản tin 35 | Mặc định 1500 |
+| `BANTIN35_RUN_HOUR` | Bản tin 35 | Mặc định 8 |
 
 Có thể chạy trong Apps Script:
 
@@ -376,7 +378,7 @@ Hàm này gọi `initializeSheets()` và tạo các sheet chính:
 | `QUIZ` | Câu hỏi trắc nghiệm |
 | `QUIZ_RESULT` | Kết quả làm quiz |
 | `BANTIN35_ITEMS` | Mục nội dung Bản tin 35 |
-| `BANTIN35_REPORTS` | Bản tin 35 đã sinh |
+| `BANTIN35_REPORTS` | Bản tin 35 đã sinh, gồm tóm tắt rủi ro, điểm cần kiểm chứng và link nguồn |
 | `BANTIN35_LOG` | Log Bản tin 35 |
 
 Lưu ý:
@@ -647,7 +649,7 @@ Nguyên tắc bắt buộc:
 - Proxy Vercel hash IP trước khi gửi sang GAS.
 - Endpoint nhạy cảm dùng `API_ACCESS_TOKEN`.
 - `TROLY35_SAVE_FULL_INPUT=false` nếu không cần lưu toàn bộ prompt.
-- Bản tin 35 không trả link nguồn ra public API; URL chỉ lưu nội bộ để kiểm chứng.
+- Bản tin 35 có thể trả link nguồn qua API nội bộ đã kiểm tra mã truy cập; không đưa link ra API public không xác thực.
 
 ## Kiểm thử
 

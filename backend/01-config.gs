@@ -55,6 +55,10 @@ const CONFIG_DEFAULTS = {
   BANTIN35_MAX_ITEMS_PER_SOURCE: 5,
   BANTIN35_LOOKBACK_DAYS: 7,
   BANTIN35_REQUEST_DELAY_MS: 1500,
+  BANTIN35_RUN_HOUR: 8,
+
+  // ===== Public website URL =====
+  PUBLIC_SITE_URL: 'https://www.troly35.info.vn/',
 
   // ===== Web App URL =====
   WEB_APP_URL: '',
@@ -66,7 +70,7 @@ const CONFIG_DEFAULTS = {
 
   // ===== Cấu hình hoạt động =====
   MAX_ARTICLES_PER_DAY: 10,
-  MAX_ARTICLES_TELEGRAM: 5,
+  MAX_ARTICLES_TELEGRAM: 10,
   RUN_HOUR: 6,
 
   // ===== Email admin nhận thông báo lỗi =====
@@ -163,6 +167,7 @@ function showConfigSetupInstructions() {
     BANTIN35_MAX_ITEMS_PER_SOURCE: '5',
     BANTIN35_LOOKBACK_DAYS: '7',
     BANTIN35_REQUEST_DELAY_MS: '1500',
+    BANTIN35_RUN_HOUR: '8',
     TELEGRAM_TOKEN: '123456789:ABC...',
     TELEGRAM_CHANNEL: '@ten_channel',
     TELEGRAM_WEBHOOK_SECRET: 'secret_ngau_nhien_cho_webhook_telegram',
@@ -173,15 +178,21 @@ function showConfigSetupInstructions() {
     BREVO_API_KEY: 'xkeysib-...',
     SENDER_EMAIL: 'email-da-verify@domain.vn',
     SENDER_NAME: 'Trợ lý 35 - Phú Thọ',
+    PUBLIC_SITE_URL: 'https://www.troly35.info.vn/',
     WEB_APP_URL: 'https://script.google.com/macros/s/.../exec',
     ADMIN_EMAIL: 'admin@domain.vn',
     MAX_ARTICLES_PER_DAY: '10',
-    MAX_ARTICLES_TELEGRAM: '5',
+    MAX_ARTICLES_TELEGRAM: '10',
     RUN_HOUR: '6'
   };
 
   Logger.log('Vào Apps Script > Project Settings > Script Properties và thêm các key sau:');
   Logger.log(JSON.stringify(sample, null, 2));
+}
+
+function getPublicSiteUrl_() {
+  const value = (CONFIG.PUBLIC_SITE_URL || CONFIG_DEFAULTS.PUBLIC_SITE_URL || '').toString().trim();
+  return value.replace(/\/+$/, '') + '/';
 }
 
 // ===== Nguồn RSS =====
@@ -285,6 +296,19 @@ const KEYWORDS = [
   'chống diễn biến', 'Cộng sản', 'xã hội chủ nghĩa',
   'an toàn thông tin', 'không gian mạng',
   'Phú Thọ', 'Công an'
+];
+
+const NEWS_EXCLUDE_KEYWORDS = [
+  'v.league', 'v-league', 'giải bóng đá', 'câu lạc bộ',
+  'trận đấu', 'tỷ số', 'vươn lên áp chót', 'bóng đá',
+  'showbiz', 'giải trí', 'hoa hậu', 'thời trang'
+];
+
+const NEWS_EXCLUDE_PROTECTED_KEYWORDS = [
+  'chính sách', 'nghị quyết', 'nghị định', 'quyết định',
+  'chỉ đạo', 'kết luận', 'pháp luật', 'an ninh',
+  'trật tự', 'an toàn thông tin', 'bảo vệ nền tảng',
+  'chuyển đổi số', 'Đảng', 'Nhà nước'
 ];
 
 // ===== Phân loại chủ đề =====

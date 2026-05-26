@@ -8,7 +8,7 @@
 /**
  * Gửi bản tin email hàng ngày cho tất cả người đăng ký
  */
-function sendDailyEmailDigest(articles) {
+function sendDailyEmailDigest(articles, digestOverview) {
   if (!articles || articles.length === 0) {
     Logger.log('[Email] Không có bài để gửi');
     return;
@@ -39,7 +39,7 @@ function sendDailyEmailDigest(articles) {
       
       if (relevantArticles.length === 0) return;
       
-      const htmlBody = buildEmailHTML(sub.name, relevantArticles);
+      const htmlBody = buildEmailHTML(sub.name, relevantArticles, digestOverview);
       const result = sendEmailViaBrevo({
         toEmail: sub.email,
         toName: sub.name,
@@ -125,19 +125,23 @@ function sendEmailViaBrevo(params) {
 /**
  * Xây dựng nội dung HTML email
  */
-function buildEmailHTML(name, articles) {
+function buildEmailHTML(name, articles, digestOverview) {
   const today = formatVietnameseDate(new Date());
+  const siteUrl = getPublicSiteUrl_();
+  const maxItems = Math.max(1, Number(CONFIG.MAX_ARTICLES_PER_DAY) || 10);
+  const selectedArticles = (articles || []).slice(0, maxItems);
+  const overview = digestOverview || buildDailyNewsOverviewFallback_(selectedArticles);
   
   // Phân nhóm bài viết
-  const important = articles.filter(a => a.priority === 'Quan trọng');
-  const normal = articles.filter(a => a.priority === 'Bình thường');
+  const important = selectedArticles.filter(isImportantNewsArticle_);
+  const normal = selectedArticles.filter(a => !isImportantNewsArticle_(a));
   
   // Build các block tin
   const importantHTML = important.map(a => buildArticleBlock(a, true)).join('');
-  const normalHTML = normal.slice(0, 5).map(a => buildArticleBlock(a, false)).join('');
+  const normalHTML = normal.slice(0, maxItems - Math.min(important.length, maxItems)).map(a => buildArticleBlock(a, false)).join('');
   
   // Thông điệp ngày
-  const messageOfDay = articles.find(a => a.message)?.message || '';
+  const messageOfDay = selectedArticles.find(a => a.message)?.message || '';
   const safeName = escapeHtml_(name || 'bạn');
   
   return `
@@ -171,6 +175,8 @@ function buildEmailHTML(name, articles) {
               </p>
             </td>
           </tr>
+
+          ${buildEmailOverviewBlock_(overview)}
           
           ${important.length > 0 ? `
           <!-- Tin quan trọng -->
@@ -219,11 +225,11 @@ function buildEmailHTML(name, articles) {
           <!-- CTA -->
           <tr>
             <td style="padding:0 30px 30px;text-align:center;">
-              <a href="https://baovenentang.vercel.app/" 
+              <a href="${siteUrl}"
                  style="display:inline-block;background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;font-weight:bold;margin:5px;">
                 🧠 Làm Quiz hôm nay
               </a>
-              <a href="https://baovenentang.vercel.app/" 
+              <a href="${siteUrl}"
                  style="display:inline-block;background:#34495e;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;font-weight:bold;margin:5px;">
                 📚 Mở Trợ lý 35
               </a>
@@ -238,7 +244,7 @@ function buildEmailHTML(name, articles) {
                 Bản tin tự động phục vụ công tác bảo vệ nền tảng tư tưởng của Đảng
               </p>
               <p style="margin:15px 0 0;font-size:12px;">
-                <a href="https://baovenentang.vercel.app/" style="color:#c0392b;text-decoration:none;">Trang chủ</a> &nbsp;|&nbsp;
+                <a href="${siteUrl}" style="color:#c0392b;text-decoration:none;">Trang chủ</a> &nbsp;|&nbsp;
                 <a href="https://t.me/baovenentang" style="color:#c0392b;text-decoration:none;">Telegram</a> &nbsp;|&nbsp;
                 <a href="#" style="color:#999;text-decoration:none;">Hủy đăng ký</a>
               </p>
@@ -283,6 +289,42 @@ function buildArticleBlock(article, isImportant) {
     </div>`;
 }
 
+function buildEmailOverviewBlock_(overview) {
+  if (!overview) return '';
+
+  const importantPoints = (overview.importantPoints || [])
+    .slice(0, 4)
+    .map(item => `<li style="margin:6px 0;color:#555;font-size:14px;line-height:1.55;">${escapeHtml_(item)}</li>`)
+    .join('');
+
+  const watchPoints = (overview.watchPoints || [])
+    .slice(0, 3)
+    .map(item => `<li style="margin:6px 0;color:#555;font-size:14px;line-height:1.55;">${escapeHtml_(item)}</li>`)
+    .join('');
+
+  return `
+          <!-- Tổng hợp đánh giá chung -->
+          <tr>
+            <td style="padding:25px 30px 0;">
+              <div style="background:#f7f9fb;border:1px solid #e6ecf1;border-left:4px solid #2c3e50;padding:18px;border-radius:6px;">
+                <h2 style="margin:0 0 12px;color:#2c3e50;font-size:18px;">📌 Tổng hợp - đánh giá chung</h2>
+                <p style="margin:0 0 10px;color:#333;font-size:14px;line-height:1.65;">${escapeHtml_(overview.overview || '')}</p>
+                ${overview.generalAssessment ? `<p style="margin:0;color:#555;font-size:14px;line-height:1.65;">${escapeHtml_(overview.generalAssessment)}</p>` : ''}
+                ${importantPoints ? `
+                <div style="margin-top:14px;">
+                  <p style="margin:0 0 6px;color:#c0392b;font-size:13px;font-weight:bold;text-transform:uppercase;">Điểm cần chú ý</p>
+                  <ul style="margin:0;padding-left:20px;">${importantPoints}</ul>
+                </div>` : ''}
+                ${watchPoints ? `
+                <div style="margin-top:14px;">
+                  <p style="margin:0 0 6px;color:#34495e;font-size:13px;font-weight:bold;text-transform:uppercase;">Theo dõi tiếp</p>
+                  <ul style="margin:0;padding-left:20px;">${watchPoints}</ul>
+                </div>` : ''}
+              </div>
+            </td>
+          </tr>`;
+}
+
 /**
  * Gửi email chào mừng khi có người mới đăng ký
  */
@@ -293,6 +335,7 @@ function sendWelcomeEmail(subscriber) {
   }
 
   const safeName = escapeHtml_(subscriber.name || subscriber.email || 'bạn');
+  const siteUrl = getPublicSiteUrl_();
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
@@ -311,7 +354,7 @@ function sendWelcomeEmail(subscriber) {
     </ul>
     <p>Bạn có thể truy cập website để tra cứu luận điểm phản bác và làm quiz kiểm tra nhận thức.</p>
     <div style="text-align:center;margin:30px 0;">
-      <a href="https://baovenentang.vercel.app/" style="background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;">
+      <a href="${siteUrl}" style="background:#c0392b;color:white;padding:12px 30px;border-radius:30px;text-decoration:none;">
         Khám phá ngay
       </a>
     </div>

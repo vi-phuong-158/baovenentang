@@ -198,6 +198,9 @@ function exportVideoNewsJson_() {
  * Dựng nội dung markdown theo cùng định dạng today_news.md mà pipeline Python kỳ vọng.
  */
 function buildVideoNewsMarkdown_(articles, dateLabel) {
+  const siteUrl = typeof getPublicSiteUrl_ === 'function'
+    ? getPublicSiteUrl_()
+    : 'https://www.troly35.info.vn/';
   let md = `🛡️ BẢN TIN TRỢ LÝ 35\n`;
   md += `📅 ${dateLabel}\n`;
   md += `━━━━━━━━━━━━━━━━━\n\n`;
@@ -248,7 +251,7 @@ function buildVideoNewsMarkdown_(articles, dateLabel) {
 
   md += `━━━━━━━━━━━━━━━━━\n`;
   md += `✅ Gõ /quiz để kiểm tra nhận thức\n`;
-  md += `🌐 Web: https://baovenentang.vercel.app/`;
+  md += `🌐 Web: ${siteUrl}`;
 
   return md;
 }

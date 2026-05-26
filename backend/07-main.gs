@@ -48,6 +48,7 @@ function runDailyNewsBot() {
     // Bước 5: AI tóm tắt và phân loại
     Logger.log('\n🤖 BƯỚC 4: Gemini AI xử lý');
     const enriched = summarizeWithGemini(sorted);
+    const digestOverview = generateDailyNewsOverview(enriched);
     
     // Bước 6: Lưu vào Sheets
     Logger.log('\n💾 BƯỚC 5: Lưu vào Sheets');
@@ -55,12 +56,12 @@ function runDailyNewsBot() {
     
     // Bước 7: Gửi Telegram
     Logger.log('\n📱 BƯỚC 6: Gửi Telegram');
-    const topArticles = enriched.slice(0, CONFIG.MAX_ARTICLES_TELEGRAM);
-    sendTelegramDailyDigest(topArticles);
+    const topArticles = enriched.slice(0, getTelegramDigestMaxItems_());
+    sendTelegramDailyDigest(topArticles, digestOverview);
     
     // Bước 8: Gửi Email
     Logger.log('\n📧 BƯỚC 7: Gửi Email');
-    sendDailyEmailDigest(enriched);
+    sendDailyEmailDigest(enriched, digestOverview);
 
     // Bước 8: Cập nhật thống kê
     Logger.log('\n📊 BƯỚC 8: Cập nhật thống kê');
@@ -162,7 +163,7 @@ function doGet(e) {
           message: 'Trợ lý 35 API',
           version: '1.0',
           endpoints: ['today', 'articles', 'search', 'quiz', 'stats', 'video_export (token)'],
-          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest']
+          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest', 'bantin35_setup_trigger', 'bantin35_trigger_status']
         };
     }
   } catch(error) {
@@ -330,6 +331,16 @@ function doPost(e) {
         result = handleBanTin35Latest(data);
         break;
 
+      case 'bantin35_setup_trigger':
+        validateApiToken_(data, e);
+        result = setupBanTin35Trigger();
+        break;
+
+      case 'bantin35_trigger_status':
+        validateApiToken_(data, e);
+        result = getBanTin35TriggerStatus();
+        break;
+
       case 'contact':
         validateApiToken_(data, e);
         validateInput_(data, {
@@ -386,13 +397,41 @@ function getStatistics() {
   const tinTucSheet = getSheet_('TIN_TUC');
   const dangKySheet = getSheet_('DANG_KY');
   const quizSheet = getSheet_('QUIZ_RESULT');
+  const subscriberStats = getSubscriberStats_(dangKySheet);
   
   return {
     totalArticles: Math.max(0, tinTucSheet.getLastRow() - 1),
-    totalSubscribers: Math.max(0, dangKySheet.getLastRow() - 1),
+    totalSubscribers: subscriberStats.total,
+    emailSubscribers: subscriberStats.email,
+    telegramSubscribers: subscriberStats.telegram,
     totalQuizAttempts: Math.max(0, quizSheet.getLastRow() - 1),
     lastUpdate: new Date().toLocaleString('vi-VN')
   };
+}
+
+function getSubscriberStats_(sheet) {
+  if (!sheet || sheet.getLastRow() <= 1) {
+    return { total: 0, email: 0, telegram: 0 };
+  }
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  return rows.reduce((stats, row) => {
+    const email = cleanValue_(row[0]);
+    const telegramUsername = cleanValue_(row[5]);
+    const channel = cleanValue_(row[4]).toLowerCase();
+    const status = cleanValue_(row[7]) || 'Hoạt động';
+
+    if (status !== 'Hoạt động') return stats;
+    if (!email && !telegramUsername) return stats;
+
+    stats.total++;
+    if (channel.indexOf('telegram') !== -1) {
+      stats.telegram++;
+    } else {
+      stats.email++;
+    }
+    return stats;
+  }, { total: 0, email: 0, telegram: 0 });
 }
 
 // ============================================================
@@ -513,6 +552,30 @@ function setupBanTin35Trigger() {
     .create();
 
   Logger.log(`✅ Đã tạo trigger Bản tin 35 chạy lúc ${hour}h hàng ngày`);
+  return {
+    success: true,
+    handler: 'runBanTin35DailyStep',
+    hour,
+    triggers: getBanTin35TriggerStatus_()
+  };
+}
+
+function getBanTin35TriggerStatus() {
+  return {
+    success: true,
+    triggers: getBanTin35TriggerStatus_()
+  };
+}
+
+function getBanTin35TriggerStatus_() {
+  return ScriptApp.getProjectTriggers()
+    .filter(trigger => trigger.getHandlerFunction() === 'runBanTin35DailyStep')
+    .map(trigger => ({
+      handler: trigger.getHandlerFunction(),
+      eventType: trigger.getEventType ? trigger.getEventType().toString() : '',
+      source: trigger.getTriggerSource ? trigger.getTriggerSource().toString() : '',
+      id: trigger.getUniqueId ? trigger.getUniqueId() : ''
+    }));
 }
 
 function logMissingOptionalConfig_() {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Bell, Send, CheckCircle } from 'lucide-react';
+import { Send, CheckCircle, MessageCircle } from 'lucide-react';
 import { subscribe } from '../api.js';
 
 const TOPICS = [
+  'Tất cả',
   'Bảo vệ nền tảng tư tưởng',
   'An ninh mạng',
   'Chính sách pháp luật',
@@ -10,8 +11,10 @@ const TOPICS = [
   'Đối ngoại - Chủ quyền',
 ];
 
+const TELEGRAM_CHANNEL_URL = 'https://t.me/baovenentang';
+
 export default function DangKy() {
-  const [form, setForm] = useState({ name: '', email: '', organization: '', topics: '', channel: 'Email' });
+  const [form, setForm] = useState({ name: '', email: '', organization: '', topics: 'Tất cả', channel: 'Email' });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -45,8 +48,8 @@ export default function DangKy() {
       <div className="card elevated" style={{ textAlign: 'center', padding: '36px 20px' }}>
         <CheckCircle size={48} color="var(--ok)" style={{ margin: '0 auto 12px' }} />
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 6 }}>Đăng ký thành công!</div>
-        <div className="text-sm text-soft" style={{ marginBottom: 20 }}>Bạn sẽ nhận bản tin qua <strong>{form.channel}</strong> về chủ đề đã chọn.</div>
-        <button className="btn ghost full" onClick={() => { setSuccess(false); setForm({ name: '', email: '', organization: '', topics: '', channel: 'Email' }); }}>
+        <div className="text-sm text-soft" style={{ marginBottom: 20 }}>Bạn sẽ nhận bản tin qua <strong>Email</strong> về chủ đề đã chọn.</div>
+        <button className="btn ghost full" onClick={() => { setSuccess(false); setForm({ name: '', email: '', organization: '', topics: 'Tất cả', channel: 'Email' }); }}>
           Đăng ký thêm
         </button>
       </div>
@@ -57,7 +60,7 @@ export default function DangKy() {
     <div className="page page-fade">
       <div className="page-header">
         <h1>Đăng ký bản tin</h1>
-        <p>Nhận thông tin chọn lọc qua Email hoặc Telegram</p>
+        <p>Nhận bản tin qua Email hoặc theo dõi kênh Telegram</p>
       </div>
 
       <form onSubmit={submit}>
@@ -93,13 +96,18 @@ export default function DangKy() {
         <div className="card tinted" style={{ marginBottom: 16 }}>
           <div className="section-label">Kênh nhận tin</div>
           <div className="row" style={{ gap: 8 }}>
-            {['Email', 'Telegram'].map(ch => (
-              <button key={ch} type="button" onClick={() => set('channel', ch)}
-                className={`btn ${form.channel === ch ? 'primary' : 'ghost'}`}
-                style={{ flex: 1 }}>
-                {ch === 'Email' ? '📧' : '💬'} {ch}
-              </button>
-            ))}
+            <button type="button" className="btn primary" style={{ flex: 1 }}>
+              📧 Nhận qua Email
+            </button>
+            <a
+              href={TELEGRAM_CHANNEL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="btn ghost"
+              style={{ flex: 1 }}
+            >
+              <MessageCircle size={16} /> Theo dõi kênh Telegram
+            </a>
           </div>
         </div>
 

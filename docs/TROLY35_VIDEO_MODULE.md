@@ -218,7 +218,7 @@ ra các facts không được phép sai.
     }
   ],
   "key_message": "Việc ban hành nghị định mới về quản lý doanh nghiệp nhà nước...",
-  "website": "https://baovenentang.vercel.app/"
+  "website": "https://www.troly35.info.vn/"
 }
 ```
 
@@ -569,7 +569,7 @@ Caption nhóm chính:
 📅 {weekday}, ngày {date}
 
 📌 Tổng quan 3 tin nổi bật trong ngày
-🔗 Chi tiết: https://baovenentang.vercel.app/
+🔗 Chi tiết: https://www.troly35.info.vn/
 
 #troly35 #anninhdoingoai #phutho
 ```
@@ -793,7 +793,7 @@ VIETTEL_TTS_VOICE=hn-quynhanh
 
 # Tùy chọn
 LOG_LEVEL=INFO
-WEBSITE_URL=https://baovenentang.vercel.app/
+WEBSITE_URL=https://www.troly35.info.vn/
 ```
 
 ---

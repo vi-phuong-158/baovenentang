@@ -91,7 +91,7 @@ export const getArticles = (days = 1, page = 1, limit = 20) =>
   cached(`articles-${days}-${page}-${limit}`, () => getJson(`${API_URL}?action=articles&days=${days}&page=${page}&limit=${limit}`));
 
 export const getStats = () =>
-  cached('stats', () => getJson(`${API_URL}?action=stats`));
+  cached('stats-v2', () => getJson(`${API_URL}?action=stats`));
 
 export const getQuiz = (count = 10) =>
   getJson(`${API_URL}?action=quiz&count=${count}`);

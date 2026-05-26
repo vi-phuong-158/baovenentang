@@ -110,11 +110,23 @@ function fetchAllRSS() {
 function filterByKeywords(articles) {
   const filtered = articles.filter(article => {
     const searchText = (article.title + ' ' + article.description).toLowerCase();
-    return KEYWORDS.some(kw => searchText.includes(kw.toLowerCase()));
+    if (!KEYWORDS.some(kw => searchText.includes(kw.toLowerCase()))) return false;
+    return !isLowValueNewsArticle_(searchText);
   });
 
   Logger.log(`[Filter] Sau lọc từ khóa: ${filtered.length} bài`);
   return filtered;
+}
+
+function isLowValueNewsArticle_(searchText) {
+  const text = cleanValue_(searchText).toLowerCase();
+  const excludeKeywords = typeof NEWS_EXCLUDE_KEYWORDS !== 'undefined' ? NEWS_EXCLUDE_KEYWORDS : [];
+  const protectedKeywords = typeof NEWS_EXCLUDE_PROTECTED_KEYWORDS !== 'undefined' ? NEWS_EXCLUDE_PROTECTED_KEYWORDS : [];
+
+  const hasNoise = excludeKeywords.some(keyword => text.indexOf(keyword.toLowerCase()) !== -1);
+  if (!hasNoise) return false;
+
+  return !protectedKeywords.some(keyword => text.indexOf(keyword.toLowerCase()) !== -1);
 }
 
 /**

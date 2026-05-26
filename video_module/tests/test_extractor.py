@@ -152,14 +152,14 @@ def test_key_message_from_sample():
 # ── extract_website ─────────────────────────────────────────────────────────
 
 def test_website_baovenentang():
-    text = "Xem thêm tại https://baovenentang.vercel.app/"
+    text = "Xem thêm tại https://www.troly35.info.vn/"
     url = extract_website(text)
-    assert "baovenentang" in url
+    assert "troly35.info.vn" in url
 
 
 def test_website_fallback():
     url = extract_website("Không có URL nào")
-    assert url == "https://baovenentang.vercel.app/"
+    assert url == "https://www.troly35.info.vn/"
 
 
 # ── integration: chạy với file fixture thật ─────────────────────────────────
