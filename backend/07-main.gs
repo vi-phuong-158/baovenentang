@@ -301,7 +301,8 @@ function doPost(e) {
         validateInput_(data, {
           content: { type: 'string', required: true, maxLength: 5000, label: 'Nội dung' },
           topic: { type: 'string', maxLength: 200, label: 'Chủ đề' },
-          sourceUrl: { type: 'string', maxLength: 500, label: 'URL nguồn' }
+          sourceUrl: { type: 'string', maxLength: 500, label: 'URL nguồn' },
+          style: { type: 'string', maxLength: 20, label: 'Phong cách' }
         });
         result = handleTroLy35Run(data);
         break;

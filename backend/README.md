@@ -120,7 +120,8 @@ GET  ?action=stats
 GET  ?action=quiz&count=10
 POST { "action": "subscribe", ... }
 POST { "action": "submit_quiz", ... }
-POST { "action": "troly35_run", "accessCode": "...", "mode": "rebuttal|fact_check|article_writer", "content": "...", "sourceUrl": "...", "topic": "..." }
+POST { "action": "troly35_run", "accessCode": "...", "mode": "rebuttal|fact_check|article_writer", "content": "...", "sourceUrl": "...", "topic": "...", "style": "chinhluan|tretrung|ngangon", "history": [{"role":"user|assistant","text":"..."}] }
+     // style: chỉ áp dụng cho mode rebuttal (mặc định chinhluan). history: hội thoại trước đó để tinh chỉnh (đa lượt), neo phân tích/RAG vào câu gốc.
 POST { "action": "troly35_rate", "accessCode": "...", "requestId": "...", "rating": 1-5, "note": "..." }
 POST { "action": "troly35_history", "accessCode": "...", "limit": 20 }
 POST { "action": "troly35_trends", "accessCode": "...", "windowDays": 7|30 }

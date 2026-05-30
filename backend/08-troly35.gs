@@ -16,6 +16,21 @@ const TROLY35_EMBEDDING_MAX_CHARS = 12000;
 const TROLY35_MAX_INPUT_CHARS = 6000;
 const TROLY35_TOP_K = 5;
 
+const TROLY35_STYLES = {
+  CHINH_LUAN: 'chinhluan',
+  TRE_TRUNG: 'tretrung',
+  NGAN_GON: 'ngangon'
+};
+
+const TROLY35_STYLE_GUIDE = {
+  chinhluan: 'PHONG CÁCH DIỄN ĐẠT: Chính luận trang trọng. Lập luận chặt chẽ, mạch lạc, dùng cho diễn đàn/báo cáo chính thống; giữ văn phong nghiêm túc, khách quan.',
+  tretrung: 'PHONG CÁCH DIỄN ĐẠT: Trẻ trung, gần gũi cho mạng xã hội. Câu ngắn, dễ hiểu, giọng thân thiện như đang trò chuyện, phù hợp bình luận Facebook/Threads/TikTok. VẪN PHẢI nghiêm túc, chính xác, lịch sự; KHÔNG dùng tiếng lóng phản cảm, KHÔNG suồng sã, hạn chế emoji.',
+  ngangon: 'PHONG CÁCH DIỄN ĐẠT: Ngắn gọn tối đa. Đi thẳng ý chính, ưu tiên câu chốt nhanh để phản hồi tức thời; cắt chữ thừa nhưng không bỏ sót dẫn chứng quan trọng.'
+};
+
+const TROLY35_HISTORY_MAX_TURNS = 6;
+const TROLY35_HISTORY_TURN_MAX_CHARS = 800;
+
 const TROLY35_TOPICS = [
   'Vai trò lãnh đạo của Đảng',
   'Dân chủ XHCN',
@@ -177,14 +192,21 @@ function handleTroLy35Run(data) {
   troLy35RequireAccess_(data && data.accessCode, clientIpHash);
 
   const mode = troLy35NormalizeMode_(data && data.mode);
+  const style = troLy35NormalizeStyle_(data && data.style);
+  const history = troLy35NormalizeHistory_(data && data.history);
+  const isFollowUp = history.length > 0;
+
   const rawContent = cleanValue_(data && data.content).substring(0, TROLY35_MAX_INPUT_CHARS);
   const content = troLy35NormalizeRequestInput_(rawContent);
   const sourceUrl = cleanValue_(data && data.sourceUrl).substring(0, 500);
   const topicHint = cleanValue_(data && data.topic).substring(0, 160);
-  const cacheKey = troLy35RunCacheKey_(mode, content, sourceUrl, topicHint);
+  const cacheKey = troLy35RunCacheKey_(mode, content, sourceUrl, topicHint, style, history);
 
-  if (content.length < 20) {
-    throw new Error('Vui lòng nhập nội dung cần xử lý tối thiểu 20 ký tự.');
+  const minLength = isFollowUp ? 2 : 20;
+  if (content.length < minLength) {
+    throw new Error(isFollowUp
+      ? 'Vui lòng nhập yêu cầu chỉnh sửa.'
+      : 'Vui lòng nhập nội dung cần xử lý tối thiểu 20 ký tự.');
   }
 
   if (troLy35IsUrlOnly_(content)) {
@@ -193,6 +215,11 @@ function handleTroLy35Run(data) {
 
   troLy35AssertDailyLimit_(data.accessCode);
   troLy35IncrementDailyLimit_(data.accessCode);
+
+  // Multi-turn: neo phân tích & RAG vào câu gốc của hội thoại; câu hiện tại là yêu cầu tinh chỉnh.
+  const anchorContent = isFollowUp ? (troLy35HistoryAnchor_(history) || content) : content;
+  const instruction = isFollowUp ? content : '';
+  const conversationBlock = troLy35BuildHistoryContext_(history, instruction);
 
   const requestId = troLy35CreateRequestId_();
   const cachedRun = troLy35GetCachedRun_(cacheKey);
@@ -224,17 +251,17 @@ function handleTroLy35Run(data) {
 
   try {
     if (mode === TROLY35_MODES.ARTICLE_WRITER) {
-      analysis = troLy35BuildArticleAnalysis_(content, topicHint);
-      knowledge = troLy35SearchKnowledge_(analysis, content, topicHint);
-      result = troLy35GenerateArticle_(content, topicHint, knowledge);
+      analysis = troLy35BuildArticleAnalysis_(anchorContent, topicHint);
+      knowledge = troLy35SearchKnowledge_(analysis, anchorContent, topicHint);
+      result = troLy35GenerateArticle_(anchorContent, topicHint, knowledge, conversationBlock);
     } else {
-      analysis = troLy35AnalyzeInput_(content, topicHint, mode);
-      knowledge = troLy35SearchKnowledge_(analysis, content, topicHint);
+      analysis = troLy35AnalyzeInput_(anchorContent, topicHint, mode);
+      knowledge = troLy35SearchKnowledge_(analysis, anchorContent, topicHint);
 
       if (mode === TROLY35_MODES.FACT_CHECK) {
-        result = troLy35GenerateFactCheck_(content, analysis, knowledge);
+        result = troLy35GenerateFactCheck_(anchorContent, analysis, knowledge, conversationBlock);
       } else {
-        result = troLy35GenerateRebuttalDraft_(content, analysis, knowledge);
+        result = troLy35GenerateRebuttalDraft_(anchorContent, analysis, knowledge, style, conversationBlock);
       }
     }
 
@@ -673,7 +700,7 @@ function troLy35BuildArticleAnalysis_(content, topicHint) {
   };
 }
 
-function troLy35GenerateRebuttalDraft_(content, analysis, knowledge) {
+function troLy35GenerateRebuttalDraft_(content, analysis, knowledge, style, conversationBlock) {
   if (analysis.co_luan_dieu_sai_trai === false) {
     return {
       phien_ban_day_du: 'Chưa phát hiện luận điểm sai trái rõ ràng trong nội dung đã nhập. Nên rà soát thêm ngữ cảnh và nguồn trước khi phản hồi.',
@@ -687,9 +714,11 @@ function troLy35GenerateRebuttalDraft_(content, analysis, knowledge) {
   }
 
   const feedbackHints = troLy35GetFeedbackHints_();
+  const styleBlock = troLy35StylePrompt_(style);
+  const convoBlock = conversationBlock || '';
 
   const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết tự tin, có lập luận rõ ràng, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
-${feedbackHints}
+${feedbackHints}${styleBlock}
 NỘI DUNG GỐC:
 """
 ${content}
@@ -700,7 +729,7 @@ ${JSON.stringify(analysis, null, 2)}
 
 TƯ LIỆU RAG ĐÃ DUYỆT:
 ${troLy35KnowledgePrompt_(knowledge)}
-
+${convoBlock}
 Yêu cầu:
 1. Chỉ dùng số liệu/dẫn chứng có trong tư liệu. Nếu thiếu căn cứ cụ thể, KHÔNG nhúng disclaimer vào phien_ban_day_du — hãy ghi riêng vào ghi_chu.
 2. Không bịa nguồn, không bịa số liệu. Viết phien_ban_day_du mạch lạc, dứt khoát, không thêm chú thích ngoặc đơn vào cuối.
@@ -711,8 +740,9 @@ Yêu cầu:
   return troLy35CallGeminiJson_(prompt, TROLY35_REBUTTAL_SCHEMA);
 }
 
-function troLy35GenerateFactCheck_(content, analysis, knowledge) {
+function troLy35GenerateFactCheck_(content, analysis, knowledge, conversationBlock) {
   const news = troLy35SearchOfficialNews_(analysis);
+  const convoBlock = conversationBlock || '';
   const prompt = `Bạn là trợ lý thẩm định nhanh nguồn tin. Hãy đánh giá mức độ có căn cứ của nội dung, không kết luận vượt quá tư liệu.
 
 NỘI DUNG CẦN THẨM ĐỊNH:
@@ -728,14 +758,15 @@ ${troLy35KnowledgePrompt_(knowledge)}
 
 TIN CHÍNH THỐNG ĐANG CÓ TRONG HỆ THỐNG:
 ${JSON.stringify(news, null, 2)}
-
+${convoBlock}
 Chọn muc_danh_gia là một trong: "đủ cơ sở", "cần kiểm chứng thêm", "thiếu nguồn".
 Quy tắc: không bịa nguồn, không bịa số liệu, nêu rõ điểm cần kiểm chứng, không công kích cá nhân. Trả về JSON đúng schema.`;
 
   return troLy35CallGeminiJson_(prompt, TROLY35_FACT_CHECK_SCHEMA);
 }
 
-function troLy35GenerateArticle_(content, topicHint, knowledge) {
+function troLy35GenerateArticle_(content, topicHint, knowledge, conversationBlock) {
+  const convoBlock = conversationBlock || '';
   const prompt = `Bạn là trợ lý viết bản nháp bài tuyên truyền cho cán bộ con người. Hãy viết mạch lạc, có căn cứ, không bịa nguồn, không tự động đăng hay kêu gọi spam.
 
 CHỦ ĐỀ/THÔNG ĐIỆP:
@@ -747,7 +778,7 @@ CHỦ ĐỀ GỢI Ý: ${topicHint || 'Không có'}
 
 TƯ LIỆU RAG:
 ${troLy35KnowledgePrompt_(knowledge)}
-
+${convoBlock}
 Yêu cầu:
 1. Viết một bản nháp 800-1200 từ.
 2. Có dàn ý, caption MXH ngắn, hashtag đề xuất.
@@ -1102,12 +1133,14 @@ function troLy35BuildKnowledgeQuery_(analysis, content, topicHint) {
   ].filter(Boolean).join('\n');
 }
 
-function troLy35RunCacheKey_(mode, content, sourceUrl, topicHint) {
+function troLy35RunCacheKey_(mode, content, sourceUrl, topicHint, style, history) {
   return 'run_' + troLy35Hash_([
     cleanValue_(mode),
     cleanValue_(content),
     cleanValue_(sourceUrl),
-    cleanValue_(topicHint)
+    cleanValue_(topicHint),
+    cleanValue_(style),
+    troLy35HistorySignature_(history)
   ].join('\n---\n')).substring(0, 40);
 }
 
@@ -1264,6 +1297,62 @@ function troLy35NormalizeMode_(mode) {
     throw new Error(`Chế độ không hợp lệ: ${value}`);
   }
   return value;
+}
+
+function troLy35NormalizeStyle_(style) {
+  const value = cleanValue_(style).toLowerCase();
+  return TROLY35_STYLE_GUIDE.hasOwnProperty(value) ? value : TROLY35_STYLES.CHINH_LUAN;
+}
+
+function troLy35StylePrompt_(style) {
+  const guide = TROLY35_STYLE_GUIDE[style] || TROLY35_STYLE_GUIDE[TROLY35_STYLES.CHINH_LUAN];
+  return `\n${guide}\nÁp dụng phong cách này cho phien_ban_day_du, phien_ban_comment, phien_ban_tom_tat. Không đổi dữ kiện, số liệu, nguồn — chỉ đổi cách diễn đạt.\n`;
+}
+
+function troLy35NormalizeHistory_(history) {
+  if (!Array.isArray(history)) return [];
+  const cleaned = [];
+  history.forEach(turn => {
+    if (!turn) return;
+    const role = cleanValue_(turn.role) === 'assistant' ? 'assistant' : 'user';
+    const text = cleanValue_(turn.text || turn.content).substring(0, TROLY35_HISTORY_TURN_MAX_CHARS);
+    if (text) cleaned.push({ role: role, text: text });
+  });
+  return cleaned.slice(-TROLY35_HISTORY_MAX_TURNS);
+}
+
+function troLy35HistoryAnchor_(history) {
+  for (let i = 0; i < history.length; i++) {
+    if (history[i].role === 'user' && history[i].text) {
+      return troLy35NormalizeRequestInput_(history[i].text);
+    }
+  }
+  return '';
+}
+
+function troLy35BuildHistoryContext_(history, instruction) {
+  const hasHistory = Array.isArray(history) && history.length > 0;
+  const cleanInstruction = cleanValue_(instruction);
+  if (!hasHistory && !cleanInstruction) return '';
+
+  let block = '\nHỘI THOẠI TRƯỚC ĐÓ (cũ → mới):\n"""\n';
+  if (hasHistory) {
+    block += history.map(turn => {
+      const who = turn.role === 'assistant' ? 'Trợ lý' : 'Người dùng';
+      return `${who}: ${turn.text}`;
+    }).join('\n');
+  }
+  block += '\n"""\n';
+  if (cleanInstruction) {
+    block += `YÊU CẦU TINH CHỈNH MỚI: "${cleanInstruction}"\n`;
+    block += 'Hãy viết lại bản trả lời gần nhất theo yêu cầu này; giữ nguyên dữ kiện, số liệu, nguồn, chỉ đổi cách diễn đạt/độ dài. Vẫn trả về JSON đúng schema với đầy đủ các phiên bản.\n';
+  }
+  return block;
+}
+
+function troLy35HistorySignature_(history) {
+  if (!Array.isArray(history) || history.length === 0) return '';
+  return history.map(t => `${t.role}:${t.text}`).join('|').substring(0, 2000);
 }
 
 function troLy35RequireAccess_(accessCode, clientIpHash) {
