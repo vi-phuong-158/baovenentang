@@ -475,7 +475,7 @@ Không nên dùng `VITE_API_TOKEN` cho secret thật vì biến `VITE_*` sẽ xu
 | --- | --- | --- |
 | `subscribe` | `email`, `name`, `organization`, `topics`, `channel` | Cần API token qua proxy |
 | `submit_quiz` | thông tin người làm và kết quả | Cần API token qua proxy |
-| `troly35_run` | `accessCode`, `mode`, `content`, `sourceUrl`, `topic` | Chạy AI/RAG |
+| `troly35_run` | `accessCode`, `mode`, `content`, `sourceUrl`, `topic`, `style`, `history` | Chạy AI/RAG. `style` (chinhluan/tretrung/ngangon) chỉ cho mode `rebuttal`; `history` bật hội thoại đa lượt (tinh chỉnh câu trả lời) |
 | `troly35_rate` | `accessCode`, `requestId`, `rating`, `note` | Rating 1-5 legacy |
 | `troly35_feedback` | `accessCode`, `responseId`, `rating`, `comment` | `rating` là `good` hoặc `bad` |
 | `troly35_history` | `accessCode`, `limit` | Lấy lịch sử gần nhất |

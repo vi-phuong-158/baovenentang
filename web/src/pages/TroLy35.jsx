@@ -18,7 +18,15 @@ import { getTrends, getTroLy35History, runTroLy35, sendFeedback } from '../api.j
 import logo35 from '../../logo.png';
 
 const ACCESS_KEY = 'troly35_access_code';
+const STYLE_KEY = 'troly35_style';
 const HISTORY_LIMIT = 20;
+const CHAT_HISTORY_TURNS = 8;
+
+const STYLES = [
+  { value: 'chinhluan', label: 'Chính luận', hint: 'Trang trọng, lập luận chặt' },
+  { value: 'tretrung', label: 'Trẻ trung', hint: 'Gần gũi, hợp mạng xã hội' },
+  { value: 'ngangon', label: 'Ngắn gọn', hint: 'Súc tích, phản hồi nhanh' },
+];
 
 const MODES = [
   {
@@ -234,6 +242,9 @@ export default function TroLy35() {
   const [accessMsgType, setAccessMsgType] = useState('success');
 
   const [mode, setMode] = useState('rebuttal');
+  const [style, setStyle] = useState(() => {
+    try { return localStorage.getItem(STYLE_KEY) || 'chinhluan'; } catch { return 'chinhluan'; }
+  });
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -337,6 +348,11 @@ export default function TroLy35() {
     setRunMsg('');
   };
 
+  const chooseStyle = (value) => {
+    setStyle(value);
+    try { localStorage.setItem(STYLE_KEY, value); } catch {}
+  };
+
   const submitFeedback = async (message, rating, confirmBad = false) => {
     if (!message.requestId || message.feedback) return;
     const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
@@ -415,14 +431,21 @@ export default function TroLy35() {
     const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
     const content = question.trim();
     const selectedMode = getMode(mode).value;
+    const isFollowUp = messages.some(m => m.role === 'assistant' && !m.pending && !m.error);
+    const history = messages
+      .filter(m => !m.pending && !m.error && m.text)
+      .slice(-CHAT_HISTORY_TURNS)
+      .map(m => ({ role: m.role, text: m.text }));
 
     if (!code) {
       setRunMsg('Vui lòng nhập mã truy cập nội bộ.');
       setRunMsgType('error');
       return;
     }
-    if (content.length < 20) {
-      setRunMsg('Câu hỏi cần tối thiểu 20 ký tự để hệ thống có đủ ngữ cảnh.');
+    if (content.length < (isFollowUp ? 2 : 20)) {
+      setRunMsg(isFollowUp
+        ? 'Vui lòng nhập yêu cầu chỉnh sửa (vd: ngắn hơn, thêm dẫn chứng).'
+        : 'Câu hỏi cần tối thiểu 20 ký tự để hệ thống có đủ ngữ cảnh.');
       setRunMsgType('error');
       return;
     }
@@ -442,7 +465,7 @@ export default function TroLy35() {
     setLoading(true);
 
     try {
-      const res = await runTroLy35({ accessCode: code, mode: selectedMode, content });
+      const res = await runTroLy35({ accessCode: code, mode: selectedMode, content, style, history });
       if (!res.success) throw new Error(res.error || 'Không xử lý được yêu cầu.');
 
       const answer = formatAnswer(selectedMode, res);
@@ -467,6 +490,7 @@ export default function TroLy35() {
   };
 
   const activeMode = getMode(mode);
+  const hasConversation = messages.some(m => m.role === 'assistant' && !m.pending && !m.error);
 
   return (
     <div className="page page-fade">
@@ -529,6 +553,29 @@ export default function TroLy35() {
           ))}
         </div>
 
+        {mode === 'rebuttal' && (
+          <div style={{ marginBottom: 10 }}>
+            <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)', display: 'block', marginBottom: 6 }}>
+              Phong cách trả lời
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+              {STYLES.map(item => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`btn sm ${style === item.value ? 'primary' : 'ghost'}`}
+                  onClick={() => chooseStyle(item.value)}
+                  disabled={loading}
+                  title={item.hint}
+                  style={{ padding: '7px 6px', fontSize: 12 }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{ minHeight: 260, maxHeight: 420, overflowY: 'auto', padding: '2px 2px 10px' }}>
           {messages.length === 0 ? (
             <div className="empty" style={{ padding: '34px 12px 38px' }}>
@@ -563,7 +610,7 @@ export default function TroLy35() {
             rows={3}
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder={activeMode.placeholder}
+            placeholder={hasConversation ? 'Nhập yêu cầu tinh chỉnh: ngắn hơn, thêm dẫn chứng, đổi giọng...' : activeMode.placeholder}
             disabled={loading}
             style={{ minHeight: 82, marginBottom: 8 }}
           />
