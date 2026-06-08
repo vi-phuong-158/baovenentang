@@ -4,6 +4,20 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-08] Cài đặt và cấu hình CodeGraph
+
+### Nội dung thực hiện
+- Cài đặt công cụ CodeGraph (`@colbymchenry/codegraph`) toàn cục (globally) qua npm.
+- Chạy `codegraph install --yes` để cấu hình MCP server cho toàn bộ các tác nhân AI (Claude Code, Cursor, Codex, Gemini, Antigravity).
+- Khởi tạo và lập chỉ mục codebase trong dự án bằng lệnh `codegraph init -i`, tạo thành công cơ sở dữ liệu đồ thị codebase với 724 node và 1,072 edge lưu tại thư mục `.codegraph/`.
+- Cấu hình tệp tin `.codegraph/.gitignore` để tự động loại bỏ các tệp tin cơ sở dữ liệu đồ thị `.db` khỏi git.
+- Cập nhật [AGENTS.md](file:///d:/Code/baovenentang/AGENTS.md) và [CLAUDE.md](file:///d:/Code/baovenentang/CLAUDE.md) quy định bắt buộc sử dụng CodeGraph để phân tích tác động và cấu trúc dự án trước khi sửa code.
+
+### Trạng thái
+- **Hoàn thành**: Đã tích hợp và kiểm thử chỉ mục hoạt động bình thường. Đã commit thay đổi với thông điệp: `"chore: integrate CodeGraph tool and guidelines into agents docs"`.
+
+---
+
 ## [2026-06-08] Khởi tạo Bộ nhớ Dự án Dùng chung (Shared AI Project Brain)
 
 ### Nội dung thực hiện
