@@ -135,6 +135,14 @@ function doGet(e) {
         const count = parseInt(params.count, 10) || 10;
         result = { success: true, data: getRandomQuiz(count) };
         break;
+
+      case 'books':
+        result = { success: true, data: getBooks() };
+        break;
+
+      case 'book':
+        result = { success: true, data: getBookById(params.id || params.bookId) };
+        break;
         
       case 'search':
         const searchQuery = params.q || params.query || '';
@@ -162,8 +170,8 @@ function doGet(e) {
           success: true, 
           message: 'Trợ lý 35 API',
           version: '1.0',
-          endpoints: ['today', 'articles', 'search', 'quiz', 'stats', 'video_export (token)'],
-          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'bantin35_generate', 'bantin35_latest', 'bantin35_setup_trigger', 'bantin35_trigger_status']
+          endpoints: ['today', 'articles', 'search', 'quiz', 'books', 'book', 'stats', 'video_export (token)'],
+          postActions: ['subscribe', 'submit_quiz', 'troly35_run', 'troly35_rate', 'troly35_feedback', 'troly35_history', 'troly35_trends', 'ask_book', 'bantin35_generate', 'bantin35_latest', 'bantin35_setup_trigger', 'bantin35_trigger_status']
         };
     }
   } catch(error) {
@@ -323,6 +331,15 @@ function doPost(e) {
         result = handleTroLy35Trends(data);
         break;
 
+      case 'ask_book':
+        // Tạm tắt hỏi đáp AI trực tiếp cho Tủ sách; chỉ dùng qua link NotebookLM.
+        // Giữ lại askBookAI() trong 08-tusach.gs để bật lại khi cần.
+        result = {
+          success: false,
+          error: 'Tính năng hỏi đáp AI theo sách đang tạm tắt. Vui lòng dùng NotebookLM.'
+        };
+        break;
+
       case 'bantin35_generate':
         validateApiToken_(data, e);
         result = handleBanTin35Generate(data);
@@ -448,6 +465,7 @@ function setupSystem() {
   
   // 1. Tạo cấu trúc sheets
   initializeSheets();
+  seedTuSach();
   
   // 2. Tạo trigger chạy hàng ngày + archive hàng tháng
   setupDailyTrigger();

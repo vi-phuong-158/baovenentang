@@ -9,8 +9,8 @@ const HocTap  = lazy(() => import('./pages/HocTap.jsx'));
 
 const PAGES = {
   'tin-tuc': TinTuc,
-  'troly35': TroLy35,
   'hoc-tap': HocTap,
+  'troly35': TroLy35,
 };
 
 const TAB_IDS = Object.keys(PAGES);

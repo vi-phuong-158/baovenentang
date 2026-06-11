@@ -54,6 +54,11 @@ const SHEET_HEADERS = {
   QUIZ_RESULT: [
     'Thời gian', 'Người làm', 'Đơn vị', 'Điểm', 'Tổng câu', 'Chi tiết'
   ],
+  TU_SACH: [
+    'ID', 'Tiêu đề', 'Tác giả/Cơ quan', 'Năm', 'Chủ đề',
+    'Tóm tắt', 'Podcast gợi ý', 'Sơ đồ tư duy', 'NotebookLM URL',
+    'Nguồn', 'Trạng thái', 'Ngày cập nhật'
+  ],
   TROLY35_FEEDBACK: [
     'Thời gian', 'Query Hash', 'Rating', 'Comment', 'Response ID',
     'Access Code Hash', 'Query Preview', 'Response Preview', 'Reason'

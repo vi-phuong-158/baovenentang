@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  Bot,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Image as ImageIcon,
+  Library,
   PlayCircle,
   Search,
   Target,
   X,
 } from 'lucide-react';
 import Quiz from './Quiz.jsx';
+import TuSach from './TuSach.jsx';
 import videos from '../data/videos.json';
 import infographic1 from '../assets/infographic/1.png';
 import infographic2 from '../assets/infographic/2.png';
@@ -22,13 +22,11 @@ import infographicThumb2 from '../assets/infographic/thumbs/2.jpg';
 import infographicThumb3 from '../assets/infographic/thumbs/3.jpg';
 import infographicThumb4 from '../assets/infographic/thumbs/4.jpg';
 
-const NOTEBOOK_URL = 'https://notebooklm.google.com/notebook/94347c0d-1ead-4341-b0e8-284e4a06d2fc';
-
 const SECTIONS = [
   { id: 'video', label: 'Video', Icon: PlayCircle },
   { id: 'infographic', label: 'Infographic', Icon: ImageIcon },
-  { id: 'notebook', label: 'Sổ tay AI', Icon: Bot },
   { id: 'quiz', label: 'Kiểm tra', Icon: Target },
+  { id: 'tu-sach', label: 'Tủ sách', Icon: Library },
 ];
 
 const INFOGRAPHICS = [
@@ -255,23 +253,6 @@ function InfographicLibrary() {
   );
 }
 
-function NotebookPanel() {
-  return (
-    <div className="card elevated notebook-card">
-      <div className="notebook-icon">
-        <Bot size={30} />
-      </div>
-      <h2>Sổ tay AI</h2>
-      <p>
-        Mở kho ghi chú NotebookLM để tra cứu, tổng hợp và hỏi đáp trên bộ tư liệu học tập.
-      </p>
-      <a className="btn primary full" href={NOTEBOOK_URL}>
-        <ExternalLink size={16} /> Mở Sổ tay AI
-      </a>
-    </div>
-  );
-}
-
 export default function HocTap() {
   const [section, setSection] = useState('video');
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -297,7 +278,7 @@ export default function HocTap() {
     <div className="page page-fade learning-page">
       <div className="page-header">
         <h1>Học tập Nghị quyết XIV</h1>
-        <p>Video chuyên đề, infographic, Sổ tay AI và kiểm tra nhận thức.</p>
+        <p>Video chuyên đề, infographic, tủ sách và kiểm tra nhận thức.</p>
       </div>
 
       <SectionTabs active={section} onSelect={handleSelectSection} />
@@ -305,8 +286,8 @@ export default function HocTap() {
       <div className="learning-panel">
         {section === 'video' && <VideoLibrary onSelectVideo={setSelectedVideo} />}
         {section === 'infographic' && <InfographicLibrary />}
-        {section === 'notebook' && <NotebookPanel />}
         {section === 'quiz' && <Quiz embedded />}
+        {section === 'tu-sach' && <TuSach embedded />}
       </div>
     </div>
   );
