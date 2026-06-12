@@ -445,9 +445,9 @@ Vercel environment variables:
 | `GAS_DEPLOYMENT_URL` | URL Apps Script Web App `/exec` |
 | `GAS_API_TOKEN` hoặc `API_ACCESS_TOKEN` | Token proxy inject vào request nhạy cảm |
 | `ADMIN_API_TOKEN` | Token riêng cho action admin, nếu muốn tách khỏi `GAS_API_TOKEN` |
-| `IP_HASH_SALT` | Salt hash IP trước khi gửi sang GAS |
+| `IP_HASH_SALT` | Bắt buộc. Salt hash IP trước khi gửi sang GAS |
 
-Không nên dùng `VITE_API_TOKEN` cho secret thật vì biến `VITE_*` sẽ xuất hiện trong bundle frontend. Chỉ dùng trong môi trường nội bộ nếu chấp nhận rủi ro.
+Không dùng `VITE_API_TOKEN`. Token thật chỉ được gắn trong Vercel proxy. Khi cần chạy frontend dev trỏ thẳng Apps Script, đặt `VITE_GAS_URL` bằng URL Web App `/exec`; đây không phải secret và không thay thế được token server.
 
 `web/vercel.json` đã cấu hình:
 
@@ -467,7 +467,8 @@ Không nên dùng `VITE_API_TOKEN` cho secret thật vì biến `VITE_*` sẽ xu
 | `GET ?action=search&q=...&page=1&limit=10` | Tìm kiếm bản tin |
 | `GET ?action=quiz&count=10` | Lấy câu hỏi quiz |
 | `GET ?action=stats` | Lấy thống kê tổng quan |
-| `GET ?action=feedback_stats` | Thống kê feedback, cần token |
+| `GET ?action=feedback_stats` | Thống kê feedback, admin/token |
+| `GET ?action=video_export` | Export dữ liệu video, admin/token |
 
 ### POST
 
@@ -482,6 +483,9 @@ Không nên dùng `VITE_API_TOKEN` cho secret thật vì biến `VITE_*` sẽ xu
 | `troly35_trends` | `accessCode`, `windowDays` | Thống kê xu hướng |
 | `bantin35_generate` | `maxItems` | Admin/token |
 | `bantin35_latest` | `limit` | Lấy bản tin 35 mới nhất |
+| `bantin35_setup_trigger` | không có | Admin/token |
+| `bantin35_trigger_status` | không có | Admin/token |
+| `ask_book` | `bookId`, `question` | Đang tạm tắt, trả lỗi hướng dẫn dùng NotebookLM |
 | `contact` | `name`, `message` | Cần token |
 
 ### TroLy35 mode
@@ -705,6 +709,7 @@ Kiểm tra Vercel env:
 
 - `GAS_DEPLOYMENT_URL`
 - `GAS_API_TOKEN` hoặc `API_ACCESS_TOKEN`
+- `IP_HASH_SALT`
 
 Sau đó redeploy Vercel.
 

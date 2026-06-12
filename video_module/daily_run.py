@@ -3,7 +3,7 @@ Daily run cho video module Trợ lý 35.
 Chạy bằng cron / systemd timer lúc 7:30 sáng, sau khi runDailyNewsBot() GAS đã xong.
 
 Pipeline: fetch_input → extract_facts → make_script → validate → make_voice
-          → render_video → compress → post_telegram_review
+          → render_video → compress → make_short → post_telegram_review
 
 Exit codes:
   0 — hoàn tất thành công
@@ -118,6 +118,7 @@ def archive_outputs() -> None:
         ROOT / "data"   / "pending_review.json",
         ROOT / "audio"  / "voiceover.mp3",
         ROOT / "output" / "final.mp4",
+        ROOT / "output" / "final_short.mp4",
     ]
     for src in targets:
         if src.exists():
@@ -151,6 +152,7 @@ STEPS = [
     ("Sinh voiceover",    ROOT / "scripts" / "04_make_voice.py"),
     ("Render video",      ROOT / "scripts" / "05_render_video.py"),
     ("Nén + ghép audio",  ROOT / "scripts" / "06_compress_video.py"),
+    ("Tạo bản ngắn 30s",  ROOT / "scripts" / "08_make_short.py"),
     ("Đăng nhóm duyệt",  ROOT / "scripts" / "07_post_telegram_review.py"),
 ]
 

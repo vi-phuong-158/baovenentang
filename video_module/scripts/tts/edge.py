@@ -40,6 +40,7 @@ class EdgeTTS(TTSBase):
 
     async def _run(self, text: str, output_path: Path) -> None:
         import ssl
+        import json
         import edge_tts.communicate as _et_comm
 
         # edge-tts tạo _SSL_CTX lúc import — patch để bypass self-signed CA
@@ -48,4 +49,21 @@ class EdgeTTS(TTSBase):
         _et_comm._SSL_CTX.verify_mode = ssl.CERT_NONE
 
         communicate = edge_tts.Communicate(text, voice=self.voice, rate=self.rate)
-        await communicate.save(str(output_path))
+        
+        boundaries = []
+        with open(output_path, "wb") as fp:
+            async for chunk in communicate.stream():
+                if chunk.get("type") == "audio":
+                    fp.write(chunk["data"])
+                elif chunk.get("type") == "SentenceBoundary":
+                    boundaries.append({
+                        "text": chunk.get("text", ""),
+                        "offset": chunk.get("offset", 0),
+                        "duration": chunk.get("duration", 0)
+                    })
+                    
+        # Save boundaries to data/tts_boundaries.json
+        boundaries_file = output_path.parent.parent / "data" / "tts_boundaries.json"
+        boundaries_file.parent.mkdir(exist_ok=True)
+        boundaries_file.write_text(json.dumps(boundaries, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info(f"[EdgeTTS] Đã lưu {len(boundaries)} mốc SentenceBoundary sang {boundaries_file.name}")

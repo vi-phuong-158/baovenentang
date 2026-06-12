@@ -221,18 +221,34 @@ body {
   background: rgba(15, 13, 12, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-  text-align:center; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 140px;
+}
+.sub-phrase {
+  display: none;
+  opacity: 0;
+  text-align: center;
+  width: 100%;
   font-family:'Be Vietnam Pro',sans-serif;
   font-size:44px; font-weight:600; color:#F4EFE3;
   line-height:1.5; letter-spacing:0.5px;
 }
 .sub-word {
-  opacity: 0.35;
-  color: #A89D8A;
-  transition: color 0.12s ease, opacity 0.12s ease;
+  opacity: 0.32;
+  color: #9A8F7C;
   display: inline-block;
   margin: 0 6px;
+  text-shadow: 0 0 0px rgba(244, 194, 13, 0);
+  transform-origin: center bottom;
+  will-change: transform, opacity;
 }
+
+/* Hook intro — punchy mở đầu để giữ chân người xem trong 3 giây đầu */
+#scene-intro .headline { font-size:74px; letter-spacing:-1.5px; }
+#scene-intro .body-text { font-size:46px; font-weight:600; color:#FFE08A; }
+#scene-intro .content-card { gap:28px; border-color: rgba(244, 194, 13, 0.32); }
 """
 
 
@@ -289,10 +305,21 @@ def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
       <div class="headline" id="{sid}-headline">{headline}</div>
       <div class="body-text" id="{sid}-text">{text}</div>'''
 
-    # Tách các từ trong subtitle để có thể animate từng từ bám sát tiếng thuyết minh
+    # Tách các từ trong subtitle thành các cụm nhỏ (mỗi cụm tối đa 5 từ) để hiển thị gọn gàng
     words = vo.split()
-    words_html = "".join(f'<span class="sub-word">{w}</span> ' for w in words)
-
+    chunk_size = 5
+    phrase_divs = []
+    
+    for idx, j in enumerate(range(0, len(words), chunk_size)):
+        chunk = words[j : j + chunk_size]
+        words_html = "".join(f'<span class="sub-word">{_e(w)}</span> ' for w in chunk)
+        phrase_divs.append(
+            f'      <div class="sub-phrase" id="phrase-{sid}-{idx}" style="display: none; opacity: 0;">\n'
+            f'        {words_html}\n'
+            f'      </div>'
+        )
+    phrase_html = "\n".join(phrase_divs)
+    
     return f"""
   <!-- {sid}: t={start}..{start+dur}s -->
   <div class="scene clip {bg_class}" id="scene-{sid}"
@@ -309,36 +336,89 @@ def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
         {body_html}
       </div>
     </div>
-    <div class="subtitle-bar" id="{sid}-subtitle">{words_html}</div>
+    <div class="subtitle-bar" id="{sid}-subtitle">
+{phrase_html}
+    </div>
   </div>"""
+
+
+def _karaoke_caption_tween(sid: str, stagger_delay: float, at: float) -> str:
+    """Caption kiểu karaoke: mỗi từ pop sáng + phóng to rồi lắng về vàng, chạy lần lượt bám voiceover."""
+    return (
+        f"  tl.to('#scene-{sid} .sub-word', {{keyframes:["
+        "{opacity:1, scale:1.2, color:'#FFFFFF', textShadow:'0 0 22px rgba(244,194,13,0.95)', duration:0.13, ease:'power2.out'},"
+        "{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.22, ease:'power1.inOut'}"
+        f"], stagger:{stagger_delay}}}, {at});"
+    )
 
 
 def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
     lines = ["  const tl = gsap.timeline({ paused: true });", ""]
+    chunk_size = 5
+    
     for s in scenes:
         sid   = s["id"]
         start = s["start"]
         dur   = s["duration"]
         fade  = min(0.5, dur * 0.08)
         out_t = start + dur - fade
-
+ 
         vo = s.get("voiceover", "").strip()
-        words_count = len(vo.split())
-        speech_duration = max(0.5, dur - 1.2)
-        stagger_delay = round(speech_duration / max(1, words_count), 4)
-
+        words = vo.split()
+        words_count = len(words)
+        
+        speech_start_delay = 0.4 if sid == "intro" else 0.5
+        speech_end_buffer = 0.6 if sid == "intro" else 0.7
+        speech_duration = max(0.5, dur - speech_start_delay - speech_end_buffer)
+        word_duration = speech_duration / max(1, words_count)
+ 
         lines.append(f"  // {sid}: {start}s → {start+dur}s")
-        lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
-        # Ken Burns: zoom nhẹ ảnh nền suốt thời lượng scene
-        lines.append(f"  tl.fromTo('#bg-{sid}', {{scale:1.0}}, {{scale:1.08, duration:{dur}, ease:'none'}}, {start});")
-        lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
-        lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
-        if sid != "message":
-            lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
-        lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
-        lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:{fade}}}, {start+0.5});")
-        if words_count > 0:
-            lines.append(f"  tl.to('#scene-{sid} .sub-word', {{opacity:1, color:'#F4C20D', duration:0.15, stagger:{stagger_delay}}}, {start+0.7});")
+ 
+        if sid == "intro":
+            # HOOK 3 giây đầu: vào nhanh, pop scale, lộ trọn nội dung ngay đầu
+            lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:0.25}}, {start+0.05});")
+            lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:0.35}}, {start+0.1});")
+            lines.append(f"  tl.fromTo('#scene-{sid} .content-card', {{opacity:0, scale:0.82, y:0}}, {{opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(1.6)'}}, {start+0.18});")
+            lines.append(f"  tl.fromTo('#{sid}-headline', {{opacity:0, scale:0.6, y:0}}, {{opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(2)'}}, {start+0.32});")
+            lines.append(f"  tl.to('#{sid}-text', {{opacity:1, y:0, duration:0.4}}, {start+0.62});")
+        else:
+            lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
+            lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
+            lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
+            if sid != "message":
+                lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
+            lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
+            
+        # Thêm mốc hiện container của phụ đề
+        lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:0.2}}, {round(start + 0.2, 3)});")
+        
+        # Animate từng cụm từ (phrases)
+        for phrase_idx, j in enumerate(range(0, words_count, chunk_size)):
+            chunk = words[j : j + chunk_size]
+            start_w = j
+            phrase_start = round(start + speech_start_delay + start_w * word_duration, 3)
+            phrase_dur = round(len(chunk) * word_duration, 3)
+            phrase_end = round(phrase_start + phrase_dur, 3)
+            
+            phrase_id = f"#phrase-{sid}-{phrase_idx}"
+            
+            # Hiện cụm chữ hiện tại
+            lines.append(f"  tl.to('{phrase_id}', {{display:'block', opacity:1, duration:0.12}}, {phrase_start});")
+            
+            # Chạy karaoke cho các từ trong cụm này
+            if len(chunk) > 0:
+                lines.append(
+                    f"  tl.to('{phrase_id} .sub-word', {{keyframes:["
+                    "{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},"
+                    "{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}"
+                    f"], stagger:{round(word_duration, 4)}}}, {phrase_start});"
+                )
+            
+            # Ẩn cụm chữ này khi đọc xong
+            lines.append(f"  tl.to('{phrase_id}', {{display:'none', opacity:0, duration:0.12}}, {phrase_end});")
+            
+        # Ẩn container phụ đề và scene khi kết thúc
+        lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:0, duration:{fade}}}, {out_t});")
         lines.append(f"  tl.to('#scene-{sid}', {{opacity:0, duration:{fade}}}, {out_t});")
         lines.append("")
 
@@ -434,7 +514,40 @@ def run(
     for s in scenes.get("scenes", []):
         sid = s.get("id", "")
         cat = s.get("visual_category") or "default"
-        picked = picker.pick(cat)
+        
+        # Thử lấy ảnh được chỉ định cụ thể trước
+        picked = None
+        custom_path = s.get("image_path")
+        custom_url = s.get("image_url")
+        
+        if custom_path:
+            p = Path(custom_path)
+            if p.exists() and p.is_file():
+                picked = p
+                log.info(f"Dùng ảnh cụ thể qua image_path cho scene '{sid}': {picked.name}")
+        
+        if not picked and custom_url and (custom_url.startswith("http://") or custom_url.startswith("https://")):
+            # Tự động tải ảnh từ URL
+            try:
+                import urllib.request
+                import urllib.parse
+                import hashlib
+                ext = Path(urllib.parse.urlparse(custom_url).path).suffix.lower()
+                if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+                    ext = ".jpg"
+                h = hashlib.md5(custom_url.encode("utf-8")).hexdigest()[:10]
+                download_dest = HF_LIB_DIR / f"downloaded_{h}{ext}"
+                if not download_dest.exists():
+                    log.info(f"Đang tải ảnh từ URL cho scene '{sid}': {custom_url}")
+                    req = urllib.request.Request(custom_url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req, timeout=15) as r:
+                        download_dest.write_bytes(r.read())
+                picked = download_dest
+                log.info(f"Tải thành công ảnh cho scene '{sid}' từ URL")
+            except Exception as e:
+                log.warning(f"Không thể tải ảnh cho scene '{sid}' từ URL: {e}")
+        
+        # Không còn tự động chọn ảnh ngẫu nhiên nếu không truyền image_path hay image_url
         if picked and picked.exists():
             dest_name = f"{sid}_{picked.name}"
             dest = HF_LIB_DIR / dest_name

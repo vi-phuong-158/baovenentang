@@ -16,3 +16,8 @@ node_modules/
 hyperframes/node_modules/
 hyperframes/library/
 assets/library/_cache/
+
+# Nhạc nền: giữ thư mục + hướng dẫn, không commit file nhạc thật
+assets/music/*
+!assets/music/.gitkeep
+!assets/music/README.md

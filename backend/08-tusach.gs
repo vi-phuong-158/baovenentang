@@ -5,7 +5,20 @@
  * ============================================================
  */
 
-const TU_SACH_NOTEBOOK_URL = 'https://notebooklm.google.com/notebook/94347c0d-1ead-4341-b0e8-284e4a06d2fc';
+const TU_SACH_NOTEBOOK_URL = 'https://notebooklm.google.com/notebook/ee1792f7-45ff-4952-9ce6-50cc1cd4ad1a';
+
+const TU_SACH_LEGACY_SAMPLE_IDS = [
+  'hien-phap-2013',
+  'tuyen-ngon-doc-lap-1945',
+  'di-chuc-ho-chi-minh',
+  'duong-kach-menh',
+  'loi-keu-goi-toan-quoc-khang-chien',
+  'luat-an-ninh-mang-2018',
+  'luat-tiep-can-thong-tin-2016',
+  'luat-bien-viet-nam-2012',
+  'van-kien-dai-hoi-xiii',
+  'nghi-quyet-35'
+];
 
 const TU_SACH_ANSWER_SCHEMA = {
   type: 'object',
@@ -18,134 +31,69 @@ const TU_SACH_ANSWER_SCHEMA = {
 
 const TU_SACH_SAMPLE_BOOKS = [
   {
-    id: 'hien-phap-2013',
-    title: 'Hiến pháp nước CHXHCN Việt Nam năm 2013',
-    author: 'Quốc hội nước CHXHCN Việt Nam',
-    year: '2013',
-    topic: 'Nhà nước pháp quyền',
-    summary: 'Văn bản nền tảng quy định chế độ chính trị, quyền và nghĩa vụ cơ bản của công dân, tổ chức bộ máy nhà nước, nguyên tắc quản lý xã hội và bảo vệ Tổ quốc. Đây là nguồn tham khảo cốt lõi khi giải thích các vấn đề về chủ quyền nhân dân, quyền con người, quyền công dân và trách nhiệm của cơ quan nhà nước.',
-    podcast: 'Gợi ý tập 8-10 phút: Vì sao Hiến pháp 2013 là nền tảng của Nhà nước pháp quyền xã hội chủ nghĩa Việt Nam.',
-    mindMap: 'Hiến pháp 2013 -> Chế độ chính trị | Quyền công dân | Bộ máy nhà nước | Bảo vệ Tổ quốc | Hiệu lực pháp lý',
+    id: 'cam-nang-phong-chong-tin-gia',
+    title: 'Cẩm nang phòng chống tin giả, tin sai sự thật trên không gian mạng',
+    author: 'Cục Phát thanh, truyền hình và thông tin điện tử - Bộ Thông tin và Truyền thông',
+    year: '2022',
+    topic: 'Phòng chống tin giả',
+    summary: 'Cẩm nang cung cấp kiến thức nền và kỹ năng thực hành để nhận diện, kiểm chứng, xử lý tin giả, tin sai sự thật trên không gian mạng. Nội dung bao gồm dấu hiệu nhận biết tin giả, cách tránh bẫy tin giả, trách nhiệm hành xử trên mạng, hậu quả pháp lý và quy trình tiếp nhận, xử lý thông tin sai lệch.',
+    podcast: 'Gợi ý tập 8-10 phút: Nhận diện tin giả, kiểm chứng nguồn tin và hành động có trách nhiệm trên không gian mạng.',
+    mindMap: 'Tin giả -> Dấu hiệu nhận biết | Kiểm chứng nguồn | Tránh bẫy tin giả | Trách nhiệm người dùng | Chế tài pháp lý',
     notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cổng thông tin điện tử Quốc hội / văn bản pháp luật chính thức',
-    sourceUrl: 'https://quochoi.vn/'
+    source: 'PDF Google Drive - Cam_nang_phong_chong_tin_gia.pdf',
+    sourceUrl: 'https://drive.google.com/file/d/1Hkc-MoxEnmOo-S3kGowq5eH6DTnUYgQN/view?usp=sharing'
   },
   {
-    id: 'tuyen-ngon-doc-lap-1945',
-    title: 'Tuyên ngôn Độc lập 1945',
-    author: 'Chủ tịch Hồ Chí Minh',
-    year: '1945',
-    topic: 'Lịch sử - Tư tưởng Hồ Chí Minh',
-    summary: 'Văn kiện lịch sử tuyên bố sự ra đời của nước Việt Nam Dân chủ Cộng hòa, khẳng định quyền độc lập, tự do của dân tộc Việt Nam và cơ sở pháp lý, chính nghĩa của cuộc đấu tranh giành độc lập. Tài liệu phù hợp để đối chiếu các luận điểm về độc lập dân tộc, chủ quyền quốc gia và giá trị của Cách mạng Tháng Tám.',
-    podcast: 'Gợi ý tập 6-8 phút: Ba lớp ý nghĩa lịch sử, pháp lý và chính trị trong Tuyên ngôn Độc lập.',
-    mindMap: 'Tuyên ngôn Độc lập -> Quyền dân tộc | Chủ quyền quốc gia | Chính nghĩa cách mạng | Nhà nước mới',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Trang thông tin Chủ tịch Hồ Chí Minh',
-    sourceUrl: 'https://hochiminh.vn/'
-  },
-  {
-    id: 'di-chuc-ho-chi-minh',
-    title: 'Di chúc của Chủ tịch Hồ Chí Minh',
-    author: 'Chủ tịch Hồ Chí Minh',
-    year: '1969',
-    topic: 'Xây dựng Đảng - Đạo đức cách mạng',
-    summary: 'Tác phẩm kết tinh tư tưởng về đoàn kết trong Đảng, chăm lo nhân dân, bồi dưỡng thế hệ cách mạng cho đời sau, xây dựng đất nước sau chiến tranh và giữ gìn đạo đức cách mạng. Đây là tài liệu quan trọng khi nghiên cứu trách nhiệm nêu gương, đoàn kết và phụng sự nhân dân.',
-    podcast: 'Gợi ý tập 8 phút: Những lời căn dặn còn nguyên giá trị trong xây dựng Đảng và giáo dục thế hệ trẻ.',
-    mindMap: 'Di chúc -> Đoàn kết | Đạo đức cách mạng | Nhân dân | Thanh niên | Xây dựng đất nước',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Trang thông tin Chủ tịch Hồ Chí Minh',
-    sourceUrl: 'https://hochiminh.vn/'
-  },
-  {
-    id: 'duong-kach-menh',
-    title: 'Đường Kách mệnh',
-    author: 'Nguyễn Ái Quốc',
-    year: '1927',
-    topic: 'Lý luận cách mạng',
-    summary: 'Tác phẩm trình bày những vấn đề cơ bản về đường lối cách mạng, vai trò của tổ chức, đạo đức người cách mạng và yêu cầu gắn lý luận với thực tiễn. Tài liệu có giá trị nền tảng khi tìm hiểu sự hình thành tư tưởng cách mạng Việt Nam và vai trò lãnh đạo của Đảng.',
-    podcast: 'Gợi ý tập 10 phút: Từ bồi dưỡng cán bộ đến xây dựng tổ chức cách mạng.',
-    mindMap: 'Đường Kách mệnh -> Người cách mạng | Tổ chức | Quần chúng | Lý luận | Thực tiễn',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Trang thông tin Chủ tịch Hồ Chí Minh',
-    sourceUrl: 'https://hochiminh.vn/'
-  },
-  {
-    id: 'loi-keu-goi-toan-quoc-khang-chien',
-    title: 'Lời kêu gọi toàn quốc kháng chiến',
-    author: 'Chủ tịch Hồ Chí Minh',
-    year: '1946',
-    topic: 'Lịch sử kháng chiến',
-    summary: 'Văn kiện hiệu triệu toàn dân đoàn kết bảo vệ nền độc lập non trẻ trước nguy cơ xâm lược, thể hiện tinh thần tự lực, tự cường và ý chí bảo vệ Tổ quốc. Tài liệu phù hợp để phân tích sức mạnh đại đoàn kết toàn dân và thế trận lòng dân trong bảo vệ đất nước.',
-    podcast: 'Gợi ý tập 6 phút: Tinh thần toàn dân kháng chiến và bài học về ý chí bảo vệ Tổ quốc.',
-    mindMap: 'Toàn quốc kháng chiến -> Độc lập | Đoàn kết | Tự lực | Thế trận lòng dân | Bảo vệ Tổ quốc',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Trang thông tin Chủ tịch Hồ Chí Minh',
-    sourceUrl: 'https://hochiminh.vn/'
-  },
-  {
-    id: 'luat-an-ninh-mang-2018',
-    title: 'Luật An ninh mạng 2018',
-    author: 'Quốc hội nước CHXHCN Việt Nam',
-    year: '2018',
-    topic: 'An ninh mạng',
-    summary: 'Luật quy định nguyên tắc, biện pháp bảo vệ an ninh quốc gia và trật tự an toàn xã hội trên không gian mạng; trách nhiệm của cơ quan, tổ chức, cá nhân khi tham gia môi trường số. Đây là nguồn tham khảo quan trọng cho nội dung về chủ quyền số, phòng chống thông tin xấu độc và bảo vệ hệ thống thông tin.',
-    podcast: 'Gợi ý tập 9 phút: Chủ quyền số và trách nhiệm công dân trên không gian mạng.',
-    mindMap: 'Luật An ninh mạng -> Chủ quyền số | Hệ thống thông tin | Nội dung vi phạm | Trách nhiệm tổ chức cá nhân',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cơ sở dữ liệu văn bản pháp luật',
-    sourceUrl: 'https://vanban.chinhphu.vn/'
-  },
-  {
-    id: 'luat-tiep-can-thong-tin-2016',
-    title: 'Luật Tiếp cận thông tin 2016',
-    author: 'Quốc hội nước CHXHCN Việt Nam',
-    year: '2016',
-    topic: 'Minh bạch thông tin',
-    summary: 'Luật quy định quyền tiếp cận thông tin của công dân, trách nhiệm cung cấp thông tin của cơ quan nhà nước, các trường hợp hạn chế tiếp cận và quy trình thực hiện. Tài liệu hữu ích khi xây dựng nội dung về minh bạch, trách nhiệm giải trình và sử dụng thông tin chính thống.',
-    podcast: 'Gợi ý tập 7 phút: Quyền tiếp cận thông tin và trách nhiệm sử dụng nguồn tin chính thống.',
-    mindMap: 'Tiếp cận thông tin -> Quyền công dân | Cơ quan nhà nước | Thông tin hạn chế | Quy trình yêu cầu',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cơ sở dữ liệu văn bản pháp luật',
-    sourceUrl: 'https://vanban.chinhphu.vn/'
-  },
-  {
-    id: 'luat-bien-viet-nam-2012',
-    title: 'Luật Biển Việt Nam 2012',
-    author: 'Quốc hội nước CHXHCN Việt Nam',
-    year: '2012',
-    topic: 'Chủ quyền biển đảo',
-    summary: 'Luật quy định về đường cơ sở, vùng biển Việt Nam, chế độ pháp lý của từng vùng biển, quản lý và bảo vệ biển đảo phù hợp luật pháp quốc tế. Đây là tài liệu nền để giải thích chủ quyền, quyền chủ quyền, quyền tài phán và trách nhiệm bảo vệ biển đảo.',
-    podcast: 'Gợi ý tập 8 phút: Hiểu đúng vùng biển Việt Nam và trách nhiệm bảo vệ chủ quyền biển đảo.',
-    mindMap: 'Luật Biển Việt Nam -> Vùng biển | Chủ quyền | Quyền chủ quyền | Quyền tài phán | Hợp tác quốc tế',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cơ sở dữ liệu văn bản pháp luật',
-    sourceUrl: 'https://vanban.chinhphu.vn/'
-  },
-  {
-    id: 'van-kien-dai-hoi-xiii',
-    title: 'Văn kiện Đại hội XIII của Đảng',
-    author: 'Đảng Cộng sản Việt Nam',
-    year: '2021',
-    topic: 'Đường lối - Chính sách',
-    summary: 'Văn kiện định hướng mục tiêu phát triển đất nước, xây dựng Đảng, phát triển kinh tế - xã hội, bảo vệ Tổ quốc, đối ngoại và hội nhập quốc tế trong giai đoạn mới. Tài liệu phù hợp để tra cứu các luận điểm chính thống về khát vọng phát triển, đổi mới sáng tạo và sức mạnh đại đoàn kết toàn dân tộc.',
-    podcast: 'Gợi ý tập 12 phút: Những trục tư tưởng lớn trong Văn kiện Đại hội XIII.',
-    mindMap: 'Đại hội XIII -> Xây dựng Đảng | Phát triển đất nước | Quốc phòng an ninh | Đối ngoại | Đại đoàn kết',
-    notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cổng thông tin Tư liệu - Văn kiện Đảng',
-    sourceUrl: 'https://tulieuvankien.dangcongsan.vn/'
-  },
-  {
-    id: 'nghi-quyet-35',
-    title: 'Nghị quyết số 35-NQ/TW về bảo vệ nền tảng tư tưởng của Đảng',
-    author: 'Bộ Chính trị',
-    year: '2018',
+    id: 'bao-ve-nen-tang-tu-tuong-cua-dang-trong-tinh-hinh-moi',
+    title: 'Bảo vệ nền tảng tư tưởng của Đảng trong tình hình mới',
+    author: 'Ban Tuyên giáo Trung ương; Ban Chỉ đạo 35 Trung ương',
+    year: '2020',
     topic: 'Bảo vệ nền tảng tư tưởng',
-    summary: 'Nghị quyết xác định nhiệm vụ tăng cường bảo vệ nền tảng tư tưởng của Đảng, đấu tranh phản bác các quan điểm sai trái, thù địch trong tình hình mới. Đây là tài liệu trọng tâm cho lực lượng 35 khi xây dựng nội dung tuyên truyền, phản bác, lan tỏa thông tin tích cực và nâng cao sức đề kháng trên không gian mạng.',
-    podcast: 'Gợi ý tập 10 phút: Nghị quyết 35 và yêu cầu bảo vệ nền tảng tư tưởng trên môi trường số.',
-    mindMap: 'Nghị quyết 35 -> Nền tảng tư tưởng | Quan điểm sai trái | Không gian mạng | Tuyên truyền tích cực | Lực lượng 35',
+    summary: 'Tài liệu hệ thống các vấn đề lý luận và thực tiễn về bảo vệ chủ nghĩa Mác - Lênin, tư tưởng Hồ Chí Minh, vai trò lãnh đạo của Đảng, đường lối đổi mới và đấu tranh phản bác các quan điểm sai trái, thù địch. Nội dung phù hợp cho cán bộ tuyên truyền khi nhận diện luận điệu xuyên tạc và xây dựng lập luận phản bác trong bối cảnh mới.',
+    podcast: 'Gợi ý tập 10-12 phút: Vì sao bảo vệ nền tảng tư tưởng của Đảng là nhiệm vụ sống còn trong tình hình mới.',
+    mindMap: 'Nền tảng tư tưởng -> Chủ nghĩa Mác - Lênin | Tư tưởng Hồ Chí Minh | Vai trò lãnh đạo của Đảng | Nghị quyết 35 | Phản bác quan điểm sai trái',
     notebookUrl: TU_SACH_NOTEBOOK_URL,
-    source: 'Cổng thông tin Tư liệu - Văn kiện Đảng',
-    sourceUrl: 'https://tulieuvankien.dangcongsan.vn/'
+    source: 'PDF Google Drive - Bao_ve_nen_tang_tu_tuong_cua_Dang_trong_tinh_hinh_moi.pdf',
+    sourceUrl: 'https://drive.google.com/file/d/1CqzN40Te3AvIoRQXti0BYbnyBIQSh-Kp/view?usp=sharing'
+  },
+  {
+    id: 'tang-cuong-xay-dung-dang-trong-cong-an-nhan-dan',
+    title: 'Tăng cường xây dựng Đảng trong Công an nhân dân theo Di chúc của Chủ tịch Hồ Chí Minh',
+    author: 'Đại tướng, GS.TS. Tô Lâm (Chủ biên); Cục Công tác đảng và công tác chính trị, Bộ Công an',
+    year: '2022',
+    topic: 'Xây dựng Đảng trong Công an nhân dân',
+    summary: 'Cuốn sách làm rõ yêu cầu xây dựng, chỉnh đốn Đảng trong Công an nhân dân theo tư tưởng, đạo đức, phong cách Hồ Chí Minh và những căn dặn trong Di chúc. Nội dung nhấn mạnh đạo đức cách mạng, trách nhiệm nêu gương, tổ chức đảng trong sạch vững mạnh và vai trò của lực lượng Công an nhân dân trong bảo vệ Đảng, Nhà nước và nhân dân.',
+    podcast: 'Gợi ý tập 10 phút: Xây dựng Đảng trong Công an nhân dân từ lời căn dặn của Chủ tịch Hồ Chí Minh.',
+    mindMap: 'Xây dựng Đảng trong CAND -> Di chúc Hồ Chí Minh | Đạo đức cách mạng | Chỉnh đốn Đảng | Nêu gương | Công an nhân dân',
+    notebookUrl: TU_SACH_NOTEBOOK_URL,
+    source: 'PDF Google Drive - tang_cuong_ct_XDD_cong_an.pdf',
+    sourceUrl: 'https://drive.google.com/file/d/1CeixPxMEiW6HN8TB1WOgTA2fnexd1qyB/view?usp=sharing'
+  },
+  {
+    id: 'phat-huy-suc-manh-toan-dan-toc-bao-ve-an-ninh-quoc-gia',
+    title: 'Phát huy sức mạnh toàn dân tộc bảo vệ an ninh quốc gia trong tình hình mới',
+    author: 'Bộ Công an; Học viện Chính trị quốc gia Hồ Chí Minh; Ủy ban Quốc phòng và An ninh của Quốc hội; Nhà xuất bản Chính trị quốc gia Sự thật',
+    year: '2022',
+    topic: 'An ninh quốc gia - Sức mạnh toàn dân',
+    summary: 'Kỷ yếu hội thảo khoa học quốc gia phân tích tư tưởng Hồ Chí Minh, đường lối của Đảng, vai trò của nhân dân và các nguồn lực xã hội trong bảo vệ an ninh quốc gia. Tài liệu tập trung vào vị trí của lực lượng Công an nhân dân, phong trào toàn dân bảo vệ an ninh Tổ quốc và các nhiệm vụ, giải pháp phát huy sức mạnh toàn dân tộc trong tình hình mới.',
+    podcast: 'Gợi ý tập 12 phút: Sức mạnh toàn dân trong bảo vệ an ninh quốc gia và xây dựng thế trận an ninh nhân dân.',
+    mindMap: 'Sức mạnh toàn dân tộc -> Tư tưởng Hồ Chí Minh | An ninh quốc gia | Nguồn lực xã hội | Công an nhân dân | Toàn dân bảo vệ ANTQ',
+    notebookUrl: TU_SACH_NOTEBOOK_URL,
+    source: 'PDF Google Drive - phat_huy_suc_manh_toàn_dan_toc.pdf',
+    sourceUrl: 'https://drive.google.com/file/d/1yoaGG-gPjoa6ARPJFkdyvqbbANTx2D70/view?usp=sharing'
+  },
+  {
+    id: 'phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc',
+    title: 'Phát huy truyền thống đại đoàn kết toàn dân tộc, xây dựng đất nước ta ngày càng giàu mạnh, văn minh, hạnh phúc',
+    author: 'Nguyễn Phú Trọng',
+    year: '2023',
+    topic: 'Đại đoàn kết toàn dân tộc',
+    summary: 'Cuốn sách hệ thống hóa sự lãnh đạo, chỉ đạo của Đảng và Tổng Bí thư Nguyễn Phú Trọng về xây dựng, củng cố, phát huy truyền thống đại đoàn kết toàn dân tộc. Nội dung nhấn mạnh vai trò của nhân dân, đồng thuận xã hội, khơi dậy tinh thần yêu nước, ý chí tự lực tự cường và khát vọng phát triển đất nước phồn vinh, hạnh phúc.',
+    podcast: 'Gợi ý tập 10 phút: Đại đoàn kết toàn dân tộc là cội nguồn sức mạnh để xây dựng đất nước phồn vinh, hạnh phúc.',
+    mindMap: 'Đại đoàn kết toàn dân tộc -> Truyền thống dân tộc | Niềm tin nhân dân | Đồng thuận xã hội | Khát vọng phát triển | Mục tiêu 2030-2045',
+    notebookUrl: TU_SACH_NOTEBOOK_URL,
+    source: 'PDF Google Drive - Sach_Phat_huy_truyen_thong_dai_doan_ket.pdf',
+    sourceUrl: 'https://drive.google.com/file/d/1ui2XXYKinNWPuKHLfO3K5ap2Di9HXnxZ/view?usp=sharing'
   }
 ];
 
@@ -225,11 +173,30 @@ Trả về JSON:
 
 function seedTuSach() {
   const sheet = getSheet_('TU_SACH');
-  if (sheet.getLastRow() > 1) return 0;
+  if (sheet.getLastRow() <= 1) {
+    return replaceTuSachWithSampleBooks();
+  }
 
+  const ids = sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, 1)
+    .getValues()
+    .map(row => cleanValue_(row[0]))
+    .filter(Boolean);
+  const hasLegacyData = TU_SACH_LEGACY_SAMPLE_IDS.some(id => ids.indexOf(id) !== -1);
+  if (!hasLegacyData) return 0;
+
+  Logger.log('[TuSach] Phát hiện dữ liệu mẫu cũ, thay bằng danh mục tài liệu mới.');
+  return replaceTuSachWithSampleBooks();
+}
+
+function replaceTuSachWithSampleBooks() {
+  const sheet = getSheet_('TU_SACH');
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, SHEET_HEADERS.TU_SACH.length).clearContent();
+  }
   const rows = TU_SACH_SAMPLE_BOOKS.map(tuSachBookToRow_);
   appendRows_(sheet, rows);
-  Logger.log(`[TuSach] Đã seed ${rows.length} tài liệu mẫu.`);
+  Logger.log(`[TuSach] Đã cập nhật ${rows.length} tài liệu.`);
   return rows.length;
 }
 

@@ -3,12 +3,14 @@ import { createHash } from 'crypto';
 const GAS_URL = process.env.GAS_DEPLOYMENT_URL;
 const GAS_API_TOKEN = process.env.GAS_API_TOKEN || process.env.API_ACCESS_TOKEN || '';
 const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || GAS_API_TOKEN;
+const IP_HASH_SALT = process.env.IP_HASH_SALT || '';
 
+// Best-effort only on serverless instances; cost controls must live in GAS quotas.
 const RATE_LIMIT_WINDOW = 60 * 1000;
 const RATE_LIMIT_MAX = 30;
 const ipHits = new Map();
 const TOKEN_INJECT_ACTIONS = new Set(['subscribe', 'submit_quiz', 'contact']);
-const ADMIN_ACTIONS = new Set(['bantin35_generate', 'bantin35_setup_trigger', 'bantin35_trigger_status', 'feedback_stats']);
+const ADMIN_ACTIONS = new Set(['bantin35_generate', 'bantin35_setup_trigger', 'bantin35_trigger_status', 'feedback_stats', 'video_export']);
 
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -28,8 +30,7 @@ function clientToken(req) {
 }
 
 function hashIp(ip) {
-  const salt = process.env.IP_HASH_SALT || GAS_API_TOKEN || 'bvnt';
-  return createHash('sha256').update(`${salt}:${ip || 'unknown'}`).digest('hex');
+  return createHash('sha256').update(`${IP_HASH_SALT}:${ip || 'unknown'}`).digest('hex');
 }
 
 function parseBody(body) {
@@ -54,6 +55,9 @@ function authorizeAction(req, action, res) {
 export default async function handler(req, res) {
   if (!GAS_URL) {
     return res.status(500).json({ success: false, error: 'Backend not configured' });
+  }
+  if (!IP_HASH_SALT) {
+    return res.status(500).json({ success: false, error: 'IP hash salt not configured' });
   }
 
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';

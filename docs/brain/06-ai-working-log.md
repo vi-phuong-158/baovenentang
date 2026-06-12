@@ -4,6 +4,240 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-12] Them Podcast am thanh cho sach Dai doan ket
+
+### Noi dung thuc hien
+- Tai file tu Google Drive cua nguoi dung (ID: `1omsBikggxFp_SaFekBNkIZlPvnRiqB2I`).
+- Xac dinh file tải ve thuc chat la file am thanh `.m4a` chu khong phai anh (nguoi dung viet nham "postcard" thanh "postcard").
+- Di chuyen va doi ten file thanh `podcast.m4a` va dat tai thu muc `web/public/tusach-media/phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc/podcast.m4a`.
+- Cap nhat [web/src/pages/TuSach.jsx](file:///d:/05. Code/baovenentang/web/src/pages/TuSach.jsx):
+  - Dinh nghia map `BOOK_AUDIOS` chua thong tin file am thanh.
+  - Them hàm helper `getBookAudio(book)`.
+  - Tich hop the `<audio>` controls de phat file audio trong phan Podcast cua modal chi tiet sach.
+- Cap nhat [web/src/css/tusach.css](file:///d:/05. Code/baovenentang/web/src/css/tusach.css):
+  - Them styling cho `.tusach-audio-player` de trinh phat hien thi dep mat va phu hop giao dien.
+- Chay build thu nghiem frontend de xac nhan khong loi compilation.
+
+### Ly do
+- Theo yeu cau nguoi dung muon tich hop podcast am thanh cua sach Dai doan ket vao Tu sach so (nguoi dung viet nham tu podcast thanh postcard).
+
+### Rui ro va pham vi anh huong
+- Chi anh huong den giao dien chi tiet cua Tu sach so o frontend.
+- Khong lam thay doi cấu trúc database Google Sheets hay logic backend Google Apps Script.
+
+### Kiem thu da chay
+- `cd web; npm run build` -> build thanh cong khong loi.
+
+### Cach test thu cong
+1. Chay dev server frontend local (`npm run dev`).
+2. Truy cap Tu sach so, click chon sach "Phat huy truyen thong dai doan ket toan dan toc...".
+3. Xac nhan trong phan Podcast co xuat hien trinh phat am thanh.
+4. Bấm Play de nghe thu am thanh tu file `podcast.m4a` xem co phat binh thuong hay khong.
+
+## [2026-06-12] Lam dep UI Tu sach va doi ten muc Hoc tap
+
+### Noi dung thuc hien
+- Doc lai toan bo `docs/brain/` truoc khi sua code theo quy uoc du an.
+- Dung CodeGraph phan tich luong `HocTap` -> `TuSach` -> `getBooks`/`getBookById` va impact cua `TuSach` truoc khi sua UI. Rieng lan doi text cuoi, CodeGraph MCP dang bi `Transport closed`, nen chi doi literal heading mot dong trong `HocTap.jsx`.
+- Cap nhat [web/src/pages/TuSach.jsx](file:///d:/Code/baovenentang/web/src/pages/TuSach.jsx):
+  - Them thanh thong ke tong quan Tu sach: so tai lieu, chu de, hoc lieu truc quan, NotebookLM.
+  - Lam card sach giau thong tin hon: bia sach, nam, badge NotebookLM/So do/Nguon, badge so anh neu co media.
+  - Lam modal chi tiet rong va ro cau truc hon: header co bia, nut NotebookLM/Nguon o dau, thong tin tong quan, thu vien lien quan, tom tat nhanh, podcast va so do tu duy dang bang truc quan.
+  - Dua sach `phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc` len dau danh sach bang sort frontend `FEATURED_BOOK_ID`, khong doi du lieu Google Sheets.
+- Cap nhat [web/src/css/tusach.css](file:///d:/Code/baovenentang/web/src/css/tusach.css):
+  - Style thanh thong ke, card sach, badge, modal chi tiet, thu vien media, lightbox va mindmap board.
+  - Bo sung responsive cho mobile.
+- Cap nhat [web/src/pages/HocTap.jsx](file:///d:/Code/baovenentang/web/src/pages/HocTap.jsx):
+  - Doi heading `Hoc tap Nghi quyet XIV` thanh `Tai lieu hoc tap`.
+
+### Ly do
+- Theo yeu cau nguoi dung: lam dep phan Tu sach truoc khi thiet ke `TU_SACH_MEDIA`; uu tien sach Dai doan ket len dau va doi ten muc hoc tap cho dung pham vi noi dung.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend UI `HocTap`/`TuSach`.
+- Khong doi schema `TU_SACH`, khong them `TU_SACH_MEDIA`, khong doi action API `books`/`book`, khong can deploy lai Apps Script.
+- Thu tu uu tien sach dang nam o frontend; neu sau nay can van hanh qua sheet thi nen chuyen sang cot/sheet cau hinh thu tu hien thi.
+
+### Kiem thu da chay
+- `cd web; npm run build` -> pass.
+- Dev server local dang chay tai `http://127.0.0.1:5173/`; HTTP `/` tra `200 OK` trong qua trinh kiem tra.
+
+### Cach test thu cong
+1. Mo `http://127.0.0.1:5173/`.
+2. Vao `Hoc tap` va xac nhan tieu de da doi thanh `Tai lieu hoc tap`.
+3. Chon `Tu sach`, xac nhan sach `Phat huy truyen thong dai doan ket toan dan toc...` nam dau danh sach.
+4. Mo chi tiet sach, xac nhan modal co thu vien lien quan, tom tat nhanh, podcast, so do tu duy va nut NotebookLM/Nguon.
+
+---
+
+## [2026-06-11] Gan so do tu duy va anh minh hoa cho sach Dai doan ket
+
+### Noi dung thuc hien
+- Doc lai `docs/brain/` va dung CodeGraph xem luong `TuSach.jsx`/`HocTap.jsx` truoc khi sua.
+- Kiem tra folder Drive nguoi dung cung cap: `https://drive.google.com/drive/folders/1YgY9ttTC1j4bFU1gofkq1f7aHd_0nWJk`.
+- Xac dinh 3 file cua sach `phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc`:
+  - `Phat huy tinh than dai doan ket toan dan toc.png` -> so do tu duy, Drive ID `1k72x3VdROr8F_6byrh_7W5dLOjqPuhdB`.
+  - `Sức_mạnh_đại_đoàn_kết.png` -> anh minh hoa, Drive ID `1stAPFHJ-UTRGjKJtqXjoHYr3kZLUYVeK`.
+  - `Đại_đoàn_kết_năm_2045.png` -> anh minh hoa, Drive ID `1llSXEBEFZNRWeuDg-w0KCmzbz4Rfm9RY`.
+- Tao media toi uu tai `web/public/tusach-media/phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc/`:
+  - File full WebP: `mind-map.webp`, `suc-manh-dai-doan-ket.webp`, `dai-doan-ket-2045.webp`.
+  - Thumbnail WebP trong `thumbs/`.
+- Cap nhat [web/src/pages/TuSach.jsx](file:///d:/Code/baovenentang/web/src/pages/TuSach.jsx):
+  - Them `BOOK_MEDIA` map theo `book.id`.
+  - Modal chi tiet sach hien muc `So do tu duy & anh minh hoa`.
+  - Bam thumbnail mo lightbox anh lon va co link mo anh goc tren Drive.
+- Cap nhat [web/src/css/tusach.css](file:///d:/Code/baovenentang/web/src/css/tusach.css): style media grid, lightbox anh lon, caption/link Drive.
+
+### Ly do
+- Theo yeu cau nguoi dung: truoc tien gan so do tu duy va anh minh hoa trong folder Drive vao sach `Phat huy truyen thong dai doan ket...` de nguoi dung bam xem trong chi tiet sach.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend `TuSach`; khong doi schema `TU_SACH`, khong doi API `books`/`book`, khong can deploy lai GAS.
+- Media full la WebP toi uu, duoc tai khi nguoi dung bam xem; thumbnail nho duoc tai trong modal.
+- Neu thay file Drive goc, can tao lai WebP/thumbnail hoac cap nhat `BOOK_MEDIA`.
+
+### Kiem thu da chay
+- `npm run build` trong `web` -> pass.
+- Goi `http://127.0.0.1:5173/tusach-media/phat-huy-truyen-thong-dai-doan-ket-toan-dan-toc/thumbs/mind-map.webp` -> `200 image/webp`.
+- Xac nhan `web/dist/tusach-media/...` co du 3 file full va 3 thumbnail sau build.
+- `node --check web/src/pages/TuSach.jsx` khong ap dung duoc vi Node bao khong nhan extension `.jsx`; Vite build da parse JSX thanh cong.
+
+### Cach test thu cong
+1. Chay `cd web && npm run dev`, mo `http://127.0.0.1:5173/`.
+2. Vao `Hoc tap` -> `Tu sach`.
+3. Mo sach `Phat huy truyen thong dai doan ket toan dan toc...`.
+4. Xac nhan co muc `So do tu duy & anh minh hoa` voi 3 thumbnail.
+5. Bam tung thumbnail, xac nhan lightbox hien anh lon va link `Mo anh goc tren Drive` mo dung file.
+
+---
+
+## [2026-06-11] Them bia sach va tang toc tai Tu sach
+
+### Noi dung thuc hien
+- Dung CodeGraph de xem luong `HocTap` -> `TuSach` -> `getBooks`/`getBookById` va blast radius truoc khi sua.
+- Trich trang dau cua 5 PDF trong `data/` thanh anh bia JPG bang `pdftoppm`, sau do resize/nen bang Pillow.
+- Them 5 anh bia static tai `web/public/tusach-covers/`, dung luong sau nen khoang 6-43KB/anh.
+- Cap nhat [web/src/pages/TuSach.jsx](file:///d:/Code/baovenentang/web/src/pages/TuSach.jsx):
+  - Map `book.id` sang anh bia static, khong doi schema sheet `TU_SACH`.
+  - Hien bia tren card sach va phan dau modal chi tiet.
+  - Skeleton loading co khung bia de tranh layout shift.
+- Cap nhat [web/src/css/tusach.css](file:///d:/Code/baovenentang/web/src/css/tusach.css): style cover, detail cover, skeleton cover va gioi han clamp tom tat tren card.
+- Cap nhat [web/src/cache.js](file:///d:/Code/baovenentang/web/src/cache.js):
+  - Them in-flight dedupe de nhieu noi goi cung cache key khong tao request trung.
+  - Cho `cached()` nhan TTL tuy bien.
+- Cap nhat [web/src/api.js](file:///d:/Code/baovenentang/web/src/api.js): `getBooks()` dung TTL 60 phut vi catalog Tu sach it thay doi.
+- Cap nhat [web/src/pages/HocTap.jsx](file:///d:/Code/baovenentang/web/src/pages/HocTap.jsx): prefetch `getBooks()` khi vao tab Hoc tap bang `requestIdleCallback`/`setTimeout`, de khi bam `Tu sach` du lieu thuong da nam trong cache.
+
+### Ly do
+- Theo yeu cau nguoi dung: giao dien Tu sach can sinh dong hon bang bia sach trang dau va giam cam giac load cham khi mo danh muc.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend Tu sach/Hoc tap va cache client.
+- Khong doi Google Sheets schema, khong deploy lai Apps Script, khong doi contract API `books`/`book`.
+- Neu sau nay doi ID sach hoac thay PDF, can cap nhat lai file anh trong `web/public/tusach-covers/` va map `BOOK_COVERS`.
+- TTL 60 phut giup mo nhanh hon nhung co the lam thay doi catalog moi tren sheet hien cham hon tren may nguoi dung da co cache; khi can co the bump cache key `books-v3`.
+
+### Kiem thu da chay
+- `npm run build` trong `web` -> pass.
+- Goi `http://127.0.0.1:5173/tusach-covers/cam-nang-phong-chong-tin-gia.jpg` -> `200 image/jpeg`.
+- Xac nhan 5 anh bia sau nen co dung luong: 7.8KB, 13.5KB, 33.8KB, 6.8KB, 42.6KB.
+
+### Cach test thu cong
+1. Chay `cd web && npm run dev`, mo `http://127.0.0.1:5173/`.
+2. Vao `Hoc tap`; doi 1-2 giay de prefetch Tu sach chay nen.
+3. Bam `Tu sach`, xac nhan danh sach hien 5 card co bia sach.
+4. Bam tung card, xac nhan modal chi tiet co bia va cac nut NotebookLM/Nguon van dung.
+5. Reload lai trang va vao lai `Hoc tap` -> `Tu sach`; danh sach phai hien nhanh hon nho localStorage cache.
+
+---
+
+## [2026-06-11] Sua loi dev server tra JS thay vi JSON cho /api/gas
+
+### Noi dung thuc hien
+- Re-check CodeGraph cho luong `web/src/api.js` -> `getBooks()` -> `API_URL` va `web/api/gas.js` de phan tach loi dev/prod.
+- Xac nhan production `https://baovenentang.vercel.app/api/gas?action=books` van tra JSON dung, nen GAS deploy khong hong.
+- Xac nhan local `npm run dev` dang loi do frontend dev fallback sang `/api/gas`, nhung Vite khong co route API nen tra ve ma JS cua file `web/api/gas.js`; client co parse JSON va vo voi thong bao `Unexpected token ... is not valid JSON`.
+- Cap nhat [web/vite.config.js](file:///d:/Code/baovenentang/web/vite.config.js):
+  - Them `gasDevGuardPlugin`.
+  - Neu thieu `VITE_GAS_URL`, request `GET/POST /api/gas` trong Vite dev se tra JSON loi ro rang thay vi source JS/HTML.
+- Cap nhat [web/src/api.js](file:///d:/Code/baovenentang/web/src/api.js):
+  - Them `parseApiResponse()` dung chung cho GET/POST.
+  - Neu backend/proxy tra noi dung khong phai JSON, UI se bao loi ro nguyen nhan va kem snippet response mau.
+- Tao [web/.env.local](file:///d:/Code/baovenentang/web/.env.local) voi `VITE_GAS_URL` tro thang toi Web App `/exec` hien tai de local `npm run dev` tai duoc du lieu that ngay.
+
+### Ly do
+- Nguoi dung mo webapp bang `npm run dev` de xem thu Tui sach, nhung dev server khong co endpoint `/api/gas`. Loi hien tai de nguoi dung hieu nham la deploy GAS hong, trong khi production proxy va GAS van hoat dong binh thuong.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend dev experience va thong bao loi client.
+- Them mot file env local trong `web/`; URL nay khong phai secret nhung can cap nhat neu doi Web App deployment URL.
+- Khong doi contract production `/api/gas`, khong doi Apps Script, khong doi schema Google Sheet.
+- Local dev da co `VITE_GAS_URL` mac dinh o `web/.env.local`; neu doi deployment URL thi can sua file nay.
+
+### Kiem thu da chay
+- `npm run build` trong `web` -> pass.
+- Goi `http://127.0.0.1:5173/api/gas?action=books` khi KHONG co `VITE_GAS_URL` -> tra JSON loi co chu `Thieu VITE_GAS_URL...`, khong con tra source JS.
+- Tao `web/.env.local`, restart `npm run dev`, sau do local frontend se goi thang Apps Script `/exec`.
+- Goi production `https://baovenentang.vercel.app/api/gas?action=books` -> van tra JSON 5 tai lieu moi.
+
+### Cach test thu cong
+1. Xoa/khong tao `web/.env.local`, chay `cd web && npm run dev`.
+2. Mo `Hoc tap` -> `Tu sach`; UI phai hien loi ro `Thieu VITE_GAS_URL...` thay vi `Unexpected token`.
+3. Khoi phuc `web/.env.local`, restart dev server.
+4. Reload trang va kiem tra `Tu sach` tai duoc 5 tai lieu moi.
+
+---
+
+## [2026-06-11] Cap nhat Tu sach tu 5 PDF tren Google Drive
+
+### Noi dung thuc hien
+- Doc lai toan bo `docs/brain/` va re-check CodeGraph cho luong `TU_SACH` truoc khi sua.
+- Dung MarkItDown de chuyen 5 PDF trong `data/` sang Markdown tai `data/tusach-md/`:
+  - `Cam_nang_phong_chong_tin_gia.md`
+  - `Bao_ve_nen_tang_tu_tuong_cua_Dang_trong_tinh_hinh_moi.md`
+  - `tang_cuong_ct_XDD_cong_an.md`
+  - `phat_huy_suc_manh_toàn_dan_toc.md`
+  - `Sach_Phat_huy_truyen_thong_dai_doan_ket.md`
+- Tao file du phong `data/tusach_import.csv` gom 5 dong theo dung schema 12 cot cua sheet `TU_SACH`.
+- Cap nhat [backend/08-tusach.gs](file:///d:/Code/baovenentang/backend/08-tusach.gs):
+  - Doi `TU_SACH_NOTEBOOK_URL` sang NotebookLM chung `https://notebooklm.google.com/notebook/ee1792f7-45ff-4952-9ce6-50cc1cd4ad1a`.
+  - Thay 10 tai lieu mau cu bang 5 tai lieu moi tu Drive.
+  - Them `TU_SACH_LEGACY_SAMPLE_IDS` va `replaceTuSachWithSampleBooks()` de tu dong thay sheet neu phat hien du lieu mau cu.
+- Cap nhat [web/src/api.js](file:///d:/Code/baovenentang/web/src/api.js): doi cache key `books-v2` thanh `books-v3` de tranh hien catalog cu tu localStorage.
+- Cap nhat [01-architecture.md](file:///d:/Code/baovenentang/docs/brain/01-architecture.md), [03-decisions.md](file:///d:/Code/baovenentang/docs/brain/03-decisions.md), [04-current-tasks.md](file:///d:/Code/baovenentang/docs/brain/04-current-tasks.md): ghi nhan mo hinh mot NotebookLM chung, nguoi dung chon/tich dung nguon trong NotebookLM.
+- Deploy Apps Script:
+  - `npx @google/clasp push --force` -> pushed 17 files.
+  - `npx @google/clasp deploy --deploymentId AKfycbzJ41UZaeQjWFPwk-v6IJYdOZoxMxPSrM7XWK9W-psMEph173IUo9Jq2NWAhU2NQriFzg --description "Update Tu Sach catalog from Drive PDFs"` -> deployment `@24`.
+- Goi production `?action=books` sau deploy de `seedTuSach()` thay du lieu cu trong Google Sheet `TU_SACH`; ket qua tra ve 5 tai lieu moi.
+
+### Ly do
+- Theo yeu cau nguoi dung: bo toan bo du lieu Tu sach mau cu, dua cac sach/PDF moi tren Drive vao webapp, va dung mot NotebookLM chung de nguoi dung chon nguon tai lieu can hoi.
+
+### Rui ro va pham vi anh huong
+- Anh huong truc tiep den du lieu `TU_SACH`, seed backend `08-tusach.gs`, action public GET `books`/`book`, va cache danh sach sach frontend.
+- Khong doi schema Google Sheets, khong doi contract response `books`/`book`, khong bat lai `ask_book`.
+- `replaceTuSachWithSampleBooks()` se thay noi dung sheet neu phat hien ID mau cu; neu sheet sau nay co du lieu tuy bien can giu, khong nen dua cac legacy ID cu vao lai.
+- Markdown/PDF trong `data/` la artifact ho tro doc va import, co kich thuoc lon; can quyet dinh rieng truoc khi commit.
+
+### Kiem thu da chay
+- `Get-Content -Raw -Encoding UTF8 backend\08-tusach.gs | node --check -` -> pass.
+- `Get-Content -Raw -Encoding UTF8 backend\07-main.gs | node --check -` -> pass.
+- `node --check web/src/api.js` -> pass.
+- Production `?action=books` -> `success: true`, `count: 5`, ca 5 tai lieu deu dung NotebookLM chung.
+
+### Cach test thu cong
+1. Mo webapp -> `Hoc tap` -> `Tu sach`.
+2. Xac nhan danh sach chi con 5 tai lieu moi:
+   - Cam nang phong chong tin gia, tin sai su that tren khong gian mang.
+   - Bao ve nen tang tu tuong cua Dang trong tinh hinh moi.
+   - Tang cuong xay dung Dang trong Cong an nhan dan theo Di chuc cua Chu tich Ho Chi Minh.
+   - Phat huy suc manh toan dan toc bao ve an ninh quoc gia trong tinh hinh moi.
+   - Phat huy truyen thong dai doan ket toan dan toc, xay dung dat nuoc ta ngay cang giau manh, van minh, hanh phuc.
+3. Mo chi tiet tung tai lieu, kiem tra nut NotebookLM deu tro toi link chung va nut nguon mo dung file Google Drive.
+4. Neu trinh duyet van hien du lieu cu, reload sau it nhat 5 phut hoac xoa localStorage key `bvnt_books-v2`; frontend moi dung key `books-v3`.
+
+---
+
 ## [2026-06-10] Sua modal chi tiet Tu sach bi tut xuong duoi viewport
 
 ### Noi dung thuc hien

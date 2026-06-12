@@ -1,7 +1,32 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(ffmpeg -version)",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) for f in ['scripts/03_validate_script.py','scripts/05_render_video.py','scripts/image_picker.py']]; print\\('OK'\\)\")",
+      "Bash(python scripts/03_validate_script.py)",
+      "Bash(python -c \"from scripts.image_picker import ImagePicker; p=ImagePicker\\(\\); print\\('chinhphu:', p.pick\\('chinhphu'\\)\\); print\\('badkey:', p.pick\\('khongtontai'\\)\\); print\\('default:', p.pick\\('default'\\)\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('scripts/image_fetcher.py',encoding='utf-8'\\).read\\(\\)\\); ast.parse\\(open\\('scripts/image_picker.py',encoding='utf-8'\\).read\\(\\)\\); print\\('SYNTAX OK'\\)\")",
+      "Bash(python scripts/image_fetcher.py --cat default --target 3)",
+      "Bash(rm -f assets/library/default/*.jpg assets/library/default/*.png assets/library/default/*.webp assets/library/default/_credits.txt assets/library/tuyengiao/*.jpg assets/library/tuyengiao/*.png assets/library/tuyengiao/*.webp assets/library/tuyengiao/_credits.txt)",
+      "Bash(python scripts/image_fetcher.py --cat tuyengiao --target 3)",
+      "Bash(powershell -NoProfile -Command \"Get-Command ffmpeg -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(python scripts/image_fetcher.py --cat chinhphu --target 3)",
+      "Bash(python scripts/image_fetcher.py --cat giaoduc --target 3)",
+      "Bash(python scripts/image_fetcher.py --cat khoahoc --target 3)",
+      "Bash(python scripts/04_make_voice.py)",
+      "Bash(python scripts/05_render_video.py)",
+      "Bash(ls \"C:/Users/admin/OneDrive/Vi Phuong/Tài liệu \\(Vi Phương\\)/02. Công tác Đoàn/BDT chính luận/\" 2>&1 | head -50)",
+      "Bash(pandoc --track-changes=all \"C:/Users/admin/OneDrive/Vi Phuong/Tài liệu \\(Vi Phương\\)/02. Công tác Đoàn/BDT chính luận/Tro_ly_35_TRACKED.docx\" -o /tmp/troly35.md)",
+      "Read(//tmp/**)",
+      "PowerShell(pandoc --track-changes=all \"C:\\\\Users\\\\admin\\\\OneDrive\\\\Vi Phuong\\\\Tài liệu \\(Vi Phương\\)\\\\02. Công tác Đoàn\\\\BDT chính luận\\\\Tro_ly_35_TRACKED.docx\" -o \"$env:TEMP\\\\troly35.md\"; if \\($?\\) { \\(Get-Content \"$env:TEMP\\\\troly35.md\" | Measure-Object -Line\\).Lines })",
+      "PowerShell($skillDir = \"C:\\\\Users\\\\admin\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\26c4adc6-3107-46b5-822a-cc2cd3fd9d25\\\\3a1ec263-be91-4784-9faf-4a25ef62de93\\\\skills\\\\docx\"; Get-ChildItem \"$skillDir\\\\scripts\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "Bash(python _tmp_verify.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python _tmp_verify.py)"
     ]
   }
 }

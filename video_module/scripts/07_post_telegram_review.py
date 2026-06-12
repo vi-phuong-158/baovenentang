@@ -26,6 +26,7 @@ ROOT = Path(__file__).parent.parent
 load_dotenv(ROOT / ".env")
 
 VIDEO_FILE    = ROOT / "output" / "final.mp4"
+SHORT_FILE    = ROOT / "output" / "final_short.mp4"
 PENDING_FILE  = ROOT / "data"   / "pending_review.json"
 
 BOT_TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -109,6 +110,31 @@ def send_video_for_review(video_path: Path) -> dict:
     return {"message_id": message_id, "file_id": file_id}
 
 
+def send_short_if_present() -> None:
+    """Gửi kèm bản ngắn ~30s (nếu có) để cán bộ xem trước bản dùng cho TikTok/Reels. Không chặn nếu lỗi."""
+    if not SHORT_FILE.exists():
+        return
+    caption = (
+        "🎬 *Bản ngắn ~30s — TikTok / Reels / Shorts*\n\n"
+        "Cắt tự động từ bản đầy đủ ở trên. Dùng để đăng kênh video ngắn sau khi bản đầy đủ được duyệt."
+    )
+    try:
+        log.info(f"Upload bản ngắn {SHORT_FILE.name} ({SHORT_FILE.stat().st_size // 1024} KB)")
+        with SHORT_FILE.open("rb") as fh:
+            _api(
+                "sendVideo",
+                data={
+                    "chat_id":            REVIEW_CHAT,
+                    "caption":            caption,
+                    "parse_mode":         "Markdown",
+                    "supports_streaming": "true",
+                },
+                files={"video": (SHORT_FILE.name, fh, "video/mp4")},
+            )
+    except Exception as e:  # noqa: BLE001 — bản ngắn là phụ, không chặn luồng duyệt
+        log.warning(f"Không gửi được bản ngắn (bỏ qua): {e}")
+
+
 def save_pending(video_path: Path, tg_result: dict) -> None:
     record = {
         "created_at":  datetime.now(timezone.utc).isoformat(),
@@ -142,6 +168,7 @@ def run(video_path: Path = VIDEO_FILE) -> Path:
 
     tg_result = send_video_for_review(video_path)
     save_pending(video_path, tg_result)
+    send_short_if_present()
 
     log.info("→ Video đang chờ duyệt ở nhóm nội bộ.")
     return PENDING_FILE

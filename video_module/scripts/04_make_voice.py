@@ -215,6 +215,49 @@ def sync_scene_timing_to_audio(scenes: dict, dictionary: dict, audio_duration: f
     if not scene_list:
         return False
 
+    # Thử đồng bộ chính xác tuyệt đối bằng SentenceBoundary trước
+    boundaries_file = ROOT / "data" / "tts_boundaries.json"
+    if boundaries_file.exists():
+        try:
+            boundaries = json.loads(boundaries_file.read_text(encoding="utf-8"))
+            if len(boundaries) > 0:
+                scene_sentences = []
+                for s in scene_list:
+                    vo = s.get("voiceover", "").strip()
+                    # Tách câu thực tế
+                    sentences = [x.strip() for x in vo.split(".") if x.strip()]
+                    scene_sentences.append(max(1, len(sentences)))
+                
+                boundary_idx = 0
+                starts = []
+                for count in scene_sentences:
+                    if boundary_idx >= len(boundaries):
+                        break
+                    # Start của scene là offset của boundary đầu tiên thuộc scene này
+                    s_start = boundaries[boundary_idx]["offset"] / 10000000
+                    starts.append(s_start)
+                    boundary_idx += count
+                
+                if len(starts) == len(scene_list):
+                    # Điều chỉnh starts/durations nối liền nhau để tránh kẽ hở
+                    for i in range(len(scene_list)):
+                        scene_list[i]["start"] = round(starts[i], 3)
+                        if i < len(scene_list) - 1:
+                            scene_list[i]["duration"] = round(starts[i+1] - starts[i], 3)
+                        else:
+                            scene_list[i]["duration"] = round(audio_duration - starts[i], 3)
+                    
+                    scenes["duration_seconds"] = round(audio_duration, 3)
+                    log.info("[Sync] Đã đồng bộ bằng mốc SentenceBoundary chính xác từ edge-tts!")
+                    # Xoá file tts_boundaries.json sau khi dùng để tránh ảnh hưởng lần chạy sau
+                    try:
+                        boundaries_file.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    return True
+        except Exception as e:
+            log.warning(f"Lỗi khi đồng bộ timing bằng SentenceBoundary: {e}. Quay lại dùng ước lượng.")
+
     current_total = scenes.get("duration_seconds") or sum(float(s.get("duration", 0)) for s in scene_list)
     has_timing_gap = False
     for idx, scene in enumerate(scene_list):

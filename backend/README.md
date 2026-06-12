@@ -148,7 +148,7 @@ POST { "action": "troly35_trends", "accessCode": "...", "windowDays": 7|30 }
 ## 7. Cập nhật frontend
 
 Frontend production dùng React trong `web/src` và gọi backend qua Vercel route `/api/gas`.
-Khi deploy, cấu hình biến môi trường `GAS_DEPLOYMENT_URL` và `GAS_API_TOKEN` trên Vercel thay vì nhúng Web App URL hoặc token vào bundle.
+Khi deploy, cấu hình biến môi trường `GAS_DEPLOYMENT_URL`, `GAS_API_TOKEN` và `IP_HASH_SALT` trên Vercel thay vì nhúng Web App URL hoặc token vào bundle.
 
 ## Ghi chú vận hành
 

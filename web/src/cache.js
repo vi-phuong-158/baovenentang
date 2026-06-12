@@ -1,13 +1,14 @@
-const CACHE_TTL = 5 * 60 * 1000;
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000;
 const CACHE_PREFIX = 'bvnt_';
 const CACHE_MAX_BYTES = 5 * 1024 * 1024;
+const inFlight = new Map();
 
-function cacheGet(key) {
+function cacheGet(key, ttl = DEFAULT_CACHE_TTL) {
   try {
     const raw = localStorage.getItem(CACHE_PREFIX + key);
     if (!raw) return null;
     const entry = JSON.parse(raw);
-    if (Date.now() - entry.ts < CACHE_TTL) return { data: entry.data, fresh: true };
+    if (Date.now() - entry.ts < ttl) return { data: entry.data, fresh: true };
     return { data: entry.data, fresh: false };
   } catch { return null; }
 }
@@ -50,10 +51,19 @@ function cacheTrim(extraBytes = 0) {
   }
 }
 
-export const cached = (key, fetcher) => {
-  const hit = cacheGet(key);
+export const cached = (key, fetcher, options = {}) => {
+  const ttl = options.ttl || DEFAULT_CACHE_TTL;
+  const hit = cacheGet(key, ttl);
   if (hit && hit.fresh) return Promise.resolve(hit.data);
-  const promise = fetcher().then(data => { cacheSet(key, data); return data; });
+  if (inFlight.has(key)) {
+    const promise = inFlight.get(key);
+    if (hit) return Promise.resolve(hit.data);
+    return promise;
+  }
+  const promise = fetcher()
+    .then(data => { cacheSet(key, data); return data; })
+    .finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
   if (hit) {
     promise.catch(() => {});
     return Promise.resolve(hit.data);

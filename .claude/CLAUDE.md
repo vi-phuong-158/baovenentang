@@ -40,6 +40,8 @@ Tính năng `Thư viện phản bác` công khai đã bị gỡ. Không re-add r
   - `fact_check`
   - `article_writer`
 - UI truyền mode đang chọn vào `troly35_run`.
+- Mode `rebuttal` có thêm tham số `style` (`chinhluan` | `tretrung` | `ngangon`) đổi tông giọng (không đổi schema output).
+- Hỗ trợ hội thoại đa lượt: UI gửi `history` (mảng `{role,text}`); backend neo phân tích/RAG vào câu gốc, coi câu mới là yêu cầu tinh chỉnh. Khi có `history`, min-length đầu vào hạ từ 20 xuống 2 ký tự.
 - Lịch sử lấy qua `troly35_history`.
 - Feedback tốt/xấu gửi qua `troly35_feedback`.
 - Backend lưu feedback vào `TROLY35_FEEDBACK` và cập nhật rating/note trong `TROLY35_HISTORY`.

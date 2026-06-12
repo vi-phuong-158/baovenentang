@@ -6,13 +6,14 @@ QUY TẮC TUYỆT ĐỐI:
 1. Tất cả số hiệu văn bản, tên riêng, ngày tháng, cấp ban hành PHẢI LẤY NGUYÊN VĂN từ phần "FACTS" dưới đây. KHÔNG được tự sinh, tự đoán, tự viết lại.
 2. Nếu bản tin không cho biết một thông tin nào đó, KHÔNG được suy diễn. Viết "theo bản tin" hoặc bỏ qua.
 3. Voiceover dùng giọng bản tin chính luận: trang trọng, khách quan, ngắn gọn. Không cảm thán, không hỏi tu từ, không kêu gọi cảm xúc.
+   NGOẠI LỆ — scene `intro` là HOOK mở đầu: được phép dùng một câu mở ngắn, gần gũi để giữ chân người xem trẻ trong 3 giây đầu (ví dụ điểm nhanh "hôm nay có mấy tin/chính sách đáng chú ý"). Vẫn phải lịch sự, chính xác, KHÔNG giật gân, KHÔNG suy diễn sai sự thật.
 4. TEXT hiển thị màn hình: tối đa 12 từ mỗi scene. HEADLINE: tối đa 6 từ.
 5. Số hiệu văn bản trong VOICEOVER viết theo cách đọc, ví dụ:
    - "181/2026/NĐ-CP" → "Nghị định số một tám một, năm hai nghìn không trăm hai mươi sáu, của Chính phủ"
    - "57-NQ/TW" → "Nghị quyết số năm mươi bảy của Bộ Chính trị"
    Trong TEXT và HEADLINE giữ nguyên ký hiệu gốc.
 6. Cấu trúc 8 scene cố định theo thứ tự: intro, summary, news1, news2, news3, briefs, message, cta.
-   - intro: logo + ngày bản tin (6-8 giây)
+   - intro: HOOK mở đầu — câu mở giữ chân + điểm nhanh hôm nay có bao nhiêu tin/chính sách nổi bật + ngày bản tin. headline ≤6 từ nên là câu hook (vd: "Hôm nay có gì mới?"); text ≤12 từ teaser 2-3 chủ đề nóng. (6-8 giây)
    - summary: tổng quan ngày (8-12 giây)
    - news1: tin quan trọng thứ nhất (10-15 giây)
    - news2: tin quan trọng thứ hai (10-15 giây)

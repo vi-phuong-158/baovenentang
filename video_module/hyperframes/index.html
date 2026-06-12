@@ -152,18 +152,34 @@ body {
   background: rgba(15, 13, 12, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-  text-align:center; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 140px;
+}
+.sub-phrase {
+  display: none;
+  opacity: 0;
+  text-align: center;
+  width: 100%;
   font-family:'Be Vietnam Pro',sans-serif;
   font-size:44px; font-weight:600; color:#F4EFE3;
   line-height:1.5; letter-spacing:0.5px;
 }
 .sub-word {
-  opacity: 0.35;
-  color: #A89D8A;
-  transition: color 0.12s ease, opacity 0.12s ease;
+  opacity: 0.32;
+  color: #9A8F7C;
   display: inline-block;
   margin: 0 6px;
+  text-shadow: 0 0 0px rgba(244, 194, 13, 0);
+  transform-origin: center bottom;
+  will-change: transform, opacity;
 }
+
+/* Hook intro — punchy mở đầu để giữ chân người xem trong 3 giây đầu */
+#scene-intro .headline { font-size:74px; letter-spacing:-1.5px; }
+#scene-intro .body-text { font-size:46px; font-weight:600; color:#FFE08A; }
+#scene-intro .content-card { gap:28px; border-color: rgba(244, 194, 13, 0.32); }
 </style>
 </head>
 <body>
@@ -171,11 +187,10 @@ body {
      data-start="0" data-width="1080" data-height="1920"
      style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#000;">
 
-  <!-- intro: t=0.0..7.068s -->
+  <!-- intro: t=0.1..8.975s -->
   <div class="scene clip bg-intro" id="scene-intro"
-       data-start="0.0" data-duration="7.068" data-track-index="0">
-    <img class="bg-image" id="bg-intro" src="library/intro_tuyengiao_curated_8d2a595898.png" alt="">
-    <div class="bg-overlay"></div>
+       data-start="0.1" data-duration="8.875" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -186,17 +201,35 @@ body {
       <div class="content-card">
         
       <div class="headline" id="intro-headline">Bản tin Trợ lý 35</div>
-      <div class="body-text" id="intro-text">Thứ Sáu, ngày 22 tháng 5 năm 2026</div>
+      <div class="body-text" id="intro-text">Thứ Bảy, ngày 30 tháng 5 năm 2026</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="intro-subtitle"><span class="sub-word">Kính</span> <span class="sub-word">chào</span> <span class="sub-word">quý</span> <span class="sub-word">đồng</span> <span class="sub-word">chí.</span> <span class="sub-word">Đây</span> <span class="sub-word">là</span> <span class="sub-word">bản</span> <span class="sub-word">tin</span> <span class="sub-word">Trợ</span> <span class="sub-word">lý</span> <span class="sub-word">35,</span> <span class="sub-word">ngày</span> <span class="sub-word">thứ</span> <span class="sub-word">Sáu,</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">hai</span> <span class="sub-word">tháng</span> <span class="sub-word">năm</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">nghìn</span> <span class="sub-word">không</span> <span class="sub-word">trăm</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">sáu.</span> </div>
+    <div class="subtitle-bar" id="intro-subtitle">
+      <div class="sub-phrase" id="phrase-intro-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Kính</span> <span class="sub-word">chào</span> <span class="sub-word">quý</span> <span class="sub-word">đồng</span> <span class="sub-word">chí.</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-intro-1" style="display: none; opacity: 0;">
+        <span class="sub-word">Đây</span> <span class="sub-word">là</span> <span class="sub-word">bản</span> <span class="sub-word">tin</span> <span class="sub-word">Trợ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-intro-2" style="display: none; opacity: 0;">
+        <span class="sub-word">lý</span> <span class="sub-word">35,</span> <span class="sub-word">ngày</span> <span class="sub-word">thứ</span> <span class="sub-word">Bảy,</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-intro-3" style="display: none; opacity: 0;">
+        <span class="sub-word">ba</span> <span class="sub-word">mươi</span> <span class="sub-word">tháng</span> <span class="sub-word">năm</span> <span class="sub-word">năm</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-intro-4" style="display: none; opacity: 0;">
+        <span class="sub-word">hai</span> <span class="sub-word">nghìn</span> <span class="sub-word">không</span> <span class="sub-word">trăm</span> <span class="sub-word">hai</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-intro-5" style="display: none; opacity: 0;">
+        <span class="sub-word">mươi</span> <span class="sub-word">sáu.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- summary: t=7.068..23.726999999999997s -->
+  <!-- summary: t=8.975..18.4s -->
   <div class="scene clip bg-summary" id="scene-summary"
-       data-start="7.068" data-duration="16.659" data-track-index="0">
-    <img class="bg-image" id="bg-summary" src="library/summary_chinhphu_04a4eea9dd.jpg" alt="">
-    <div class="bg-overlay"></div>
+       data-start="8.975" data-duration="9.425" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -206,18 +239,42 @@ body {
     <div class="content">
       <div class="content-card">
         
-      <div class="headline" id="summary-headline">Tổng quan ngày 22/5</div>
-      <div class="body-text" id="summary-text">Nghị định <span style="white-space: nowrap;">181/2026/NĐ-CP</span> về quản lý doanh nghiệp nhà nước</div>
+      <div class="headline" id="summary-headline">Tổng quan bản tin</div>
+      <div class="body-text" id="summary-text">Hợp tác đối ngoại và phát triển chuyển đổi số Phú Thọ</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="summary-subtitle"><span class="sub-word">Ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">hai</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ,</span> <span class="sub-word">quy</span> <span class="sub-word">định</span> <span class="sub-word">tiêu</span> <span class="sub-word">chuẩn</span> <span class="sub-word">bổ</span> <span class="sub-word">nhiệm</span> <span class="sub-word">người</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước.</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị</span> <span class="sub-word">tiếp</span> <span class="sub-word">tục</span> <span class="sub-word">chỉ</span> <span class="sub-word">đạo</span> <span class="sub-word">triển</span> <span class="sub-word">khai</span> <span class="sub-word">Nghị</span> <span class="sub-word">quyết</span> <span class="sub-word">số</span> <span class="sub-word">năm</span> <span class="sub-word">mươi</span> <span class="sub-word">bảy</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị</span> <span class="sub-word">về</span> <span class="sub-word">đột</span> <span class="sub-word">phá</span> <span class="sub-word">phát</span> <span class="sub-word">triển</span> <span class="sub-word">khoa</span> <span class="sub-word">học</span> <span class="sub-word">và</span> <span class="sub-word">công</span> <span class="sub-word">nghệ.</span> </div>
+    <div class="subtitle-bar" id="summary-subtitle">
+      <div class="sub-phrase" id="phrase-summary-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Bản</span> <span class="sub-word">tin</span> <span class="sub-word">hôm</span> <span class="sub-word">nay</span> <span class="sub-word">nổi</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-1" style="display: none; opacity: 0;">
+        <span class="sub-word">bật</span> <span class="sub-word">với</span> <span class="sub-word">hoạt</span> <span class="sub-word">động</span> <span class="sub-word">đối</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-2" style="display: none; opacity: 0;">
+        <span class="sub-word">ngoại</span> <span class="sub-word">ưu</span> <span class="sub-word">tiên</span> <span class="sub-word">quan</span> <span class="sub-word">hệ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-3" style="display: none; opacity: 0;">
+        <span class="sub-word">Việt</span> <span class="sub-word">Nam</span> <span class="sub-word">-</span> <span class="sub-word">Lào,</span> <span class="sub-word">kỳ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-4" style="display: none; opacity: 0;">
+        <span class="sub-word">thi</span> <span class="sub-word">tuyển</span> <span class="sub-word">sinh</span> <span class="sub-word">lớp</span> <span class="sub-word">mười</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-5" style="display: none; opacity: 0;">
+        <span class="sub-word">tại</span> <span class="sub-word">Hà</span> <span class="sub-word">Nội</span> <span class="sub-word">và</span> <span class="sub-word">các</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-6" style="display: none; opacity: 0;">
+        <span class="sub-word">mô</span> <span class="sub-word">hình</span> <span class="sub-word">phát</span> <span class="sub-word">triển</span> <span class="sub-word">công</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-summary-7" style="display: none; opacity: 0;">
+        <span class="sub-word">nghệ</span> <span class="sub-word">cao</span> <span class="sub-word">tại</span> <span class="sub-word">Phú</span> <span class="sub-word">Thọ.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- news1: t=23.727..38.619s -->
+  <!-- news1: t=18.4..28.2s -->
   <div class="scene clip bg-news" id="scene-news1"
-       data-start="23.727" data-duration="14.892" data-track-index="0">
-    <img class="bg-image" id="bg-news1" src="library/news1_chinhphu_e1de899404.jpg" alt="">
-    <div class="bg-overlay"></div>
+       data-start="18.4" data-duration="9.8" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -227,18 +284,42 @@ body {
     <div class="content">
       <div class="content-card">
         
-      <div class="headline" id="news1-headline">Nghị định <span style="white-space: nowrap;">181/2026/NĐ-CP</span></div>
-      <div class="body-text" id="news1-text">Tiêu chuẩn bổ nhiệm người quản lý doanh nghiệp nhà nước</div>
+      <div class="headline" id="news1-headline">Hợp tác Việt - Lào</div>
+      <div class="body-text" id="news1-text">Dành ưu tiên cao nhất cho quan hệ Việt Nam - Lào</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="news1-subtitle"><span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ,</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">mốt</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">quy</span> <span class="sub-word">định</span> <span class="sub-word">tiêu</span> <span class="sub-word">chuẩn</span> <span class="sub-word">và</span> <span class="sub-word">điều</span> <span class="sub-word">kiện</span> <span class="sub-word">bổ</span> <span class="sub-word">nhiệm,</span> <span class="sub-word">miễn</span> <span class="sub-word">nhiệm,</span> <span class="sub-word">khen</span> <span class="sub-word">thưởng,</span> <span class="sub-word">kỷ</span> <span class="sub-word">luật</span> <span class="sub-word">người</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước.</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">có</span> <span class="sub-word">hiệu</span> <span class="sub-word">lực</span> <span class="sub-word">từ</span> <span class="sub-word">ngày</span> <span class="sub-word">mười</span> <span class="sub-word">tháng</span> <span class="sub-word">bảy</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu.</span> </div>
+    <div class="subtitle-bar" id="news1-subtitle">
+      <div class="sub-phrase" id="phrase-news1-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Phó</span> <span class="sub-word">Thủ</span> <span class="sub-word">tướng</span> <span class="sub-word">Phạm</span> <span class="sub-word">Gia</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-1" style="display: none; opacity: 0;">
+        <span class="sub-word">Túc</span> <span class="sub-word">tiếp</span> <span class="sub-word">Thứ</span> <span class="sub-word">trưởng</span> <span class="sub-word">Ngoại</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-2" style="display: none; opacity: 0;">
+        <span class="sub-word">giao</span> <span class="sub-word">Lào</span> <span class="sub-word">Anouparb</span> <span class="sub-word">Vongnorkeo,</span> <span class="sub-word">khẳng</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-3" style="display: none; opacity: 0;">
+        <span class="sub-word">định</span> <span class="sub-word">dành</span> <span class="sub-word">sự</span> <span class="sub-word">ưu</span> <span class="sub-word">tiên</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-4" style="display: none; opacity: 0;">
+        <span class="sub-word">đặc</span> <span class="sub-word">biệt</span> <span class="sub-word">và</span> <span class="sub-word">vun</span> <span class="sub-word">đắp</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-5" style="display: none; opacity: 0;">
+        <span class="sub-word">cho</span> <span class="sub-word">mối</span> <span class="sub-word">quan</span> <span class="sub-word">hệ</span> <span class="sub-word">hữu</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-6" style="display: none; opacity: 0;">
+        <span class="sub-word">nghị</span> <span class="sub-word">truyền</span> <span class="sub-word">thống</span> <span class="sub-word">lâu</span> <span class="sub-word">đời</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news1-7" style="display: none; opacity: 0;">
+        <span class="sub-word">giữa</span> <span class="sub-word">hai</span> <span class="sub-word">quốc</span> <span class="sub-word">gia.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- news2: t=38.619..52.501999999999995s -->
+  <!-- news2: t=28.2..36.837s -->
   <div class="scene clip bg-news" id="scene-news2"
-       data-start="38.619" data-duration="13.883" data-track-index="0">
-    <img class="bg-image" id="bg-news2" src="library/news2_anninhmang_39fb56f31a.jpg" alt="">
-    <div class="bg-overlay"></div>
+       data-start="28.2" data-duration="8.637" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -248,18 +329,42 @@ body {
     <div class="content">
       <div class="content-card">
         
-      <div class="headline" id="news2-headline">Thông tư <span style="white-space: nowrap;">23/2026/TT-BCA</span></div>
-      <div class="body-text" id="news2-text">An ninh mạng hệ thống thông tin quan trọng quốc gia</div>
+      <div class="headline" id="news2-headline">Ứng phó thảm họa</div>
+      <div class="body-text" id="news2-text">Nhật Bản sẵn sàng ứng phó siêu động đất tại Tokyo</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="news2-subtitle"><span class="sub-word">Thông</span> <span class="sub-word">tư</span> <span class="sub-word">số</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">ba</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Công</span> <span class="sub-word">an,</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">ngày</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">tháng</span> <span class="sub-word">năm,</span> <span class="sub-word">hướng</span> <span class="sub-word">dẫn</span> <span class="sub-word">công</span> <span class="sub-word">tác</span> <span class="sub-word">bảo</span> <span class="sub-word">đảm</span> <span class="sub-word">an</span> <span class="sub-word">ninh</span> <span class="sub-word">mạng</span> <span class="sub-word">đối</span> <span class="sub-word">với</span> <span class="sub-word">hệ</span> <span class="sub-word">thống</span> <span class="sub-word">thông</span> <span class="sub-word">tin</span> <span class="sub-word">quan</span> <span class="sub-word">trọng</span> <span class="sub-word">về</span> <span class="sub-word">an</span> <span class="sub-word">ninh</span> <span class="sub-word">quốc</span> <span class="sub-word">gia,</span> <span class="sub-word">bao</span> <span class="sub-word">gồm</span> <span class="sub-word">hệ</span> <span class="sub-word">thống</span> <span class="sub-word">cấp</span> <span class="sub-word">độ</span> <span class="sub-word">bốn</span> <span class="sub-word">và</span> <span class="sub-word">cấp</span> <span class="sub-word">độ</span> <span class="sub-word">năm.</span> </div>
+    <div class="subtitle-bar" id="news2-subtitle">
+      <div class="sub-phrase" id="phrase-news2-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Chính</span> <span class="sub-word">phủ</span> <span class="sub-word">Nhật</span> <span class="sub-word">Bản</span> <span class="sub-word">thúc</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-1" style="display: none; opacity: 0;">
+        <span class="sub-word">đẩy</span> <span class="sub-word">kế</span> <span class="sub-word">hoạch</span> <span class="sub-word">nâng</span> <span class="sub-word">cao</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-2" style="display: none; opacity: 0;">
+        <span class="sub-word">khả</span> <span class="sub-word">năng</span> <span class="sub-word">phòng</span> <span class="sub-word">chống</span> <span class="sub-word">thiên</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-3" style="display: none; opacity: 0;">
+        <span class="sub-word">tai</span> <span class="sub-word">trong</span> <span class="sub-word">mười</span> <span class="sub-word">năm</span> <span class="sub-word">tới</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-4" style="display: none; opacity: 0;">
+        <span class="sub-word">nhằm</span> <span class="sub-word">chủ</span> <span class="sub-word">động</span> <span class="sub-word">bảo</span> <span class="sub-word">vệ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-5" style="display: none; opacity: 0;">
+        <span class="sub-word">người</span> <span class="sub-word">dân</span> <span class="sub-word">trước</span> <span class="sub-word">kịch</span> <span class="sub-word">bản</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-6" style="display: none; opacity: 0;">
+        <span class="sub-word">siêu</span> <span class="sub-word">động</span> <span class="sub-word">đất</span> <span class="sub-word">tại</span> <span class="sub-word">thủ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news2-7" style="display: none; opacity: 0;">
+        <span class="sub-word">đô</span> <span class="sub-word">Tokyo.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- news3: t=52.502..61.084s -->
+  <!-- news3: t=36.837..46.387s -->
   <div class="scene clip bg-news" id="scene-news3"
-       data-start="52.502" data-duration="8.582" data-track-index="0">
-    <img class="bg-image" id="bg-news3" src="library/news3_giaoduc_bf00f6e588.jpg" alt="">
-    <div class="bg-overlay"></div>
+       data-start="36.837" data-duration="9.55" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -269,18 +374,45 @@ body {
     <div class="content">
       <div class="content-card">
         
-      <div class="headline" id="news3-headline">Phòng chống bạo hành trẻ em</div>
-      <div class="body-text" id="news3-text">Tăng cường phát hiện, tố giác hành vi bạo hành</div>
+      <div class="headline" id="news3-headline">Thi vào lớp 10</div>
+      <div class="body-text" id="news3-text">Hà Nội tổ chức kỳ thi tuyển sinh lớp mười</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="news3-subtitle"><span class="sub-word">Bộ</span> <span class="sub-word">Lao</span> <span class="sub-word">động</span> <span class="sub-word">Thương</span> <span class="sub-word">binh</span> <span class="sub-word">và</span> <span class="sub-word">Xã</span> <span class="sub-word">hội</span> <span class="sub-word">đề</span> <span class="sub-word">nghị</span> <span class="sub-word">các</span> <span class="sub-word">địa</span> <span class="sub-word">phương</span> <span class="sub-word">tăng</span> <span class="sub-word">cường</span> <span class="sub-word">truyền</span> <span class="sub-word">thông</span> <span class="sub-word">về</span> <span class="sub-word">phòng</span> <span class="sub-word">chống</span> <span class="sub-word">bạo</span> <span class="sub-word">lực</span> <span class="sub-word">trẻ</span> <span class="sub-word">em,</span> <span class="sub-word">đặc</span> <span class="sub-word">biệt</span> <span class="sub-word">trong</span> <span class="sub-word">môi</span> <span class="sub-word">trường</span> <span class="sub-word">gia</span> <span class="sub-word">đình</span> <span class="sub-word">và</span> <span class="sub-word">nhà</span> <span class="sub-word">trường.</span> </div>
+    <div class="subtitle-bar" id="news3-subtitle">
+      <div class="sub-phrase" id="phrase-news3-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Hà</span> <span class="sub-word">Nội</span> <span class="sub-word">chính</span> <span class="sub-word">thức</span> <span class="sub-word">tổ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-1" style="display: none; opacity: 0;">
+        <span class="sub-word">chức</span> <span class="sub-word">kỳ</span> <span class="sub-word">thi</span> <span class="sub-word">tuyển</span> <span class="sub-word">sinh</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-2" style="display: none; opacity: 0;">
+        <span class="sub-word">lớp</span> <span class="sub-word">mười</span> <span class="sub-word">trung</span> <span class="sub-word">học</span> <span class="sub-word">phổ</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-3" style="display: none; opacity: 0;">
+        <span class="sub-word">thông</span> <span class="sub-word">công</span> <span class="sub-word">lập,</span> <span class="sub-word">với</span> <span class="sub-word">sự</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-4" style="display: none; opacity: 0;">
+        <span class="sub-word">tham</span> <span class="sub-word">gia</span> <span class="sub-word">của</span> <span class="sub-word">gần</span> <span class="sub-word">một</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-5" style="display: none; opacity: 0;">
+        <span class="sub-word">trăm</span> <span class="sub-word">hai</span> <span class="sub-word">mươi</span> <span class="sub-word">lăm</span> <span class="sub-word">nghìn</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-6" style="display: none; opacity: 0;">
+        <span class="sub-word">thí</span> <span class="sub-word">sinh</span> <span class="sub-word">tại</span> <span class="sub-word">hơn</span> <span class="sub-word">hai</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-7" style="display: none; opacity: 0;">
+        <span class="sub-word">trăm</span> <span class="sub-word">điểm</span> <span class="sub-word">thi</span> <span class="sub-word">toàn</span> <span class="sub-word">thành</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-news3-8" style="display: none; opacity: 0;">
+        <span class="sub-word">phố.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- briefs: t=61.084..72.19s -->
+  <!-- briefs: t=46.388..58.013s -->
   <div class="scene clip bg-briefs" id="scene-briefs"
-       data-start="61.084" data-duration="11.106" data-track-index="0">
-    <img class="bg-image" id="bg-briefs" src="library/briefs_khoahoc_d1659f8f4d.jpg" alt="">
-    <div class="bg-overlay"></div>
+       data-start="46.388" data-duration="11.625" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -290,18 +422,45 @@ body {
     <div class="content">
       <div class="content-card">
         
-      <div class="headline" id="briefs-headline">Tin ngắn trong ngày</div>
-      <div class="body-text" id="briefs-text">Việt Nam tăng bậc đổi mới sáng tạo 2026</div>
+      <div class="headline" id="briefs-headline">Tin ngắn nổi bật</div>
+      <div class="body-text" id="briefs-text">Phú Thọ thu hút sáu nghìn sáu trăm tỷ đồng đầu tư</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="briefs-subtitle"><span class="sub-word">Việt</span> <span class="sub-word">Nam</span> <span class="sub-word">đứng</span> <span class="sub-word">thứ</span> <span class="sub-word">bốn</span> <span class="sub-word">mươi</span> <span class="sub-word">bốn</span> <span class="sub-word">trong</span> <span class="sub-word">bảng</span> <span class="sub-word">xếp</span> <span class="sub-word">hạng</span> <span class="sub-word">Chỉ</span> <span class="sub-word">số</span> <span class="sub-word">đổi</span> <span class="sub-word">mới</span> <span class="sub-word">sáng</span> <span class="sub-word">tạo</span> <span class="sub-word">toàn</span> <span class="sub-word">cầu</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu,</span> <span class="sub-word">tăng</span> <span class="sub-word">bốn</span> <span class="sub-word">bậc</span> <span class="sub-word">so</span> <span class="sub-word">với</span> <span class="sub-word">năm</span> <span class="sub-word">trước,</span> <span class="sub-word">nhờ</span> <span class="sub-word">triển</span> <span class="sub-word">khai</span> <span class="sub-word">Nghị</span> <span class="sub-word">quyết</span> <span class="sub-word">số</span> <span class="sub-word">năm</span> <span class="sub-word">mươi</span> <span class="sub-word">bảy</span> <span class="sub-word">của</span> <span class="sub-word">Bộ</span> <span class="sub-word">Chính</span> <span class="sub-word">trị.</span> </div>
+    <div class="subtitle-bar" id="briefs-subtitle">
+      <div class="sub-phrase" id="phrase-briefs-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Ủy</span> <span class="sub-word">ban</span> <span class="sub-word">nhân</span> <span class="sub-word">dân</span> <span class="sub-word">tỉnh</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-1" style="display: none; opacity: 0;">
+        <span class="sub-word">Phú</span> <span class="sub-word">Thọ</span> <span class="sub-word">trao</span> <span class="sub-word">chứng</span> <span class="sub-word">nhận</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-2" style="display: none; opacity: 0;">
+        <span class="sub-word">đầu</span> <span class="sub-word">tư</span> <span class="sub-word">cho</span> <span class="sub-word">bốn</span> <span class="sub-word">dự</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-3" style="display: none; opacity: 0;">
+        <span class="sub-word">án</span> <span class="sub-word">lớn</span> <span class="sub-word">với</span> <span class="sub-word">tổng</span> <span class="sub-word">số</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-4" style="display: none; opacity: 0;">
+        <span class="sub-word">vốn</span> <span class="sub-word">hơn</span> <span class="sub-word">sáu</span> <span class="sub-word">nghìn</span> <span class="sub-word">sáu</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-5" style="display: none; opacity: 0;">
+        <span class="sub-word">trăm</span> <span class="sub-word">tỷ</span> <span class="sub-word">đồng.</span> <span class="sub-word">Đồng</span> <span class="sub-word">thời,</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-6" style="display: none; opacity: 0;">
+        <span class="sub-word">hai</span> <span class="sub-word">giải</span> <span class="sub-word">pháp</span> <span class="sub-word">số</span> <span class="sub-word">của</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-7" style="display: none; opacity: 0;">
+        <span class="sub-word">Agribank</span> <span class="sub-word">xuất</span> <span class="sub-word">sắc</span> <span class="sub-word">đoạt</span> <span class="sub-word">giải</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-briefs-8" style="display: none; opacity: 0;">
+        <span class="sub-word">thưởng</span> <span class="sub-word">Sao</span> <span class="sub-word">Khuê.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- message: t=72.19..83.04299999999999s -->
+  <!-- message: t=58.013..67.276s -->
   <div class="scene clip bg-message" id="scene-message"
-       data-start="72.19" data-duration="10.853" data-track-index="0">
-    <img class="bg-image" id="bg-message" src="library/message_tuyengiao_curated_8d2a595898.png" alt="">
-    <div class="bg-overlay"></div>
+       data-start="58.013" data-duration="9.263" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -310,17 +469,38 @@ body {
     </div>
     <div class="content">
       <div class="content-card">
-        <div class="message-text" id="message-text">Xây dựng đội ngũ cán bộ quản lý chuyên nghiệp, liêm chính</div>
+        <div class="message-text" id="message-text">Đẩy mạnh chuyển đổi số và ứng dụng khoa học kỹ thuật</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="message-subtitle"><span class="sub-word">Việc</span> <span class="sub-word">ban</span> <span class="sub-word">hành</span> <span class="sub-word">Nghị</span> <span class="sub-word">định</span> <span class="sub-word">số</span> <span class="sub-word">một</span> <span class="sub-word">tám</span> <span class="sub-word">một</span> <span class="sub-word">năm</span> <span class="sub-word">hai</span> <span class="sub-word">không</span> <span class="sub-word">hai</span> <span class="sub-word">sáu</span> <span class="sub-word">của</span> <span class="sub-word">Chính</span> <span class="sub-word">phủ</span> <span class="sub-word">thể</span> <span class="sub-word">hiện</span> <span class="sub-word">quyết</span> <span class="sub-word">tâm</span> <span class="sub-word">của</span> <span class="sub-word">Đảng</span> <span class="sub-word">và</span> <span class="sub-word">Nhà</span> <span class="sub-word">nước</span> <span class="sub-word">trong</span> <span class="sub-word">xây</span> <span class="sub-word">dựng</span> <span class="sub-word">đội</span> <span class="sub-word">ngũ</span> <span class="sub-word">cán</span> <span class="sub-word">bộ</span> <span class="sub-word">quản</span> <span class="sub-word">lý</span> <span class="sub-word">doanh</span> <span class="sub-word">nghiệp</span> <span class="sub-word">nhà</span> <span class="sub-word">nước</span> <span class="sub-word">chuyên</span> <span class="sub-word">nghiệp,</span> <span class="sub-word">liêm</span> <span class="sub-word">chính.</span> </div>
+    <div class="subtitle-bar" id="message-subtitle">
+      <div class="sub-phrase" id="phrase-message-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Ứng</span> <span class="sub-word">dụng</span> <span class="sub-word">khoa</span> <span class="sub-word">học</span> <span class="sub-word">công</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-1" style="display: none; opacity: 0;">
+        <span class="sub-word">nghệ,</span> <span class="sub-word">phát</span> <span class="sub-word">triển</span> <span class="sub-word">kinh</span> <span class="sub-word">tế</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-2" style="display: none; opacity: 0;">
+        <span class="sub-word">số</span> <span class="sub-word">và</span> <span class="sub-word">chủ</span> <span class="sub-word">động</span> <span class="sub-word">chuyển</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-3" style="display: none; opacity: 0;">
+        <span class="sub-word">đổi</span> <span class="sub-word">số</span> <span class="sub-word">là</span> <span class="sub-word">chìa</span> <span class="sub-word">khóa</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-4" style="display: none; opacity: 0;">
+        <span class="sub-word">then</span> <span class="sub-word">chốt</span> <span class="sub-word">thúc</span> <span class="sub-word">đẩy</span> <span class="sub-word">kinh</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-5" style="display: none; opacity: 0;">
+        <span class="sub-word">tế</span> <span class="sub-word">xã</span> <span class="sub-word">hội</span> <span class="sub-word">phát</span> <span class="sub-word">triển</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-message-6" style="display: none; opacity: 0;">
+        <span class="sub-word">nhanh,</span> <span class="sub-word">bền</span> <span class="sub-word">vững,</span> <span class="sub-word">hiện</span> <span class="sub-word">đại.</span> 
+      </div>
+    </div>
   </div>
 
-  <!-- cta: t=83.043..88.34400000000001s -->
+  <!-- cta: t=67.275..75.26400000000001s -->
   <div class="scene clip bg-cta" id="scene-cta"
-       data-start="83.043" data-duration="5.301" data-track-index="0">
-    <img class="bg-image" id="bg-cta" src="library/cta_default_curated_8d2a595898.png" alt="">
-    <div class="bg-overlay"></div>
+       data-start="67.275" data-duration="7.989" data-track-index="0">
+
     <div class="bar bar-top"></div>
     <div class="bar bar-bottom"></div>
     <div class="logo-strip">
@@ -334,7 +514,26 @@ body {
       <div class="cta-url" id="cta-url">troly35.info.vn</div>
       </div>
     </div>
-    <div class="subtitle-bar" id="cta-subtitle"><span class="sub-word">Kính</span> <span class="sub-word">chào</span> <span class="sub-word">và</span> <span class="sub-word">hẹn</span> <span class="sub-word">gặp</span> <span class="sub-word">lại.</span> <span class="sub-word">Truy</span> <span class="sub-word">cập</span> <span class="sub-word">trang</span> <span class="sub-word">web</span> <span class="sub-word">Bảo</span> <span class="sub-word">vệ</span> <span class="sub-word">nền</span> <span class="sub-word">tảng</span> <span class="sub-word">để</span> <span class="sub-word">cập</span> <span class="sub-word">nhật</span> <span class="sub-word">thông</span> <span class="sub-word">tin</span> <span class="sub-word">hằng</span> <span class="sub-word">ngày.</span> </div>
+    <div class="subtitle-bar" id="cta-subtitle">
+      <div class="sub-phrase" id="phrase-cta-0" style="display: none; opacity: 0;">
+        <span class="sub-word">Cảm</span> <span class="sub-word">ơn</span> <span class="sub-word">quý</span> <span class="sub-word">đồng</span> <span class="sub-word">chí</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-cta-1" style="display: none; opacity: 0;">
+        <span class="sub-word">đã</span> <span class="sub-word">quan</span> <span class="sub-word">tâm</span> <span class="sub-word">theo</span> <span class="sub-word">dõi.</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-cta-2" style="display: none; opacity: 0;">
+        <span class="sub-word">Hãy</span> <span class="sub-word">truy</span> <span class="sub-word">cập</span> <span class="sub-word">trang</span> <span class="sub-word">web</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-cta-3" style="display: none; opacity: 0;">
+        <span class="sub-word">Bảo</span> <span class="sub-word">vệ</span> <span class="sub-word">nền</span> <span class="sub-word">tảng</span> <span class="sub-word">để</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-cta-4" style="display: none; opacity: 0;">
+        <span class="sub-word">cập</span> <span class="sub-word">nhật</span> <span class="sub-word">thông</span> <span class="sub-word">tin</span> <span class="sub-word">chính</span> 
+      </div>
+      <div class="sub-phrase" id="phrase-cta-5" style="display: none; opacity: 0;">
+        <span class="sub-word">xác</span> <span class="sub-word">mỗi</span> <span class="sub-word">ngày.</span> 
+      </div>
+    </div>
   </div>
 </div>
 <script src="./node_modules/gsap/dist/gsap.min.js"></script>
@@ -350,94 +549,269 @@ body {
 
   const tl = gsap.timeline({ paused: true });
 
-  // intro: 0.0s → 7.068s
-  tl.to('#scene-intro', {opacity:1, duration:0.5}, 0.1);
-  tl.fromTo('#bg-intro', {scale:1.0}, {scale:1.08, duration:7.068, ease:'none'}, 0.0);
-  tl.to('#scene-intro .logo-strip', {opacity:1, y:0, duration:0.5}, 0.2);
-  tl.to('#scene-intro .content-card', {opacity:1, y:0, duration:0.5}, 0.25);
-  tl.to('#intro-headline', {opacity:1, y:0, duration:0.5}, 0.35);
-  tl.to('#intro-text, #intro-url', {opacity:1, duration:0.5}, 0.5);
-  tl.to('#intro-subtitle', {opacity:1, duration:0.5}, 0.5);
-  tl.to('#scene-intro .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2096}, 0.7);
-  tl.to('#scene-intro', {opacity:0, duration:0.5}, 6.568);
+  // intro: 0.1s → 8.975s
+  tl.to('#scene-intro', {opacity:1, duration:0.25}, 0.15000000000000002);
+  tl.to('#scene-intro .logo-strip', {opacity:1, y:0, duration:0.35}, 0.2);
+  tl.fromTo('#scene-intro .content-card', {opacity:0, scale:0.82, y:0}, {opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(1.6)'}, 0.28);
+  tl.fromTo('#intro-headline', {opacity:0, scale:0.6, y:0}, {opacity:1, scale:1, y:0, duration:0.5, ease:'back.out(2)'}, 0.42000000000000004);
+  tl.to('#intro-text', {opacity:1, y:0, duration:0.4}, 0.72);
+  tl.to('#intro-subtitle', {opacity:1, duration:0.2}, 0.3);
+  tl.to('#phrase-intro-0', {display:'block', opacity:1, duration:0.12}, 0.5);
+  tl.to('#phrase-intro-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 0.5);
+  tl.to('#phrase-intro-0', {display:'none', opacity:0, duration:0.12}, 1.958);
+  tl.to('#phrase-intro-1', {display:'block', opacity:1, duration:0.12}, 1.958);
+  tl.to('#phrase-intro-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 1.958);
+  tl.to('#phrase-intro-1', {display:'none', opacity:0, duration:0.12}, 3.416);
+  tl.to('#phrase-intro-2', {display:'block', opacity:1, duration:0.12}, 3.417);
+  tl.to('#phrase-intro-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 3.417);
+  tl.to('#phrase-intro-2', {display:'none', opacity:0, duration:0.12}, 4.875);
+  tl.to('#phrase-intro-3', {display:'block', opacity:1, duration:0.12}, 4.875);
+  tl.to('#phrase-intro-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 4.875);
+  tl.to('#phrase-intro-3', {display:'none', opacity:0, duration:0.12}, 6.333);
+  tl.to('#phrase-intro-4', {display:'block', opacity:1, duration:0.12}, 6.333);
+  tl.to('#phrase-intro-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 6.333);
+  tl.to('#phrase-intro-4', {display:'none', opacity:0, duration:0.12}, 7.791);
+  tl.to('#phrase-intro-5', {display:'block', opacity:1, duration:0.12}, 7.792);
+  tl.to('#phrase-intro-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2917}, 7.792);
+  tl.to('#phrase-intro-5', {display:'none', opacity:0, duration:0.12}, 8.375);
+  tl.to('#intro-subtitle', {opacity:0, duration:0.5}, 8.475);
+  tl.to('#scene-intro', {opacity:0, duration:0.5}, 8.475);
 
-  // summary: 7.068s → 23.726999999999997s
-  tl.to('#scene-summary', {opacity:1, duration:0.5}, 7.167999999999999);
-  tl.fromTo('#bg-summary', {scale:1.0}, {scale:1.08, duration:16.659, ease:'none'}, 7.068);
-  tl.to('#scene-summary .logo-strip', {opacity:1, y:0, duration:0.5}, 7.268);
-  tl.to('#scene-summary .content-card', {opacity:1, y:0, duration:0.5}, 7.318);
-  tl.to('#summary-headline', {opacity:1, y:0, duration:0.5}, 7.417999999999999);
-  tl.to('#summary-text, #summary-url', {opacity:1, duration:0.5}, 7.568);
-  tl.to('#summary-subtitle', {opacity:1, duration:0.5}, 7.568);
-  tl.to('#scene-summary .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2342}, 7.768);
-  tl.to('#scene-summary', {opacity:0, duration:0.5}, 23.226999999999997);
+  // summary: 8.975s → 18.4s
+  tl.to('#scene-summary', {opacity:1, duration:0.5}, 9.075);
+  tl.to('#scene-summary .logo-strip', {opacity:1, y:0, duration:0.5}, 9.174999999999999);
+  tl.to('#scene-summary .content-card', {opacity:1, y:0, duration:0.5}, 9.225);
+  tl.to('#summary-headline', {opacity:1, y:0, duration:0.5}, 9.325);
+  tl.to('#summary-text, #summary-url', {opacity:1, duration:0.5}, 9.475);
+  tl.to('#summary-subtitle', {opacity:1, duration:0.2}, 9.175);
+  tl.to('#phrase-summary-0', {display:'block', opacity:1, duration:0.12}, 9.475);
+  tl.to('#phrase-summary-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 9.475);
+  tl.to('#phrase-summary-0', {display:'none', opacity:0, duration:0.12}, 10.503);
+  tl.to('#phrase-summary-1', {display:'block', opacity:1, duration:0.12}, 10.503);
+  tl.to('#phrase-summary-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 10.503);
+  tl.to('#phrase-summary-1', {display:'none', opacity:0, duration:0.12}, 11.531);
+  tl.to('#phrase-summary-2', {display:'block', opacity:1, duration:0.12}, 11.531);
+  tl.to('#phrase-summary-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 11.531);
+  tl.to('#phrase-summary-2', {display:'none', opacity:0, duration:0.12}, 12.559);
+  tl.to('#phrase-summary-3', {display:'block', opacity:1, duration:0.12}, 12.559);
+  tl.to('#phrase-summary-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 12.559);
+  tl.to('#phrase-summary-3', {display:'none', opacity:0, duration:0.12}, 13.587);
+  tl.to('#phrase-summary-4', {display:'block', opacity:1, duration:0.12}, 13.588);
+  tl.to('#phrase-summary-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 13.588);
+  tl.to('#phrase-summary-4', {display:'none', opacity:0, duration:0.12}, 14.616);
+  tl.to('#phrase-summary-5', {display:'block', opacity:1, duration:0.12}, 14.616);
+  tl.to('#phrase-summary-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 14.616);
+  tl.to('#phrase-summary-5', {display:'none', opacity:0, duration:0.12}, 15.644);
+  tl.to('#phrase-summary-6', {display:'block', opacity:1, duration:0.12}, 15.644);
+  tl.to('#phrase-summary-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 15.644);
+  tl.to('#phrase-summary-6', {display:'none', opacity:0, duration:0.12}, 16.672);
+  tl.to('#phrase-summary-7', {display:'block', opacity:1, duration:0.12}, 16.672);
+  tl.to('#phrase-summary-7 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2056}, 16.672);
+  tl.to('#phrase-summary-7', {display:'none', opacity:0, duration:0.12}, 17.7);
+  tl.to('#summary-subtitle', {opacity:0, duration:0.5}, 17.9);
+  tl.to('#scene-summary', {opacity:0, duration:0.5}, 17.9);
 
-  // news1: 23.727s → 38.619s
-  tl.to('#scene-news1', {opacity:1, duration:0.5}, 23.827);
-  tl.fromTo('#bg-news1', {scale:1.0}, {scale:1.08, duration:14.892, ease:'none'}, 23.727);
-  tl.to('#scene-news1 .logo-strip', {opacity:1, y:0, duration:0.5}, 23.927);
-  tl.to('#scene-news1 .content-card', {opacity:1, y:0, duration:0.5}, 23.977);
-  tl.to('#news1-headline', {opacity:1, y:0, duration:0.5}, 24.077);
-  tl.to('#news1-text, #news1-url', {opacity:1, duration:0.5}, 24.227);
-  tl.to('#news1-subtitle', {opacity:1, duration:0.5}, 24.227);
-  tl.to('#scene-news1 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2321}, 24.427);
-  tl.to('#scene-news1', {opacity:0, duration:0.5}, 38.119);
+  // news1: 18.4s → 28.2s
+  tl.to('#scene-news1', {opacity:1, duration:0.5}, 18.5);
+  tl.to('#scene-news1 .logo-strip', {opacity:1, y:0, duration:0.5}, 18.599999999999998);
+  tl.to('#scene-news1 .content-card', {opacity:1, y:0, duration:0.5}, 18.65);
+  tl.to('#news1-headline', {opacity:1, y:0, duration:0.5}, 18.75);
+  tl.to('#news1-text, #news1-url', {opacity:1, duration:0.5}, 18.9);
+  tl.to('#news1-subtitle', {opacity:1, duration:0.2}, 18.6);
+  tl.to('#phrase-news1-0', {display:'block', opacity:1, duration:0.12}, 18.9);
+  tl.to('#phrase-news1-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 18.9);
+  tl.to('#phrase-news1-0', {display:'none', opacity:0, duration:0.12}, 20.003);
+  tl.to('#phrase-news1-1', {display:'block', opacity:1, duration:0.12}, 20.003);
+  tl.to('#phrase-news1-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 20.003);
+  tl.to('#phrase-news1-1', {display:'none', opacity:0, duration:0.12}, 21.106);
+  tl.to('#phrase-news1-2', {display:'block', opacity:1, duration:0.12}, 21.105);
+  tl.to('#phrase-news1-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 21.105);
+  tl.to('#phrase-news1-2', {display:'none', opacity:0, duration:0.12}, 22.208);
+  tl.to('#phrase-news1-3', {display:'block', opacity:1, duration:0.12}, 22.208);
+  tl.to('#phrase-news1-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 22.208);
+  tl.to('#phrase-news1-3', {display:'none', opacity:0, duration:0.12}, 23.311);
+  tl.to('#phrase-news1-4', {display:'block', opacity:1, duration:0.12}, 23.31);
+  tl.to('#phrase-news1-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 23.31);
+  tl.to('#phrase-news1-4', {display:'none', opacity:0, duration:0.12}, 24.413);
+  tl.to('#phrase-news1-5', {display:'block', opacity:1, duration:0.12}, 24.413);
+  tl.to('#phrase-news1-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 24.413);
+  tl.to('#phrase-news1-5', {display:'none', opacity:0, duration:0.12}, 25.516);
+  tl.to('#phrase-news1-6', {display:'block', opacity:1, duration:0.12}, 25.515);
+  tl.to('#phrase-news1-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 25.515);
+  tl.to('#phrase-news1-6', {display:'none', opacity:0, duration:0.12}, 26.618);
+  tl.to('#phrase-news1-7', {display:'block', opacity:1, duration:0.12}, 26.618);
+  tl.to('#phrase-news1-7 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2205}, 26.618);
+  tl.to('#phrase-news1-7', {display:'none', opacity:0, duration:0.12}, 27.5);
+  tl.to('#news1-subtitle', {opacity:0, duration:0.5}, 27.7);
+  tl.to('#scene-news1', {opacity:0, duration:0.5}, 27.7);
 
-  // news2: 38.619s → 52.501999999999995s
-  tl.to('#scene-news2', {opacity:1, duration:0.5}, 38.719);
-  tl.fromTo('#bg-news2', {scale:1.0}, {scale:1.08, duration:13.883, ease:'none'}, 38.619);
-  tl.to('#scene-news2 .logo-strip', {opacity:1, y:0, duration:0.5}, 38.819);
-  tl.to('#scene-news2 .content-card', {opacity:1, y:0, duration:0.5}, 38.869);
-  tl.to('#news2-headline', {opacity:1, y:0, duration:0.5}, 38.969);
-  tl.to('#news2-text, #news2-url', {opacity:1, duration:0.5}, 39.119);
-  tl.to('#news2-subtitle', {opacity:1, duration:0.5}, 39.119);
-  tl.to('#scene-news2 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2306}, 39.319);
-  tl.to('#scene-news2', {opacity:0, duration:0.5}, 52.001999999999995);
+  // news2: 28.2s → 36.837s
+  tl.to('#scene-news2', {opacity:1, duration:0.5}, 28.3);
+  tl.to('#scene-news2 .logo-strip', {opacity:1, y:0, duration:0.5}, 28.4);
+  tl.to('#scene-news2 .content-card', {opacity:1, y:0, duration:0.5}, 28.45);
+  tl.to('#news2-headline', {opacity:1, y:0, duration:0.5}, 28.55);
+  tl.to('#news2-text, #news2-url', {opacity:1, duration:0.5}, 28.7);
+  tl.to('#news2-subtitle', {opacity:1, duration:0.2}, 28.4);
+  tl.to('#phrase-news2-0', {display:'block', opacity:1, duration:0.12}, 28.7);
+  tl.to('#phrase-news2-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 28.7);
+  tl.to('#phrase-news2-0', {display:'none', opacity:0, duration:0.12}, 29.705);
+  tl.to('#phrase-news2-1', {display:'block', opacity:1, duration:0.12}, 29.705);
+  tl.to('#phrase-news2-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 29.705);
+  tl.to('#phrase-news2-1', {display:'none', opacity:0, duration:0.12}, 30.71);
+  tl.to('#phrase-news2-2', {display:'block', opacity:1, duration:0.12}, 30.71);
+  tl.to('#phrase-news2-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 30.71);
+  tl.to('#phrase-news2-2', {display:'none', opacity:0, duration:0.12}, 31.715);
+  tl.to('#phrase-news2-3', {display:'block', opacity:1, duration:0.12}, 31.715);
+  tl.to('#phrase-news2-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 31.715);
+  tl.to('#phrase-news2-3', {display:'none', opacity:0, duration:0.12}, 32.72);
+  tl.to('#phrase-news2-4', {display:'block', opacity:1, duration:0.12}, 32.72);
+  tl.to('#phrase-news2-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 32.72);
+  tl.to('#phrase-news2-4', {display:'none', opacity:0, duration:0.12}, 33.725);
+  tl.to('#phrase-news2-5', {display:'block', opacity:1, duration:0.12}, 33.725);
+  tl.to('#phrase-news2-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 33.725);
+  tl.to('#phrase-news2-5', {display:'none', opacity:0, duration:0.12}, 34.73);
+  tl.to('#phrase-news2-6', {display:'block', opacity:1, duration:0.12}, 34.73);
+  tl.to('#phrase-news2-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 34.73);
+  tl.to('#phrase-news2-6', {display:'none', opacity:0, duration:0.12}, 35.735);
+  tl.to('#phrase-news2-7', {display:'block', opacity:1, duration:0.12}, 35.735);
+  tl.to('#phrase-news2-7 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.201}, 35.735);
+  tl.to('#phrase-news2-7', {display:'none', opacity:0, duration:0.12}, 36.137);
+  tl.to('#news2-subtitle', {opacity:0, duration:0.5}, 36.337);
+  tl.to('#scene-news2', {opacity:0, duration:0.5}, 36.337);
 
-  // news3: 52.502s → 61.084s
-  tl.to('#scene-news3', {opacity:1, duration:0.5}, 52.602000000000004);
-  tl.fromTo('#bg-news3', {scale:1.0}, {scale:1.08, duration:8.582, ease:'none'}, 52.502);
-  tl.to('#scene-news3 .logo-strip', {opacity:1, y:0, duration:0.5}, 52.702000000000005);
-  tl.to('#scene-news3 .content-card', {opacity:1, y:0, duration:0.5}, 52.752);
-  tl.to('#news3-headline', {opacity:1, y:0, duration:0.5}, 52.852000000000004);
-  tl.to('#news3-text, #news3-url', {opacity:1, duration:0.5}, 53.002);
-  tl.to('#news3-subtitle', {opacity:1, duration:0.5}, 53.002);
-  tl.to('#scene-news3 .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2171}, 53.202000000000005);
-  tl.to('#scene-news3', {opacity:0, duration:0.5}, 60.584);
+  // news3: 36.837s → 46.387s
+  tl.to('#scene-news3', {opacity:1, duration:0.5}, 36.937000000000005);
+  tl.to('#scene-news3 .logo-strip', {opacity:1, y:0, duration:0.5}, 37.037000000000006);
+  tl.to('#scene-news3 .content-card', {opacity:1, y:0, duration:0.5}, 37.087);
+  tl.to('#news3-headline', {opacity:1, y:0, duration:0.5}, 37.187000000000005);
+  tl.to('#news3-text, #news3-url', {opacity:1, duration:0.5}, 37.337);
+  tl.to('#news3-subtitle', {opacity:1, duration:0.2}, 37.037);
+  tl.to('#phrase-news3-0', {display:'block', opacity:1, duration:0.12}, 37.337);
+  tl.to('#phrase-news3-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 37.337);
+  tl.to('#phrase-news3-0', {display:'none', opacity:0, duration:0.12}, 38.355);
+  tl.to('#phrase-news3-1', {display:'block', opacity:1, duration:0.12}, 38.355);
+  tl.to('#phrase-news3-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 38.355);
+  tl.to('#phrase-news3-1', {display:'none', opacity:0, duration:0.12}, 39.373);
+  tl.to('#phrase-news3-2', {display:'block', opacity:1, duration:0.12}, 39.374);
+  tl.to('#phrase-news3-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 39.374);
+  tl.to('#phrase-news3-2', {display:'none', opacity:0, duration:0.12}, 40.392);
+  tl.to('#phrase-news3-3', {display:'block', opacity:1, duration:0.12}, 40.392);
+  tl.to('#phrase-news3-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 40.392);
+  tl.to('#phrase-news3-3', {display:'none', opacity:0, duration:0.12}, 41.41);
+  tl.to('#phrase-news3-4', {display:'block', opacity:1, duration:0.12}, 41.41);
+  tl.to('#phrase-news3-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 41.41);
+  tl.to('#phrase-news3-4', {display:'none', opacity:0, duration:0.12}, 42.428);
+  tl.to('#phrase-news3-5', {display:'block', opacity:1, duration:0.12}, 42.428);
+  tl.to('#phrase-news3-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 42.428);
+  tl.to('#phrase-news3-5', {display:'none', opacity:0, duration:0.12}, 43.446);
+  tl.to('#phrase-news3-6', {display:'block', opacity:1, duration:0.12}, 43.447);
+  tl.to('#phrase-news3-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 43.447);
+  tl.to('#phrase-news3-6', {display:'none', opacity:0, duration:0.12}, 44.465);
+  tl.to('#phrase-news3-7', {display:'block', opacity:1, duration:0.12}, 44.465);
+  tl.to('#phrase-news3-7 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 44.465);
+  tl.to('#phrase-news3-7', {display:'none', opacity:0, duration:0.12}, 45.483);
+  tl.to('#phrase-news3-8', {display:'block', opacity:1, duration:0.12}, 45.483);
+  tl.to('#phrase-news3-8 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2037}, 45.483);
+  tl.to('#phrase-news3-8', {display:'none', opacity:0, duration:0.12}, 45.687);
+  tl.to('#news3-subtitle', {opacity:0, duration:0.5}, 45.887);
+  tl.to('#scene-news3', {opacity:0, duration:0.5}, 45.887);
 
-  // briefs: 61.084s → 72.19s
-  tl.to('#scene-briefs', {opacity:1, duration:0.5}, 61.184000000000005);
-  tl.fromTo('#bg-briefs', {scale:1.0}, {scale:1.08, duration:11.106, ease:'none'}, 61.084);
-  tl.to('#scene-briefs .logo-strip', {opacity:1, y:0, duration:0.5}, 61.284000000000006);
-  tl.to('#scene-briefs .content-card', {opacity:1, y:0, duration:0.5}, 61.334);
-  tl.to('#briefs-headline', {opacity:1, y:0, duration:0.5}, 61.434000000000005);
-  tl.to('#briefs-text, #briefs-url', {opacity:1, duration:0.5}, 61.584);
-  tl.to('#briefs-subtitle', {opacity:1, duration:0.5}, 61.584);
-  tl.to('#scene-briefs .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2251}, 61.784000000000006);
-  tl.to('#scene-briefs', {opacity:0, duration:0.5}, 71.69);
+  // briefs: 46.388s → 58.013s
+  tl.to('#scene-briefs', {opacity:1, duration:0.5}, 46.488);
+  tl.to('#scene-briefs .logo-strip', {opacity:1, y:0, duration:0.5}, 46.588);
+  tl.to('#scene-briefs .content-card', {opacity:1, y:0, duration:0.5}, 46.638);
+  tl.to('#briefs-headline', {opacity:1, y:0, duration:0.5}, 46.738);
+  tl.to('#briefs-text, #briefs-url', {opacity:1, duration:0.5}, 46.888);
+  tl.to('#briefs-subtitle', {opacity:1, duration:0.2}, 46.588);
+  tl.to('#phrase-briefs-0', {display:'block', opacity:1, duration:0.12}, 46.888);
+  tl.to('#phrase-briefs-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 46.888);
+  tl.to('#phrase-briefs-0', {display:'none', opacity:0, duration:0.12}, 48.1);
+  tl.to('#phrase-briefs-1', {display:'block', opacity:1, duration:0.12}, 48.1);
+  tl.to('#phrase-briefs-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 48.1);
+  tl.to('#phrase-briefs-1', {display:'none', opacity:0, duration:0.12}, 49.312);
+  tl.to('#phrase-briefs-2', {display:'block', opacity:1, duration:0.12}, 49.312);
+  tl.to('#phrase-briefs-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 49.312);
+  tl.to('#phrase-briefs-2', {display:'none', opacity:0, duration:0.12}, 50.524);
+  tl.to('#phrase-briefs-3', {display:'block', opacity:1, duration:0.12}, 50.525);
+  tl.to('#phrase-briefs-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 50.525);
+  tl.to('#phrase-briefs-3', {display:'none', opacity:0, duration:0.12}, 51.737);
+  tl.to('#phrase-briefs-4', {display:'block', opacity:1, duration:0.12}, 51.737);
+  tl.to('#phrase-briefs-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 51.737);
+  tl.to('#phrase-briefs-4', {display:'none', opacity:0, duration:0.12}, 52.949);
+  tl.to('#phrase-briefs-5', {display:'block', opacity:1, duration:0.12}, 52.949);
+  tl.to('#phrase-briefs-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 52.949);
+  tl.to('#phrase-briefs-5', {display:'none', opacity:0, duration:0.12}, 54.161);
+  tl.to('#phrase-briefs-6', {display:'block', opacity:1, duration:0.12}, 54.161);
+  tl.to('#phrase-briefs-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 54.161);
+  tl.to('#phrase-briefs-6', {display:'none', opacity:0, duration:0.12}, 55.373);
+  tl.to('#phrase-briefs-7', {display:'block', opacity:1, duration:0.12}, 55.373);
+  tl.to('#phrase-briefs-7 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 55.373);
+  tl.to('#phrase-briefs-7', {display:'none', opacity:0, duration:0.12}, 56.585);
+  tl.to('#phrase-briefs-8', {display:'block', opacity:1, duration:0.12}, 56.586);
+  tl.to('#phrase-briefs-8 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2424}, 56.586);
+  tl.to('#phrase-briefs-8', {display:'none', opacity:0, duration:0.12}, 57.313);
+  tl.to('#briefs-subtitle', {opacity:0, duration:0.5}, 57.513);
+  tl.to('#scene-briefs', {opacity:0, duration:0.5}, 57.513);
 
-  // message: 72.19s → 83.04299999999999s
-  tl.to('#scene-message', {opacity:1, duration:0.5}, 72.28999999999999);
-  tl.fromTo('#bg-message', {scale:1.0}, {scale:1.08, duration:10.853, ease:'none'}, 72.19);
-  tl.to('#scene-message .logo-strip', {opacity:1, y:0, duration:0.5}, 72.39);
-  tl.to('#scene-message .content-card', {opacity:1, y:0, duration:0.5}, 72.44);
-  tl.to('#message-text, #message-url', {opacity:1, duration:0.5}, 72.69);
-  tl.to('#message-subtitle', {opacity:1, duration:0.5}, 72.69);
-  tl.to('#scene-message .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.2245}, 72.89);
-  tl.to('#scene-message', {opacity:0, duration:0.5}, 82.54299999999999);
+  // message: 58.013s → 67.276s
+  tl.to('#scene-message', {opacity:1, duration:0.5}, 58.113);
+  tl.to('#scene-message .logo-strip', {opacity:1, y:0, duration:0.5}, 58.213);
+  tl.to('#scene-message .content-card', {opacity:1, y:0, duration:0.5}, 58.263);
+  tl.to('#message-text, #message-url', {opacity:1, duration:0.5}, 58.513);
+  tl.to('#message-subtitle', {opacity:1, duration:0.2}, 58.213);
+  tl.to('#phrase-message-0', {display:'block', opacity:1, duration:0.12}, 58.513);
+  tl.to('#phrase-message-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 58.513);
+  tl.to('#phrase-message-0', {display:'none', opacity:0, duration:0.12}, 59.665);
+  tl.to('#phrase-message-1', {display:'block', opacity:1, duration:0.12}, 59.665);
+  tl.to('#phrase-message-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 59.665);
+  tl.to('#phrase-message-1', {display:'none', opacity:0, duration:0.12}, 60.817);
+  tl.to('#phrase-message-2', {display:'block', opacity:1, duration:0.12}, 60.817);
+  tl.to('#phrase-message-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 60.817);
+  tl.to('#phrase-message-2', {display:'none', opacity:0, duration:0.12}, 61.969);
+  tl.to('#phrase-message-3', {display:'block', opacity:1, duration:0.12}, 61.969);
+  tl.to('#phrase-message-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 61.969);
+  tl.to('#phrase-message-3', {display:'none', opacity:0, duration:0.12}, 63.121);
+  tl.to('#phrase-message-4', {display:'block', opacity:1, duration:0.12}, 63.12);
+  tl.to('#phrase-message-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 63.12);
+  tl.to('#phrase-message-4', {display:'none', opacity:0, duration:0.12}, 64.272);
+  tl.to('#phrase-message-5', {display:'block', opacity:1, duration:0.12}, 64.272);
+  tl.to('#phrase-message-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 64.272);
+  tl.to('#phrase-message-5', {display:'none', opacity:0, duration:0.12}, 65.424);
+  tl.to('#phrase-message-6', {display:'block', opacity:1, duration:0.12}, 65.424);
+  tl.to('#phrase-message-6 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2304}, 65.424);
+  tl.to('#phrase-message-6', {display:'none', opacity:0, duration:0.12}, 66.576);
+  tl.to('#message-subtitle', {opacity:0, duration:0.5}, 66.776);
+  tl.to('#scene-message', {opacity:0, duration:0.5}, 66.776);
 
-  // cta: 83.043s → 88.34400000000001s
-  tl.to('#scene-cta', {opacity:1, duration:0.42408}, 83.143);
-  tl.fromTo('#bg-cta', {scale:1.0}, {scale:1.08, duration:5.301, ease:'none'}, 83.043);
-  tl.to('#scene-cta .logo-strip', {opacity:1, y:0, duration:0.42408}, 83.24300000000001);
-  tl.to('#scene-cta .content-card', {opacity:1, y:0, duration:0.42408}, 83.293);
-  tl.to('#cta-headline', {opacity:1, y:0, duration:0.42408}, 83.393);
-  tl.to('#cta-text, #cta-url', {opacity:1, duration:0.42408}, 83.543);
-  tl.to('#cta-subtitle', {opacity:1, duration:0.42408}, 83.543);
-  tl.to('#scene-cta .sub-word', {opacity:1, color:'#F4C20D', duration:0.15, stagger:0.1953}, 83.74300000000001);
-  tl.to('#scene-cta', {opacity:0, duration:0.42408}, 87.91992);
+  // cta: 67.275s → 75.26400000000001s
+  tl.to('#scene-cta', {opacity:1, duration:0.5}, 67.375);
+  tl.to('#scene-cta .logo-strip', {opacity:1, y:0, duration:0.5}, 67.47500000000001);
+  tl.to('#scene-cta .content-card', {opacity:1, y:0, duration:0.5}, 67.525);
+  tl.to('#cta-headline', {opacity:1, y:0, duration:0.5}, 67.625);
+  tl.to('#cta-text, #cta-url', {opacity:1, duration:0.5}, 67.775);
+  tl.to('#cta-subtitle', {opacity:1, duration:0.2}, 67.475);
+  tl.to('#phrase-cta-0', {display:'block', opacity:1, duration:0.12}, 67.775);
+  tl.to('#phrase-cta-0 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 67.775);
+  tl.to('#phrase-cta-0', {display:'none', opacity:0, duration:0.12}, 68.987);
+  tl.to('#phrase-cta-1', {display:'block', opacity:1, duration:0.12}, 68.987);
+  tl.to('#phrase-cta-1 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 68.987);
+  tl.to('#phrase-cta-1', {display:'none', opacity:0, duration:0.12}, 70.199);
+  tl.to('#phrase-cta-2', {display:'block', opacity:1, duration:0.12}, 70.2);
+  tl.to('#phrase-cta-2 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 70.2);
+  tl.to('#phrase-cta-2', {display:'none', opacity:0, duration:0.12}, 71.412);
+  tl.to('#phrase-cta-3', {display:'block', opacity:1, duration:0.12}, 71.412);
+  tl.to('#phrase-cta-3 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 71.412);
+  tl.to('#phrase-cta-3', {display:'none', opacity:0, duration:0.12}, 72.624);
+  tl.to('#phrase-cta-4', {display:'block', opacity:1, duration:0.12}, 72.624);
+  tl.to('#phrase-cta-4 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 72.624);
+  tl.to('#phrase-cta-4', {display:'none', opacity:0, duration:0.12}, 73.836);
+  tl.to('#phrase-cta-5', {display:'block', opacity:1, duration:0.12}, 73.837);
+  tl.to('#phrase-cta-5 .sub-word', {keyframes:[{opacity:1, scale:1.15, color:'#FFFFFF', textShadow:'0 0 20px rgba(244,194,13,0.9)', duration:0.12, ease:'power2.out'},{scale:1.0, color:'#F4C20D', textShadow:'0 0 0px rgba(244,194,13,0)', duration:0.20, ease:'power1.inOut'}], stagger:0.2425}, 73.837);
+  tl.to('#phrase-cta-5', {display:'none', opacity:0, duration:0.12}, 74.564);
+  tl.to('#cta-subtitle', {opacity:0, duration:0.5}, 74.76400000000001);
+  tl.to('#scene-cta', {opacity:0, duration:0.5}, 74.76400000000001);
 
-  tl.to({}, {duration:0.001}, 88.34299999999999);
+  tl.to({}, {duration:0.001}, 75.26299999999999);
   window.__timelines = window.__timelines || {};
   window.__timelines['troly35-daily'] = tl;
 </script>

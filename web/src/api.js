@@ -6,11 +6,34 @@ const API_URL = import.meta.env.PROD
 
 export { invalidateCache };
 
+async function parseApiResponse(response) {
+  const raw = await response.text();
+  let parsed = null;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = null;
+  }
+
+  if (!parsed) {
+    const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 140);
+    throw new Error(
+      snippet
+        ? `API khong tra JSON hop le. Kiem tra proxy/dev server. Response mau: ${snippet}`
+        : 'API khong tra JSON hop le. Kiem tra proxy/dev server.'
+    );
+  }
+
+  if (!response.ok || parsed.success === false) {
+    throw new Error(parsed.error || `API error (${response.status})`);
+  }
+
+  return parsed.data ?? parsed;
+}
+
 const getJson = (url) =>
-  fetch(url).then(r => r.json()).then(res => {
-    if (res.success === false) throw new Error(res.error || 'API error');
-    return res.data ?? res;
-  });
+  fetch(url).then(parseApiResponse);
 
 // GET helpers
 export const getToday = () =>
@@ -33,8 +56,10 @@ function assertArrayResponse(data, featureName) {
 }
 
 export const getBooks = () =>
-  cached('books-v2', () =>
-    getJson(`${API_URL}?action=books`).then(data => assertArrayResponse(data, 'Tủ sách số'))
+  cached(
+    'books-v3',
+    () => getJson(`${API_URL}?action=books`).then(data => assertArrayResponse(data, 'Tủ sách số')),
+    { ttl: 60 * 60 * 1000 }
   );
 
 export const getBookById = (id) =>
@@ -51,7 +76,7 @@ export const postApi = (action, payload = {}) =>
       'Content-Type': 'text/plain;charset=utf-8',
     },
     body: JSON.stringify({ action, ...payload }),
-  }).then(r => r.json());
+  }).then(parseApiResponse);
 
 // Named POST wrappers
 export const subscribe = (data) => postApi('subscribe', data);

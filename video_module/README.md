@@ -118,6 +118,28 @@ python scripts/05_render_video.py
 # Bước 6: Nén + ghép audio
 python scripts/06_compress_video.py
 
-# Bước 7: Đăng nhóm duyệt
-python scripts/07_post_telegram.py
+# Bước 6: Nén + ghép audio (tự trộn nhạc nền nếu có)
+python scripts/06_compress_video.py
+
+# Bước 8: Tạo bản ngắn ~30s cho TikTok/Reels (tùy chọn, không chặn pipeline)
+python scripts/08_make_short.py
+
+# Bước 7: Đăng nhóm duyệt (gửi kèm bản ngắn nếu có)
+python scripts/07_post_telegram_review.py
 ```
+
+---
+
+## Video quick wins (hấp dẫn hơn với giới trẻ)
+
+Bốn nâng cấp tập trung tăng độ "bắt mắt" mà vẫn giữ tính chính xác của bản tin chính luận:
+
+| Quick win | Nằm ở | Ghi chú |
+|---|---|---|
+| **Hook 3 giây đầu** | `prompts/make_script.md` (nội dung) + `05_render_video.py` (visual) | Scene `intro` thành câu mở giữ chân + vào hình kiểu pop/zoom-out, lộ trọn nội dung ngay giây đầu. |
+| **Nhạc nền có ducking** | `06_compress_video.py` | Thả nhạc royalty-free vào `assets/music/` (xem README ở đó). Tự lặp + giảm tự động dưới giọng đọc. |
+| **Caption karaoke** | `05_render_video.py` | Mỗi từ phụ đề pop sáng + phóng to rồi lắng về vàng, bám theo voiceover — phong cách TikTok. |
+| **Bản ngắn ~30s** | `08_make_short.py` | Cắt-nối các scene chính từ `final.mp4` → `final_short.mp4` cho TikTok/Reels/Shorts. Cấu hình qua `SHORT_SCENES`, `SHORT_MAX_SECONDS`. |
+
+- Nhạc nền và bản ngắn đều **tùy chọn**: thiếu file nhạc hoặc lỗi tạo bản ngắn thì pipeline vẫn chạy bình thường với bản đầy đủ chỉ có voiceover.
+- Các biến cấu hình mới xem trong `.env.example` (mục *Nhạc nền + bản ngắn*).

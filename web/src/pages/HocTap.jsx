@@ -21,6 +21,7 @@ import infographicThumb1 from '../assets/infographic/thumbs/1.jpg';
 import infographicThumb2 from '../assets/infographic/thumbs/2.jpg';
 import infographicThumb3 from '../assets/infographic/thumbs/3.jpg';
 import infographicThumb4 from '../assets/infographic/thumbs/4.jpg';
+import { getBooks } from '../api.js';
 
 const SECTIONS = [
   { id: 'video', label: 'Video', Icon: PlayCircle },
@@ -258,6 +259,22 @@ export default function HocTap() {
   const [selectedVideo, setSelectedVideo] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const warmTuSach = () => {
+      if (!cancelled) getBooks().catch(() => {});
+    };
+    const idleId = window.requestIdleCallback
+      ? window.requestIdleCallback(warmTuSach, { timeout: 1200 })
+      : window.setTimeout(warmTuSach, 350);
+
+    return () => {
+      cancelled = true;
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+      else window.clearTimeout(idleId);
+    };
+  }, []);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [section, selectedVideo]);
 
@@ -277,7 +294,7 @@ export default function HocTap() {
   return (
     <div className="page page-fade learning-page">
       <div className="page-header">
-        <h1>Học tập Nghị quyết XIV</h1>
+        <h1>Tài liệu học tập</h1>
         <p>Video chuyên đề, infographic, tủ sách và kiểm tra nhận thức.</p>
       </div>
 
