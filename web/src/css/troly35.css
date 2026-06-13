@@ -1,0 +1,286 @@
+/* ============================================================
+   TRỢ LÝ 35 — Page styles (tách từ inline style)
+   ============================================================ */
+
+/* ── Header ──────────────────────────────────────────── */
+.pill.t35-internal-badge {
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .3);
+  color: #fff;
+  font-size: 11px;
+}
+.t35-header-badges { margin-bottom: 8px; }
+
+/* ── Card chung ──────────────────────────────────────── */
+.t35-card { margin-bottom: 12px; }
+.t35-card.last { margin-bottom: 0; margin-top: 4px; }
+.t35-chat-card { padding: 12px; }
+
+.t35-card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.t35-card-head { justify-content: space-between; margin-bottom: 10px; }
+.t35-card-head.tight { margin-bottom: 8px; }
+.t35-access-head { margin-bottom: 8px; }
+.t35-pending { display: flex; align-items: center; gap: 7px; }
+
+/* ── Truy cập ────────────────────────────────────────── */
+.t35-access-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.t35-access-row .field { flex: 1; }
+.t35-access-save { flex-shrink: 0; }
+
+.t35-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.t35-remember .hint { font-size: 11px; color: var(--ink-mute); }
+
+/* ── Mode + style selectors ──────────────────────────── */
+.t35-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.t35-mode-grid { margin-bottom: 10px; }
+.t35-style-block { margin-bottom: 10px; }
+
+.t35-style-label {
+  display: block;
+  font-weight: 700;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
+}
+
+.btn.t35-mode-btn { padding: 8px 6px; font-size: 12px; }
+.btn.t35-style-btn { padding: 7px 6px; font-size: 12px; }
+
+/* ── Khung hội thoại ─────────────────────────────────── */
+.t35-chat-log {
+  min-height: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 2px 2px 10px;
+}
+
+.t35-empty { padding: 34px 12px 38px; }
+.t35-empty-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: contain;
+  opacity: .78;
+  filter: drop-shadow(0 8px 18px rgba(183, 28, 28, .18));
+  display: block;
+  margin: 0 auto 12px;
+}
+
+/* ── Bong bóng tin nhắn ──────────────────────────────── */
+.t35-msg-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+.t35-msg-row.user { justify-content: flex-end; }
+
+.t35-bubble {
+  max-width: 88%;
+  padding: 11px 13px;
+  border-radius: 18px 18px 18px 4px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  line-height: 1.55;
+}
+.t35-bubble.user {
+  border-radius: 18px 18px 4px 18px;
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+  box-shadow: var(--shadow-red);
+}
+
+.t35-bubble-head {
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.t35-bubble-head-left { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.t35-bot-name { color: var(--ink-soft); font-weight: 700; }
+.pill.t35-mode-pill { padding: 2px 7px; font-size: 11px; }
+
+.t35-copy-icon {
+  display: flex;
+  color: var(--ink-mute);
+  padding: 2px;
+}
+
+.t35-msg-body { color: var(--ink-soft); }
+.t35-msg-body.user { color: #fff; }
+.t35-msg-body.error { color: var(--red); }
+
+.chat-plain p { margin: 0 0 10px; white-space: pre-wrap; }
+.chat-plain p:last-child { margin-bottom: 0; }
+
+/* ── Badge kiểm duyệt ────────────────────────────────── */
+.t35-moderation {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--yellow-soft);
+  border: 1px solid var(--yellow);
+  color: #7a5f00;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  align-items: flex-start;
+}
+.t35-moderation svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Phân tích & dẫn chứng ───────────────────────────── */
+.t35-analysis {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+.t35-analysis-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+}
+.t35-analysis-body { margin-top: 8px; }
+
+.pill.t35-danger { padding: 1px 8px; font-size: 11px; border: none; }
+.pill.t35-danger.high { background: var(--red-soft); color: var(--red); }
+.pill.t35-danger.mid { background: var(--yellow-soft); color: #9a7b00; }
+.pill.t35-danger.low { background: var(--ok-soft); color: var(--ok); }
+.pill.t35-count-pill { padding: 1px 8px; font-size: 11px; }
+
+.t35-topic { color: var(--ink-soft); }
+.t35-topic-label { font-weight: 700; color: var(--ink-mute); }
+
+.t35-alist { margin-top: 8px; }
+.t35-alist-title { font-weight: 700; color: var(--ink-mute); }
+.t35-alist ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+.t35-alist li { color: var(--ink-soft); margin-bottom: 3px; }
+
+.t35-evidence { margin-top: 10px; }
+.t35-evidence-title { font-weight: 700; color: var(--ink-mute); }
+.t35-evidence-list {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.t35-evidence-item {
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
+}
+.t35-evidence-topic { font-weight: 700; color: var(--ink); }
+.t35-evidence-text { color: var(--ink-soft); margin-top: 2px; }
+.t35-evidence-src { margin-top: 4px; }
+.t35-evidence-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue);
+}
+
+/* ── Copy theo phần ──────────────────────────────────── */
+.t35-copy-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.t35-copy-label { font-weight: 700; }
+.btn.t35-copy-btn { padding: 5px 9px; font-size: 12px; }
+
+/* ── Feedback ────────────────────────────────────────── */
+.t35-feedback {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+.t35-feedback-done { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.t35-feedback-done.good { color: var(--ok); }
+.t35-feedback-done.bad { color: var(--red); }
+.t35-feedback-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.btn.t35-feedback-btn { padding: 6px 9px; font-size: 12px; }
+.t35-feedback-note { margin-top: 8px; }
+.t35-feedback-note .field { min-height: 58px; margin-bottom: 6px; font-size: 13px; }
+.btn.t35-feedback-send { padding: 7px 10px; font-size: 12px; }
+
+/* ── Compose ─────────────────────────────────────────── */
+.t35-compose { border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.field.t35-compose-input { min-height: 82px; margin-bottom: 8px; }
+.t35-compose-actions { display: flex; gap: 8px; }
+.t35-compose-send { flex: 1; }
+
+/* ── Xu hướng nút cửa sổ ─────────────────────────────── */
+.t35-trend-btns { display: flex; align-items: center; gap: 4px; }
+
+/* ── Lịch sử ─────────────────────────────────────────── */
+.btn.t35-icon-btn { padding: 6px 9px; font-size: 12px; }
+.t35-empty-pad { padding: 12px; }
+
+.t35-history-item {
+  width: 100%;
+  text-align: left;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  cursor: pointer;
+}
+.t35-history-meta { justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.pill.t35-history-pill { font-size: 11px; }
+.t35-history-preview {
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Xu hướng ────────────────────────────────────────── */
+.btn.t35-trend-btn { padding: 5px 10px; font-size: 12px; }
+.t35-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.t35-stat {
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.t35-stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--red);
+}
+.t35-trend-row {
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}

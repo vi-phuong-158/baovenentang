@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getTrends, getTroLy35History, runTroLy35, sendFeedback } from '../api.js';
 import { markdownToHtml } from '../lib/markdown.js';
+import '../css/troly35.css';
 import logo35 from '../../logo.png';
 
 const ACCESS_KEY = 'troly35_access_code';
@@ -147,7 +148,7 @@ function PendingIndicator() {
     return () => clearInterval(timer);
   }, []);
   return (
-    <span className="row" style={{ gap: 7 }}>
+    <span className="t35-pending">
       <RefreshCw size={14} className="spinner" /> {PENDING_STEPS[step]}
     </span>
   );
@@ -157,13 +158,11 @@ function MessageText({ text, plain }) {
   if (plain) {
     const blocks = (text || '').split(/\n{2,}/);
     return (
-      <>
+      <div className="chat-plain">
         {blocks.map((block, blockIndex) => (
-          <p key={blockIndex} style={{ margin: 0, marginBottom: blockIndex === blocks.length - 1 ? 0 : 10, whiteSpace: 'pre-wrap' }}>
-            {block}
-          </p>
+          <p key={blockIndex}>{block}</p>
         ))}
-      </>
+      </div>
     );
   }
   return <div className="chat-markdown" dangerouslySetInnerHTML={{ __html: markdownToHtml(text) }} />;
@@ -193,10 +192,10 @@ function copyParts(mode, raw) {
 
 const DANGER_LABELS = ['', 'Thấp', 'Nhẹ', 'Trung bình', 'Cao', 'Rất cao'];
 
-function dangerColor(level) {
-  if (level >= 4) return { bg: 'var(--red-soft)', fg: 'var(--red)' };
-  if (level >= 3) return { bg: 'var(--yellow-soft)', fg: '#9a7b00' };
-  return { bg: 'var(--ok-soft)', fg: 'var(--ok)' };
+function dangerClass(level) {
+  if (level >= 4) return 'high';
+  if (level >= 3) return 'mid';
+  return 'low';
 }
 
 function isUrl(value) {
@@ -206,11 +205,11 @@ function isUrl(value) {
 function AnalysisList({ title, items }) {
   if (!Array.isArray(items) || items.length === 0) return null;
   return (
-    <div style={{ marginTop: 8 }}>
-      <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>{title}</span>
-      <ul style={{ margin: '4px 0 0', paddingLeft: 18, listStyle: 'disc' }}>
+    <div className="t35-alist">
+      <span className="text-xs t35-alist-title">{title}</span>
+      <ul>
         {items.map((item, idx) => (
-          <li key={idx} className="text-sm" style={{ color: 'var(--ink-soft)', marginBottom: 3 }}>{item}</li>
+          <li key={idx} className="text-sm">{item}</li>
         ))}
       </ul>
     </div>
@@ -230,30 +229,25 @@ function AnalysisBlock({ analysis, knowledge }) {
   if (!hasAnalysis && items.length === 0) return null;
 
   return (
-    <div style={{ borderTop: '1px solid var(--line-soft)', marginTop: 10, paddingTop: 8 }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="row"
-        style={{ gap: 6, color: 'var(--ink-soft)', fontSize: 12, fontWeight: 700, padding: 0 }}
-      >
+    <div className="t35-analysis">
+      <button type="button" onClick={() => setOpen(o => !o)} className="t35-analysis-toggle">
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         Phân tích &amp; dẫn chứng
         {danger > 0 && (
-          <span className="pill" style={{ padding: '1px 8px', fontSize: 11, background: dangerColor(danger).bg, color: dangerColor(danger).fg, border: 'none' }}>
+          <span className={`pill t35-danger ${dangerClass(danger)}`}>
             Nguy hiểm {danger}/5{DANGER_LABELS[danger] ? ` · ${DANGER_LABELS[danger]}` : ''}
           </span>
         )}
         {items.length > 0 && (
-          <span className="pill" style={{ padding: '1px 8px', fontSize: 11 }}>{items.length} dẫn chứng</span>
+          <span className="pill t35-count-pill">{items.length} dẫn chứng</span>
         )}
       </button>
 
       {open && (
-        <div style={{ marginTop: 8 }}>
+        <div className="t35-analysis-body">
           {a.chu_de && (
-            <div className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-              <span style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>Chủ đề: </span>{a.chu_de}
+            <div className="text-sm t35-topic">
+              <span className="t35-topic-label">Chủ đề: </span>{a.chu_de}
             </div>
           )}
           <AnalysisList title="Luận điểm sai" items={a.luan_diem_sai} />
@@ -261,19 +255,19 @@ function AnalysisBlock({ analysis, knowledge }) {
           <AnalysisList title="Cảnh báo an toàn" items={a.canh_bao_an_toan} />
 
           {items.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>Dẫn chứng tham khảo</span>
-              <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="t35-evidence">
+              <span className="text-xs t35-evidence-title">Dẫn chứng tham khảo</span>
+              <div className="t35-evidence-list">
                 {items.map((item, idx) => (
-                  <div key={item.id || idx} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--line-soft)' }}>
-                    {item.chuDe && <div className="text-xs" style={{ fontWeight: 700, color: 'var(--ink)' }}>{item.chuDe}</div>}
+                  <div key={item.id || idx} className="t35-evidence-item">
+                    {item.chuDe && <div className="text-xs t35-evidence-topic">{item.chuDe}</div>}
                     {item.phanBacChinh && (
-                      <div className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{item.phanBacChinh}</div>
+                      <div className="text-sm t35-evidence-text">{item.phanBacChinh}</div>
                     )}
                     {item.nguon && (
-                      <div className="text-xs" style={{ marginTop: 4 }}>
+                      <div className="text-xs t35-evidence-src">
                         {isUrl(item.nguon) ? (
-                          <a href={item.nguon} target="_blank" rel="noopener noreferrer" className="row" style={{ gap: 4, color: 'var(--blue)', display: 'inline-flex' }}>
+                          <a href={item.nguon} target="_blank" rel="noopener noreferrer" className="t35-evidence-link">
                             <ExternalLink size={11} /> Nguồn
                           </a>
                         ) : (
@@ -298,30 +292,21 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
   const parts = isUser ? [] : copyParts(mode.value, message.responseRaw);
 
   return (
-    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
-      <div style={{
-        maxWidth: '88%',
-        padding: '11px 13px',
-        borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-        background: isUser ? 'var(--red)' : 'var(--surface)',
-        color: isUser ? '#fff' : 'var(--ink)',
-        border: isUser ? '1px solid var(--red)' : '1px solid var(--line)',
-        boxShadow: isUser ? 'var(--shadow-red)' : 'var(--shadow-card)',
-        lineHeight: 1.55,
-      }}>
+    <div className={`t35-msg-row${isUser ? ' user' : ''}`}>
+      <div className={`t35-bubble${isUser ? ' user' : ''}`}>
         {!isUser && (
-          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <div className="row t35-bubble-head">
+            <div className="t35-bubble-head-left">
               <Bot size={14} color="var(--red)" />
-              <span className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>Trợ lý 35</span>
-              <span className="pill" style={{ padding: '2px 7px', fontSize: 11 }}>{mode.shortLabel}</span>
+              <span className="text-xs t35-bot-name">Trợ lý 35</span>
+              <span className="pill t35-mode-pill">{mode.shortLabel}</span>
             </div>
             {!message.pending && !message.error && (
               <button
                 type="button"
                 onClick={() => onCopy(message.text)}
                 aria-label="Copy câu trả lời"
-                style={{ display: 'flex', color: 'var(--ink-mute)', padding: 2 }}
+                className="t35-copy-icon"
               >
                 <Copy size={14} />
               </button>
@@ -329,7 +314,7 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
           </div>
         )}
 
-        <div className="text-sm" style={{ color: isUser ? '#fff' : (message.error ? 'var(--red)' : 'var(--ink-soft)') }}>
+        <div className={`text-sm t35-msg-body${isUser ? ' user' : ''}${message.error ? ' error' : ''}`}>
           {message.pending ? (
             <PendingIndicator />
           ) : (
@@ -338,15 +323,8 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
         </div>
 
         {!isUser && !message.pending && !message.error && message.responseRaw?.nhan_kiem_duyet && (
-          <div
-            className="row"
-            style={{
-              gap: 6, marginTop: 8, padding: '6px 10px', borderRadius: 10,
-              background: 'var(--yellow-soft)', border: '1px solid var(--yellow)',
-              color: '#7a5f00', fontSize: 12, fontWeight: 600, lineHeight: 1.4, alignItems: 'flex-start',
-            }}
-          >
-            <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div className="t35-moderation">
+            <ShieldCheck size={14} />
             <span>{message.responseRaw.nhan_kiem_duyet}</span>
           </div>
         )}
@@ -356,15 +334,14 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
         )}
 
         {!isUser && !message.pending && !message.error && parts.length > 0 && (
-          <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-            <span className="text-xs text-mute" style={{ fontWeight: 700 }}>Copy:</span>
+          <div className="t35-copy-row">
+            <span className="text-xs text-mute t35-copy-label">Copy:</span>
             {parts.map(part => (
               <button
                 key={part.label}
                 type="button"
-                className="btn ghost sm"
+                className="btn ghost sm t35-copy-btn"
                 onClick={() => onCopy(part.text, part.label)}
-                style={{ padding: '5px 9px', fontSize: 12 }}
               >
                 <Copy size={12} /> {part.label}
               </button>
@@ -373,29 +350,27 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
         )}
 
         {!isUser && !message.pending && !message.error && message.requestId && (
-          <div style={{ borderTop: '1px solid var(--line-soft)', marginTop: 10, paddingTop: 8 }}>
+          <div className="t35-feedback">
             {message.feedback ? (
-              <div className="row" style={{ gap: 6, color: message.feedback === 'good' ? 'var(--ok)' : 'var(--red)', fontSize: 12, fontWeight: 700 }}>
+              <div className={`t35-feedback-done ${message.feedback === 'good' ? 'good' : 'bad'}`}>
                 <Check size={13} />
                 Đã đánh giá {message.feedback === 'good' ? 'tốt' : 'chưa tốt'}
               </div>
             ) : (
-              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+              <div className="t35-feedback-actions">
                 <button
                   type="button"
-                  className="btn ghost sm"
+                  className="btn ghost sm t35-feedback-btn"
                   onClick={() => onFeedback(message, 'good')}
                   disabled={message.feedbackLoading}
-                  style={{ padding: '6px 9px', fontSize: 12 }}
                 >
                   <ThumbsUp size={13} /> Tốt
                 </button>
                 <button
                   type="button"
-                  className="btn ghost sm"
+                  className="btn ghost sm t35-feedback-btn"
                   onClick={() => onFeedback(message, 'bad')}
                   disabled={message.feedbackLoading}
-                  style={{ padding: '6px 9px', fontSize: 12 }}
                 >
                   <ThumbsDown size={13} /> Xấu
                 </button>
@@ -404,21 +379,19 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
             )}
 
             {message.showFeedbackNote && !message.feedback && (
-              <div style={{ marginTop: 8 }}>
+              <div className="t35-feedback-note">
                 <textarea
                   className="field"
                   rows={2}
                   value={message.feedbackDraft || ''}
                   onChange={e => onFeedbackDraft(message.id, e.target.value)}
                   placeholder="Ghi chú ngắn để Trợ lý 35 cải thiện..."
-                  style={{ minHeight: 58, marginBottom: 6, fontSize: 13 }}
                 />
                 <button
                   type="button"
-                  className="btn primary sm"
+                  className="btn primary sm t35-feedback-send"
                   onClick={() => onFeedback(message, 'bad', true)}
                   disabled={message.feedbackLoading}
-                  style={{ padding: '7px 10px', fontSize: 12 }}
                 >
                   Gửi góp ý
                 </button>
@@ -707,8 +680,8 @@ export default function TroLy35() {
   return (
     <div className="page page-fade">
       <div className="page-header">
-        <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-          <div className="pill" style={{ background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', fontSize: 11 }}>
+        <div className="row t35-header-badges">
+          <div className="pill t35-internal-badge">
             <Lock size={11} /> Nội bộ
           </div>
         </div>
@@ -716,49 +689,47 @@ export default function TroLy35() {
         <p>Hỏi đáp nhanh, hỗ trợ xử lý thông tin</p>
       </div>
 
-      <div className="card tinted" style={{ marginBottom: 12 }}>
-        <div className="row" style={{ marginBottom: 8 }}>
+      <div className="card tinted t35-card">
+        <div className="row t35-access-head">
           <div className="chip red"><Lock size={14} /></div>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Truy cập</span>
+          <span className="t35-card-title">Truy cập</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div className="t35-access-row">
           <input
             className="field"
             type="password"
             value={accessCode}
             onChange={e => setAccessCode(e.target.value)}
             placeholder="Nhập mã truy cập nội bộ"
-            style={{ flex: 1 }}
             onKeyDown={e => e.key === 'Enter' && saveAccess()}
           />
-          <button className="btn sm" onClick={saveAccess} style={{ flexShrink: 0 }}>
+          <button className="btn sm t35-access-save" onClick={saveAccess}>
             <Key size={14} /> Lưu
           </button>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 6, cursor: 'pointer' }}>
+        <label className="t35-remember">
           <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
-          Ghi nhớ mã <span style={{ fontSize: 11, color: 'var(--ink-mute)' }}>(chỉ dùng trên thiết bị cá nhân)</span>
+          Ghi nhớ mã <span className="hint">(chỉ dùng trên thiết bị cá nhân)</span>
         </label>
         {accessMsg && <div className={`msg ${accessMsgType}`}>{accessMsg}</div>}
       </div>
 
-      <div className="card elevated" style={{ padding: 12, marginBottom: 12 }}>
-        <div className="row" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-          <div className="row" style={{ gap: 8 }}>
+      <div className="card elevated t35-card t35-chat-card">
+        <div className="row t35-card-head">
+          <div className="row">
             <div className="chip red"><MessageSquareText size={14} /></div>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>{activeMode.label}</span>
+            <span className="t35-card-title">{activeMode.label}</span>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, marginBottom: 10 }}>
+        <div className="t35-grid-3 t35-mode-grid">
           {MODES.map(item => (
             <button
               key={item.value}
               type="button"
-              className={`btn sm ${mode === item.value ? 'primary' : 'ghost'}`}
+              className={`btn sm t35-mode-btn ${mode === item.value ? 'primary' : 'ghost'}`}
               onClick={() => setMode(item.value)}
               disabled={loading}
-              style={{ padding: '8px 6px', fontSize: 12 }}
             >
               {item.shortLabel}
             </button>
@@ -766,20 +737,17 @@ export default function TroLy35() {
         </div>
 
         {mode === 'rebuttal' && (
-          <div style={{ marginBottom: 10 }}>
-            <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)', display: 'block', marginBottom: 6 }}>
-              Phong cách trả lời
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+          <div className="t35-style-block">
+            <span className="text-xs t35-style-label">Phong cách trả lời</span>
+            <div className="t35-grid-3">
               {STYLES.map(item => (
                 <button
                   key={item.value}
                   type="button"
-                  className={`btn sm ${style === item.value ? 'primary' : 'ghost'}`}
+                  className={`btn sm t35-style-btn ${style === item.value ? 'primary' : 'ghost'}`}
                   onClick={() => chooseStyle(item.value)}
                   disabled={loading}
                   title={item.hint}
-                  style={{ padding: '7px 6px', fontSize: 12 }}
                 >
                   {item.label}
                 </button>
@@ -793,19 +761,11 @@ export default function TroLy35() {
           aria-live="polite"
           aria-relevant="additions text"
           aria-label="Hội thoại với Trợ lý 35"
-          style={{ minHeight: 260, maxHeight: 420, overflowY: 'auto', padding: '2px 2px 10px' }}
+          className="t35-chat-log"
         >
           {messages.length === 0 ? (
-            <div className="empty" style={{ padding: '34px 12px 38px' }}>
-              <img
-                src={logo35}
-                alt="Trợ lý 35"
-                style={{
-                  width: 72, height: 72, borderRadius: '50%', objectFit: 'contain',
-                  opacity: 0.78, filter: 'drop-shadow(0 8px 18px rgba(183,28,28,.18))',
-                  display: 'block', margin: '0 auto 12px',
-                }}
-              />
+            <div className="empty t35-empty">
+              <img src={logo35} alt="Trợ lý 35" className="t35-empty-logo" />
               Nhập câu hỏi để bắt đầu hội thoại.
             </div>
           ) : (
@@ -822,9 +782,9 @@ export default function TroLy35() {
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={sendQuestion} style={{ borderTop: '1px solid var(--line-soft)', paddingTop: 10 }}>
+        <form onSubmit={sendQuestion} className="t35-compose">
           <textarea
-            className="field"
+            className="field t35-compose-input"
             rows={3}
             value={question}
             onChange={e => setQuestion(e.target.value)}
@@ -836,10 +796,9 @@ export default function TroLy35() {
             }}
             placeholder={hasConversation ? 'Nhập yêu cầu tinh chỉnh: ngắn hơn, thêm dẫn chứng, đổi giọng... (Ctrl+Enter để gửi)' : `${activeMode.placeholder}`}
             disabled={loading}
-            style={{ minHeight: 82, marginBottom: 8 }}
           />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn primary" style={{ flex: 1 }} disabled={loading}>
+          <div className="t35-compose-actions">
+            <button type="submit" className="btn primary t35-compose-send" disabled={loading}>
               {loading ? <><RefreshCw size={15} className="spinner" /> Đang trả lời...</> : <><Send size={15} /> Gửi câu hỏi</>}
             </button>
             <button type="button" className="btn ghost sm" onClick={clearChat} disabled={loading && messages.length === 0} aria-label="Xóa hội thoại">
@@ -850,72 +809,62 @@ export default function TroLy35() {
         </form>
       </div>
 
-      <div className="card tinted" style={{ marginBottom: 12 }}>
-        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-          <div className="row" style={{ gap: 8 }}>
+      <div className="card tinted t35-card">
+        <div className="row t35-card-head">
+          <div className="row">
             <div className="chip"><Clock3 size={14} /></div>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Lịch sử</span>
+            <span className="t35-card-title">Lịch sử</span>
           </div>
           <button
             type="button"
-            className="btn ghost sm"
+            className="btn ghost sm t35-icon-btn"
             aria-label="Tải lại lịch sử"
             onClick={() => loadHistory(accessCode || sessionStorage.getItem(ACCESS_KEY))}
             disabled={historyLoading}
-            style={{ padding: '6px 9px', fontSize: 12 }}
           >
             {historyLoading ? <RefreshCw size={13} className="spinner" /> : <RefreshCw size={13} />}
           </button>
         </div>
 
-        {historyLoading && <div className="empty" style={{ padding: 12 }}><RefreshCw size={16} className="spinner" /></div>}
+        {historyLoading && <div className="empty t35-empty-pad"><RefreshCw size={16} className="spinner" /></div>}
         {!historyLoading && historyMsg && <div className="msg error">{historyMsg}</div>}
         {!historyLoading && !historyMsg && history.length === 0 && (
-          <div className="empty" style={{ padding: 12 }}>Chưa có lịch sử hội thoại.</div>
+          <div className="empty t35-empty-pad">Chưa có lịch sử hội thoại.</div>
         )}
         {!historyLoading && history.map(item => (
           <button
             key={item.requestId}
             type="button"
             onClick={() => openHistoryItem(item)}
-            style={{
-              width: '100%',
-              textAlign: 'left',
-              padding: '9px 0',
-              border: 0,
-              borderBottom: '1px solid var(--line-soft)',
-              background: 'transparent',
-              cursor: 'pointer',
-            }}
+            className="t35-history-item"
           >
-            <div className="row" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+            <div className="row t35-history-meta">
               <span className="text-xs text-mute">{formatDate(item.timestamp)} · {getMode(item.mode).shortLabel}</span>
               {item.ratingStatus && (
-                <span className={`pill ${item.ratingStatus === 'good' ? 'ok' : ''}`} style={{ fontSize: 11 }}>
+                <span className={`pill t35-history-pill ${item.ratingStatus === 'good' ? 'ok' : ''}`}>
                   {item.ratingStatus === 'good' ? 'Tốt' : 'Xấu'}
                 </span>
               )}
             </div>
-            <div className="text-sm" style={{ color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="text-sm t35-history-preview">
               {item.inputPreview || item.topic || item.requestId}
             </div>
           </button>
         ))}
       </div>
 
-      <div className="card tinted" style={{ marginTop: 4 }}>
-        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-          <div className="row" style={{ gap: 8 }}>
+      <div className="card tinted t35-card last">
+        <div className="row t35-card-head">
+          <div className="row">
             <div className="chip"><TrendingUp size={14} /></div>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Xu hướng</span>
+            <span className="t35-card-title">Xu hướng</span>
           </div>
-          <div className="row" style={{ gap: 4 }}>
+          <div className="t35-trend-btns">
             {[7, 30].map(w => (
               <button
                 key={w}
                 onClick={() => { setTrendWindow(w); loadTrends(accessCode || sessionStorage.getItem(ACCESS_KEY), w); }}
-                className={`btn sm ${trendWindow === w ? 'primary' : 'ghost'}`}
-                style={{ padding: '5px 10px', fontSize: 12 }}
+                className={`btn sm t35-trend-btn ${trendWindow === w ? 'primary' : 'ghost'}`}
               >
                 {w} ngày
               </button>
@@ -923,24 +872,24 @@ export default function TroLy35() {
           </div>
         </div>
 
-        {trendsLoading && <div className="empty" style={{ padding: 12 }}><RefreshCw size={16} className="spinner" /></div>}
-        {!trendsLoading && !trends && <div className="empty" style={{ padding: 12 }}>Nhập mã để tải thống kê.</div>}
+        {trendsLoading && <div className="empty t35-empty-pad"><RefreshCw size={16} className="spinner" /></div>}
+        {!trendsLoading && !trends && <div className="empty t35-empty-pad">Nhập mã để tải thống kê.</div>}
         {trends && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+            <div className="t35-stat-grid">
               {[
                 { label: 'Lượt', value: Number(trends.totalRequests || 0).toLocaleString('vi-VN') },
                 { label: 'Nguy hiểm TB', value: trends.averageDangerLevel || 0 },
                 { label: 'Tốt', value: `${trends.goodRatingRate || 0}%` },
               ].map(s => (
-                <div key={s.label} style={{ textAlign: 'center', padding: '8px 4px', background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--line)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: 'var(--red)' }}>{s.value}</div>
+                <div key={s.label} className="t35-stat">
+                  <div className="t35-stat-value">{s.value}</div>
                   <div className="text-xs text-mute">{s.label}</div>
                 </div>
               ))}
             </div>
             {Array.isArray(trends.topTopics) && trends.topTopics.map((t, i) => (
-              <div key={i} className="row" style={{ justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--line-soft)' }}>
+              <div key={i} className="row t35-trend-row">
                 <span className="text-sm">{t.topic}</span>
                 <span className="pill">{t.count}</span>
               </div>

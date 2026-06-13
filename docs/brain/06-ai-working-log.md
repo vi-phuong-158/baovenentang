@@ -4,6 +4,32 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Tach toan bo inline style sang CSS class (Dot 3 - bo sung)
+
+### Noi dung thuc hien
+- Theo yeu cau ro cua nguoi dung (truoc do tam hoan vi quy tac "tranh refactor lan rong"), tach toan bo inline style:
+  - Them `web/src/css/troly35.css`: ~60 class cho trang Tro ly 35 (card, mode/style selector, bong bong chat, badge kiem duyet, khoi phan tich/dan chung, copy, feedback, compose, lich su, xu huong). Import vao `TroLy35.jsx`.
+  - `web/src/pages/TroLy35.jsx`: thay TAT CA `style={{...}}` bang className. Doi `dangerColor` -> `dangerClass` (tra 'high'/'mid'/'low'). `MessageText` plain dung `.chat-plain` thay inline `<p>`.
+  - `web/src/components/BottomNav.jsx`: thay inline style bang nhom `.bottom-nav`, `.bottom-nav-center`, `.bottom-nav-tab` (them vao `index.css`). Bo cac handler `onMouseDown/Up/Leave` chinh transform, chuyen sang `:active { transform: scale(.94) }` trong CSS.
+- Nang specificity cho class mo rong base: `.btn.t35-*` (mode/style/copy/feedback/feedback-send/icon/trend), `.pill.t35-*` (internal-badge/mode-pill/danger/count/history), `.field.t35-compose-input` -> de thang `.btn.sm` (0,2,0) va `textarea.field` (0,1,1) bat ke thu tu chunk CSS.
+
+### Ly do
+- Nguoi dung hoi "sao lai hoan? lam luon duoc khong" -> dieu kien "co yeu cau ro" cho phep lam theo CLAUDE.md.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend: `TroLy35.jsx`, `BottomNav.jsx`, `index.css`, them `troly35.css`.
+- Khong doi logic/state/handler (tru viec bo JS transform o BottomNav, thay bang :active CSS -> hanh vi tuong duong).
+- Gia tri style giu nguyen 1-1. Da xu ly can than specificity de khong bi `.btn.sm`/`textarea.field` ghi de.
+- troly35.css la chunk lazy load sau index.css.
+
+### Kiem thu da chay
+- `cd web; npm run build` -> thanh cong. TroLy35 tach JS ~21.7kB + CSS chunk ~5.8kB. Grep xac nhan khong con `style={{` trong TroLy35.jsx/BottomNav.jsx.
+
+### Cach test thu cong
+1. `cd web; npm run dev`, mo Tro ly 35: kiem tra bo cuc card, selector mode/style, bong bong chat user/assistant, badge, khoi phan tich, copy, feedback, lich su, xu huong giong truoc.
+2. BottomNav: bam cac tab, nut giua (logo) -> trang thai active dung; hieu ung nhan (scale) khi bam.
+3. Bat dark mode -> giao dien toi van dung.
+
 ## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 3 (Dark mode + a11y)
 
 ### Noi dung thuc hien
