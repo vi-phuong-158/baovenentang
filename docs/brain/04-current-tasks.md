@@ -13,6 +13,14 @@
 
 ## Công việc đang thực hiện
 - 🚧 **Thiết lập bộ nhớ dự án dùng chung (Shared AI Project Brain)**: Tạo các tài liệu hướng dẫn và lưu trữ ngữ cảnh dự án (`AGENTS.md`, `CLAUDE.md` và thư mục `docs/brain/`) cho Claude Code và Codex.
+- 🚧 **Nâng cấp UX chatbot Trợ lý 35 (review 2026-06-13)**: Lộ trình 3 đợt cải thiện trải nghiệm hội thoại và giao diện, không thêm package Node mới (dùng `dompurify` đã có).
+  - **Đợt 1 (đang làm)** — gọn, rủi ro thấp, hiệu quả thấy ngay:
+    1. Render Markdown nhẹ trong bong bóng câu trả lời (đậm/nghiêng/danh sách/heading) thay cho `MessageText` chỉ tách đoạn theo `\n\n`. Tự viết parser → HTML, sanitize bằng `dompurify`, không thêm dependency.
+    2. Hiển thị tiến trình theo bước khi chờ trả lời (Đang phân tích → Tra cứu dẫn chứng → Soạn nội dung) khớp 3 bước backend `analyze → searchKnowledge → generate`.
+    3. Copy theo phần cho mode Viết bài/Phản bác (bản đầy đủ, comment ngắn, caption MXH, hashtag) thay vì chỉ copy cả khối.
+    4. Hỗ trợ phím tắt Ctrl/Cmd+Enter để gửi câu hỏi.
+  - **Đợt 2 (đã làm)**: Hiện khối "Phân tích & dẫn chứng" có thể gập (độ nguy hiểm dạng badge màu, luận điểm sai, thủ đoạn, cảnh báo an toàn) + danh sách dẫn chứng RAG kèm link nguồn; badge nhãn kiểm duyệt (`nhan_kiem_duyet`) tách khỏi nội dung; persist phiên chat hiện tại vào `sessionStorage` (khôi phục khi reload).
+  - **Đợt 3 (đã làm)**: Dark mode qua `@media (prefers-color-scheme: dark)` override biến CSS trong `:root` (inline style dùng `var()` tự thích ứng); cải thiện a11y (vùng chat `role="log"`/`aria-live`, `aria-label` nút tải lại lịch sử, tăng tương phản `--ink-mute`); **tách toàn bộ inline style** `TroLy35.jsx` sang `web/src/css/troly35.css` và `BottomNav.jsx` sang nhóm `.bottom-nav*` trong `index.css` (theo yêu cầu rõ của người dùng). Giá trị giữ nguyên; selector mở rộng `.btn`/`.pill`/`.field` được nâng specificity (`.btn.t35-*`, `.pill.t35-*`, `.field.t35-compose-input`) để thắng `.btn.sm`/`textarea.field`. BottomNav đổi tương tác scale từ JS handler sang `:active` CSS; vẫn hardcode rgba sáng nên thanh nav giữ tông sáng trong dark mode (chấp nhận được).
 
 ## Công việc tiếp theo (Backlog/Chờ thực hiện)
 

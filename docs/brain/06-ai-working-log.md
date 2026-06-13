@@ -4,6 +4,120 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Tach toan bo inline style sang CSS class (Dot 3 - bo sung)
+
+### Noi dung thuc hien
+- Theo yeu cau ro cua nguoi dung (truoc do tam hoan vi quy tac "tranh refactor lan rong"), tach toan bo inline style:
+  - Them `web/src/css/troly35.css`: ~60 class cho trang Tro ly 35 (card, mode/style selector, bong bong chat, badge kiem duyet, khoi phan tich/dan chung, copy, feedback, compose, lich su, xu huong). Import vao `TroLy35.jsx`.
+  - `web/src/pages/TroLy35.jsx`: thay TAT CA `style={{...}}` bang className. Doi `dangerColor` -> `dangerClass` (tra 'high'/'mid'/'low'). `MessageText` plain dung `.chat-plain` thay inline `<p>`.
+  - `web/src/components/BottomNav.jsx`: thay inline style bang nhom `.bottom-nav`, `.bottom-nav-center`, `.bottom-nav-tab` (them vao `index.css`). Bo cac handler `onMouseDown/Up/Leave` chinh transform, chuyen sang `:active { transform: scale(.94) }` trong CSS.
+- Nang specificity cho class mo rong base: `.btn.t35-*` (mode/style/copy/feedback/feedback-send/icon/trend), `.pill.t35-*` (internal-badge/mode-pill/danger/count/history), `.field.t35-compose-input` -> de thang `.btn.sm` (0,2,0) va `textarea.field` (0,1,1) bat ke thu tu chunk CSS.
+
+### Ly do
+- Nguoi dung hoi "sao lai hoan? lam luon duoc khong" -> dieu kien "co yeu cau ro" cho phep lam theo CLAUDE.md.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend: `TroLy35.jsx`, `BottomNav.jsx`, `index.css`, them `troly35.css`.
+- Khong doi logic/state/handler (tru viec bo JS transform o BottomNav, thay bang :active CSS -> hanh vi tuong duong).
+- Gia tri style giu nguyen 1-1. Da xu ly can than specificity de khong bi `.btn.sm`/`textarea.field` ghi de.
+- troly35.css la chunk lazy load sau index.css.
+
+### Kiem thu da chay
+- `cd web; npm run build` -> thanh cong. TroLy35 tach JS ~21.7kB + CSS chunk ~5.8kB. Grep xac nhan khong con `style={{` trong TroLy35.jsx/BottomNav.jsx.
+
+### Cach test thu cong
+1. `cd web; npm run dev`, mo Tro ly 35: kiem tra bo cuc card, selector mode/style, bong bong chat user/assistant, badge, khoi phan tich, copy, feedback, lich su, xu huong giong truoc.
+2. BottomNav: bam cac tab, nut giua (logo) -> trang thai active dung; hieu ung nhan (scale) khi bam.
+3. Bat dark mode -> giao dien toi van dung.
+
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 3 (Dark mode + a11y)
+
+### Noi dung thuc hien
+- Cap nhat `web/src/index.css`:
+  - Them `color-scheme: light dark` vao `:root`.
+  - Them khoi `@media (prefers-color-scheme: dark)` override toan bo bien mau/shadow trong `:root` + background `body`. Vi phan lon inline style trong `TroLy35.jsx`/`BottomNav.jsx` dung `var(--...)`, dark mode tu thich ung ma khong can sua tung component.
+  - Tang tuong phan `--ink-mute` o light tu `#A89D8A` -> `#8A7E68`.
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - Vung danh sach tin nhan them `role="log"`, `aria-live="polite"`, `aria-relevant`, `aria-label` de screen reader doc cau tra loi moi.
+  - Nut tai lai Lich su them `aria-label`.
+
+### Ly do
+- Theo yeu cau nguoi dung: tiep tuc Dot 3. Uu tien Dark mode + a11y vi gon va gia tri cao.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong CSS dung chung + tab Tro ly 35.
+- KHONG thuc hien tach toan bo inline style sang CSS class (Dot 3 ban dau co muc nay): rui ro regression cao va vi pham quy tac "tranh refactor lan rong" trong CLAUDE.md -> de lai backlog.
+- `BottomNav.jsx` hardcode rgba sang nen thanh nav giu tong sang trong dark mode (chap nhan duoc, khong vo giao dien).
+
+### Kiem thu da chay
+- `cd web; npm run build` -> build thanh cong.
+
+### Cach test thu cong
+1. Bat dark mode he dieu hanh/trinh duyet, mo app: nen, card, bong bong chat, input chuyen sang nen toi; chu de doc.
+2. Tat dark mode: giao dien tro lai sang binh thuong.
+3. Dung screen reader: gui cau hoi, xac nhan cau tra loi moi duoc doc len (aria-live vung chat).
+
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 2
+
+### Noi dung thuc hien
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - Them component `AnalysisBlock` (gap/mo) hien thi `analysis` + `knowledge` backend tra ve nhung truoc day bi bo phi: badge do nguy hiem theo mau (`do_nguy_hiem` 1-5), Chu de, danh sach Luan diem sai / Thu doan / Canh bao an toan, va danh sach dan chung RAG (chuDe/phanBacChinh) kem link Nguon neu `nguon` la URL (`ExternalLink`).
+  - Them badge nhan kiem duyet (`result.nhan_kiem_duyet`) hien rieng duoi dang canh bao mau vang, tach khoi noi dung chinh; sua `formatAnswer` de khong nhung `nhan_kiem_duyet` vao text nua (van giu `ghi_chu`).
+  - Luu `analysis`/`knowledge` vao message assistant khi nhan ket qua `troly35_run`.
+  - Persist phien chat hien tai vao `sessionStorage` key `troly35_chat_session` ({messages, mode}); khoi phuc khi mount (loc bo message dang pending); xoa khi clearChat hoac het message.
+  - Them helper `loadChatSession`, `dangerColor`, `isUrl`, `AnalysisList`, hang so `DANGER_LABELS`, `CHAT_SESSION_KEY`.
+  - Them import icon `ChevronDown/ChevronUp/ExternalLink/ShieldCheck`.
+
+### Ly do
+- Theo yeu cau nguoi dung: tiep tuc Dot 2 sau khi tao PR. Tan dung du lieu phan tich/RAG da co tu backend va giu phien chat khong mat khi reload.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend tab Tro ly 35.
+- Khong doi API/schema/backend GAS. Du lieu `analysis`/`knowledge` da co san trong response `troly35_run`.
+- Muc lich su (`openHistoryItem`) khong co analysis/knowledge nen `AnalysisBlock` tu an (return null) -> khong loi.
+- `sessionStorage` chi song trong phien tab (an toan hon localStorage cho noi dung gated theo ma truy cap).
+
+### Kiem thu da chay
+- `cd web; npm run build` -> build thanh cong (TroLy35 chunk ~25kB).
+
+### Cach test thu cong
+1. `cd web; npm run dev`, tab Tro ly 35, nhap ma, gui cau hoi mode Phan bac/Kiem chung.
+2. Kiem tra badge nhan kiem duyet mau vang, va nut "Phan tich & dan chung" gap/mo voi badge do nguy hiem + so dan chung.
+3. Mo block: thay luan diem sai/thu doan/canh bao an toan va dan chung co link Nguon.
+4. Reload trang (F5): hoi thoai van con (khoi phuc tu sessionStorage); bam xoa hoi thoai -> mat va sessionStorage bi xoa.
+
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 1
+
+### Noi dung thuc hien
+- Doc brain (`04-current-tasks.md`, `06-ai-working-log.md`) va ghi ke hoach 3 dot nang cap chatbot/UI vao `docs/brain/04-current-tasks.md` truoc khi code.
+- Them `web/src/lib/markdown.js`: renderer Markdown nhe, tu viet, khong them package Node moi. Ho tro heading (#..###), dam, nghieng, code inline, danh sach (-, *, 1.), blockquote, doan van. Output sanitize bang `dompurify` (da co san) voi allowlist tag/attr.
+- Cap nhat `web/src/index.css`: them nhom style `.chat-markdown` cho noi dung render trong bong bong cau tra loi (p/h3-h5/ul/ol/li/strong/em/code/blockquote).
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - `MessageText` render Markdown cho cau tra loi assistant; giu plain text cho tin nhan user va tin loi (prop `plain`).
+  - Them `PendingIndicator` hien tien trinh theo buoc (Phan tich -> Tra cuu dan chung -> Soan noi dung) thay cho text "Dang tra loi..." tinh, khop 3 buoc backend.
+  - Them `copyParts(mode, raw)` + hang nut "Copy" theo phan cho mode Phan bac (Ban day du/Comment ngan/Hashtag) va Viet bai (Bai viet/Caption MXH/Hashtag), lay tu `message.responseRaw`.
+  - `copyText(text, label)` bao toast theo ten phan da copy.
+  - Textarea nhap cau hoi ho tro phim tat Ctrl/Cmd+Enter de gui; cap nhat placeholder.
+
+### Ly do
+- Theo yeu cau nguoi dung: review du an va trien khai Dot 1 cai thien trai nghiem chatbot, uu tien viec gon - rui ro thap - hieu qua ngay.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend tab Tro ly 35 va file CSS dung chung.
+- Khong doi API/schema/backend GAS, khong them dependency moi (dung `dompurify` san co).
+- Markdown render qua `dangerouslySetInnerHTML` nhung da sanitize bang dompurify voi allowlist han che, khong cho attribute -> giam rui ro XSS.
+- `package-lock.json` bi npm install lam nhieu metadata `peer` da duoc restore, khong commit.
+
+### Kiem thu da chay
+- `cd web; npm install; npm run build` -> build thanh cong (TroLy35 chunk ~21kB, sanitize chunk dompurify duoc tach rieng).
+
+### Cach test thu cong
+1. `cd web; npm run dev`, mo tab Tro ly 35, nhap ma truy cap.
+2. Gui mot cau hoi mode Phan bac: kiem tra spinner doi text theo buoc; cau tra loi render dam/nghieng/danh sach; co hang nut Copy (Ban day du/Comment/Hashtag).
+3. Doi sang mode Viet bai: kiem tra nut Copy (Bai viet/Caption MXH/Hashtag) copy dung tung phan.
+4. Bam Ctrl+Enter trong o nhap de gui nhanh.
+5. Mo lai mot muc trong Lich su: noi dung van hien dung (render Markdown an toan voi text thuong).
+
 ## [2026-06-12] Them Podcast am thanh cho sach Dai doan ket
 
 ### Noi dung thuc hien
