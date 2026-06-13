@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Bot,
   Check,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   Copy,
+  ExternalLink,
   Key,
   Lock,
   MessageSquareText,
   RefreshCw,
   Send,
+  ShieldCheck,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -20,8 +24,18 @@ import logo35 from '../../logo.png';
 
 const ACCESS_KEY = 'troly35_access_code';
 const STYLE_KEY = 'troly35_style';
+const CHAT_SESSION_KEY = 'troly35_chat_session';
 const HISTORY_LIMIT = 20;
 const CHAT_HISTORY_TURNS = 8;
+
+function loadChatSession() {
+  try {
+    const raw = sessionStorage.getItem(CHAT_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 const STYLES = [
   { value: 'chinhluan', label: 'Chính luận', hint: 'Trang trọng, lập luận chặt' },
@@ -102,8 +116,8 @@ function formatAnswer(mode, res) {
     ];
   }
 
-  const notes = [result.ghi_chu, result.nhan_kiem_duyet].filter(Boolean).join('\n\n');
-  const answer = [...parts, notes].filter(Boolean).join('\n\n').trim();
+  // nhan_kiem_duyet được hiển thị riêng dưới dạng badge, không nhúng vào nội dung.
+  const answer = [...parts, result.ghi_chu].filter(Boolean).join('\n\n').trim();
   return answer || 'Tôi chưa tạo được câu trả lời phù hợp. Anh/chị vui lòng thử hỏi lại rõ hơn.';
 }
 
@@ -177,6 +191,107 @@ function copyParts(mode, raw) {
   return parts.filter(part => part.text && String(part.text).trim());
 }
 
+const DANGER_LABELS = ['', 'Thấp', 'Nhẹ', 'Trung bình', 'Cao', 'Rất cao'];
+
+function dangerColor(level) {
+  if (level >= 4) return { bg: 'var(--red-soft)', fg: 'var(--red)' };
+  if (level >= 3) return { bg: 'var(--yellow-soft)', fg: '#9a7b00' };
+  return { bg: 'var(--ok-soft)', fg: 'var(--ok)' };
+}
+
+function isUrl(value) {
+  return /^https?:\/\/\S+$/i.test(String(value || '').trim());
+}
+
+function AnalysisList({ title, items }) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>{title}</span>
+      <ul style={{ margin: '4px 0 0', paddingLeft: 18, listStyle: 'disc' }}>
+        {items.map((item, idx) => (
+          <li key={idx} className="text-sm" style={{ color: 'var(--ink-soft)', marginBottom: 3 }}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AnalysisBlock({ analysis, knowledge }) {
+  const [open, setOpen] = useState(false);
+  const a = analysis || {};
+  const items = Array.isArray(knowledge) ? knowledge : [];
+  const danger = Number(a.do_nguy_hiem) || 0;
+  const hasAnalysis = a.chu_de || danger > 0
+    || (Array.isArray(a.luan_diem_sai) && a.luan_diem_sai.length)
+    || (Array.isArray(a.thu_doan) && a.thu_doan.length)
+    || (Array.isArray(a.canh_bao_an_toan) && a.canh_bao_an_toan.length);
+
+  if (!hasAnalysis && items.length === 0) return null;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--line-soft)', marginTop: 10, paddingTop: 8 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="row"
+        style={{ gap: 6, color: 'var(--ink-soft)', fontSize: 12, fontWeight: 700, padding: 0 }}
+      >
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        Phân tích &amp; dẫn chứng
+        {danger > 0 && (
+          <span className="pill" style={{ padding: '1px 8px', fontSize: 11, background: dangerColor(danger).bg, color: dangerColor(danger).fg, border: 'none' }}>
+            Nguy hiểm {danger}/5{DANGER_LABELS[danger] ? ` · ${DANGER_LABELS[danger]}` : ''}
+          </span>
+        )}
+        {items.length > 0 && (
+          <span className="pill" style={{ padding: '1px 8px', fontSize: 11 }}>{items.length} dẫn chứng</span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          {a.chu_de && (
+            <div className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+              <span style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>Chủ đề: </span>{a.chu_de}
+            </div>
+          )}
+          <AnalysisList title="Luận điểm sai" items={a.luan_diem_sai} />
+          <AnalysisList title="Thủ đoạn" items={a.thu_doan} />
+          <AnalysisList title="Cảnh báo an toàn" items={a.canh_bao_an_toan} />
+
+          {items.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <span className="text-xs" style={{ fontWeight: 700, color: 'var(--ink-mute)' }}>Dẫn chứng tham khảo</span>
+              <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {items.map((item, idx) => (
+                  <div key={item.id || idx} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--line-soft)' }}>
+                    {item.chuDe && <div className="text-xs" style={{ fontWeight: 700, color: 'var(--ink)' }}>{item.chuDe}</div>}
+                    {item.phanBacChinh && (
+                      <div className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{item.phanBacChinh}</div>
+                    )}
+                    {item.nguon && (
+                      <div className="text-xs" style={{ marginTop: 4 }}>
+                        {isUrl(item.nguon) ? (
+                          <a href={item.nguon} target="_blank" rel="noopener noreferrer" className="row" style={{ gap: 4, color: 'var(--blue)', display: 'inline-flex' }}>
+                            <ExternalLink size={11} /> Nguồn
+                          </a>
+                        ) : (
+                          <span className="text-mute">Nguồn: {item.nguon}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
   const isUser = message.role === 'user';
   const mode = getMode(message.mode);
@@ -221,6 +336,24 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
             <MessageText text={message.text} plain={isUser || message.error} />
           )}
         </div>
+
+        {!isUser && !message.pending && !message.error && message.responseRaw?.nhan_kiem_duyet && (
+          <div
+            className="row"
+            style={{
+              gap: 6, marginTop: 8, padding: '6px 10px', borderRadius: 10,
+              background: 'var(--yellow-soft)', border: '1px solid var(--yellow)',
+              color: '#7a5f00', fontSize: 12, fontWeight: 600, lineHeight: 1.4, alignItems: 'flex-start',
+            }}
+          >
+            <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>{message.responseRaw.nhan_kiem_duyet}</span>
+          </div>
+        )}
+
+        {!isUser && !message.pending && !message.error && (
+          <AnalysisBlock analysis={message.analysis} knowledge={message.knowledge} />
+        )}
 
         {!isUser && !message.pending && !message.error && parts.length > 0 && (
           <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -306,12 +439,15 @@ export default function TroLy35() {
   const [accessMsg, setAccessMsg] = useState(savedCode ? 'Đã tải mã truy cập.' : '');
   const [accessMsgType, setAccessMsgType] = useState('success');
 
-  const [mode, setMode] = useState('rebuttal');
+  const [mode, setMode] = useState(() => loadChatSession()?.mode || 'rebuttal');
   const [style, setStyle] = useState(() => {
     try { return localStorage.getItem(STYLE_KEY) || 'chinhluan'; } catch { return 'chinhluan'; }
   });
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    const saved = loadChatSession();
+    return Array.isArray(saved?.messages) ? saved.messages.filter(m => !m.pending) : [];
+  });
   const [loading, setLoading] = useState(false);
   const [runMsg, setRunMsg] = useState('');
   const [runMsgType, setRunMsgType] = useState('neutral');
@@ -337,6 +473,17 @@ export default function TroLy35() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
+
+  useEffect(() => {
+    try {
+      const toSave = messages.filter(m => !m.pending);
+      if (toSave.length === 0) {
+        sessionStorage.removeItem(CHAT_SESSION_KEY);
+      } else {
+        sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify({ messages: toSave, mode }));
+      }
+    } catch {}
+  }, [messages, mode]);
 
   const updateAssistantMessage = (id, patch) => {
     setMessages(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
@@ -536,7 +683,7 @@ export default function TroLy35() {
       const answer = formatAnswer(selectedMode, res);
       setMessages(prev => prev.map(item =>
         item.id === assistantMessage.id
-          ? { ...item, text: answer, pending: false, requestId: res.requestId, responseRaw: res.result || {} }
+          ? { ...item, text: answer, pending: false, requestId: res.requestId, responseRaw: res.result || {}, analysis: res.analysis || {}, knowledge: res.knowledge || [] }
           : item
       ));
       loadTrends(code, trendWindow);

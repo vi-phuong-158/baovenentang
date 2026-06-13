@@ -19,7 +19,7 @@
     2. Hiển thị tiến trình theo bước khi chờ trả lời (Đang phân tích → Tra cứu dẫn chứng → Soạn nội dung) khớp 3 bước backend `analyze → searchKnowledge → generate`.
     3. Copy theo phần cho mode Viết bài/Phản bác (bản đầy đủ, comment ngắn, caption MXH, hashtag) thay vì chỉ copy cả khối.
     4. Hỗ trợ phím tắt Ctrl/Cmd+Enter để gửi câu hỏi.
-  - **Đợt 2 (backlog)**: Hiện khối Phân tích (độ nguy hiểm, thủ đoạn, cảnh báo an toàn) + dẫn chứng RAG có link nguồn; badge nhãn kiểm duyệt; persist phiên chat hiện tại vào storage.
+  - **Đợt 2 (đã làm)**: Hiện khối "Phân tích & dẫn chứng" có thể gập (độ nguy hiểm dạng badge màu, luận điểm sai, thủ đoạn, cảnh báo an toàn) + danh sách dẫn chứng RAG kèm link nguồn; badge nhãn kiểm duyệt (`nhan_kiem_duyet`) tách khỏi nội dung; persist phiên chat hiện tại vào `sessionStorage` (khôi phục khi reload).
   - **Đợt 3 (backlog)**: Tách inline style `TroLy35.jsx`/`BottomNav.jsx` sang CSS class; Dark mode qua `prefers-color-scheme`; cải thiện a11y (`role="log"`/`aria-live`, tương phản `--ink-mute`).
 
 ## Công việc tiếp theo (Backlog/Chờ thực hiện)

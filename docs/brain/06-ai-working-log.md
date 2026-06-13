@@ -4,6 +4,35 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 2
+
+### Noi dung thuc hien
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - Them component `AnalysisBlock` (gap/mo) hien thi `analysis` + `knowledge` backend tra ve nhung truoc day bi bo phi: badge do nguy hiem theo mau (`do_nguy_hiem` 1-5), Chu de, danh sach Luan diem sai / Thu doan / Canh bao an toan, va danh sach dan chung RAG (chuDe/phanBacChinh) kem link Nguon neu `nguon` la URL (`ExternalLink`).
+  - Them badge nhan kiem duyet (`result.nhan_kiem_duyet`) hien rieng duoi dang canh bao mau vang, tach khoi noi dung chinh; sua `formatAnswer` de khong nhung `nhan_kiem_duyet` vao text nua (van giu `ghi_chu`).
+  - Luu `analysis`/`knowledge` vao message assistant khi nhan ket qua `troly35_run`.
+  - Persist phien chat hien tai vao `sessionStorage` key `troly35_chat_session` ({messages, mode}); khoi phuc khi mount (loc bo message dang pending); xoa khi clearChat hoac het message.
+  - Them helper `loadChatSession`, `dangerColor`, `isUrl`, `AnalysisList`, hang so `DANGER_LABELS`, `CHAT_SESSION_KEY`.
+  - Them import icon `ChevronDown/ChevronUp/ExternalLink/ShieldCheck`.
+
+### Ly do
+- Theo yeu cau nguoi dung: tiep tuc Dot 2 sau khi tao PR. Tan dung du lieu phan tich/RAG da co tu backend va giu phien chat khong mat khi reload.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend tab Tro ly 35.
+- Khong doi API/schema/backend GAS. Du lieu `analysis`/`knowledge` da co san trong response `troly35_run`.
+- Muc lich su (`openHistoryItem`) khong co analysis/knowledge nen `AnalysisBlock` tu an (return null) -> khong loi.
+- `sessionStorage` chi song trong phien tab (an toan hon localStorage cho noi dung gated theo ma truy cap).
+
+### Kiem thu da chay
+- `cd web; npm run build` -> build thanh cong (TroLy35 chunk ~25kB).
+
+### Cach test thu cong
+1. `cd web; npm run dev`, tab Tro ly 35, nhap ma, gui cau hoi mode Phan bac/Kiem chung.
+2. Kiem tra badge nhan kiem duyet mau vang, va nut "Phan tich & dan chung" gap/mo voi badge do nguy hiem + so dan chung.
+3. Mo block: thay luan diem sai/thu doan/canh bao an toan va dan chung co link Nguon.
+4. Reload trang (F5): hoi thoai van con (khoi phuc tu sessionStorage); bam xoa hoi thoai -> mat va sessionStorage bi xoa.
+
 ## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 1
 
 ### Noi dung thuc hien
