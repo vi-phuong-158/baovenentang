@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { getTrends, getTroLy35History, runTroLy35, sendFeedback } from '../api.js';
+import { markdownToHtml } from '../lib/markdown.js';
 import logo35 from '../../logo.png';
 
 const ACCESS_KEY = 'troly35_access_code';
@@ -117,22 +118,69 @@ function formatDate(value) {
   });
 }
 
-function MessageText({ text }) {
-  const blocks = (text || '').split(/\n{2,}/);
+const PENDING_STEPS = [
+  'Đang phân tích nội dung...',
+  'Đang tra cứu dẫn chứng...',
+  'Đang soạn nội dung trả lời...',
+];
+
+function PendingIndicator() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStep(prev => Math.min(prev + 1, PENDING_STEPS.length - 1));
+    }, 2200);
+    return () => clearInterval(timer);
+  }, []);
   return (
-    <>
-      {blocks.map((block, blockIndex) => (
-        <p key={blockIndex} style={{ margin: 0, marginBottom: blockIndex === blocks.length - 1 ? 0 : 10, whiteSpace: 'pre-wrap' }}>
-          {block}
-        </p>
-      ))}
-    </>
+    <span className="row" style={{ gap: 7 }}>
+      <RefreshCw size={14} className="spinner" /> {PENDING_STEPS[step]}
+    </span>
   );
+}
+
+function MessageText({ text, plain }) {
+  if (plain) {
+    const blocks = (text || '').split(/\n{2,}/);
+    return (
+      <>
+        {blocks.map((block, blockIndex) => (
+          <p key={blockIndex} style={{ margin: 0, marginBottom: blockIndex === blocks.length - 1 ? 0 : 10, whiteSpace: 'pre-wrap' }}>
+            {block}
+          </p>
+        ))}
+      </>
+    );
+  }
+  return <div className="chat-markdown" dangerouslySetInnerHTML={{ __html: markdownToHtml(text) }} />;
+}
+
+function copyParts(mode, raw) {
+  if (!raw || typeof raw !== 'object') return [];
+  const hashtags = Array.isArray(raw.hashtag_de_xuat) && raw.hashtag_de_xuat.length
+    ? raw.hashtag_de_xuat.join(' ')
+    : '';
+  let parts = [];
+  if (mode === 'article_writer') {
+    parts = [
+      { label: 'Bài viết', text: raw.bai_viet },
+      { label: 'Caption MXH', text: raw.caption_mxh },
+      { label: 'Hashtag', text: hashtags },
+    ];
+  } else if (mode === 'rebuttal') {
+    parts = [
+      { label: 'Bản đầy đủ', text: raw.phien_ban_day_du },
+      { label: 'Comment ngắn', text: raw.phien_ban_comment },
+      { label: 'Hashtag', text: hashtags },
+    ];
+  }
+  return parts.filter(part => part.text && String(part.text).trim());
 }
 
 function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
   const isUser = message.role === 'user';
   const mode = getMode(message.mode);
+  const parts = isUser ? [] : copyParts(mode.value, message.responseRaw);
 
   return (
     <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
@@ -168,11 +216,28 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
 
         <div className="text-sm" style={{ color: isUser ? '#fff' : (message.error ? 'var(--red)' : 'var(--ink-soft)') }}>
           {message.pending ? (
-            <span className="row" style={{ gap: 7 }}><RefreshCw size={14} className="spinner" /> Đang trả lời...</span>
+            <PendingIndicator />
           ) : (
-            <MessageText text={message.text} />
+            <MessageText text={message.text} plain={isUser || message.error} />
           )}
         </div>
+
+        {!isUser && !message.pending && !message.error && parts.length > 0 && (
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            <span className="text-xs text-mute" style={{ fontWeight: 700 }}>Copy:</span>
+            {parts.map(part => (
+              <button
+                key={part.label}
+                type="button"
+                className="btn ghost sm"
+                onClick={() => onCopy(part.text, part.label)}
+                style={{ padding: '5px 9px', fontSize: 12 }}
+              >
+                <Copy size={12} /> {part.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {!isUser && !message.pending && !message.error && message.requestId && (
           <div style={{ borderTop: '1px solid var(--line-soft)', marginTop: 10, paddingTop: 8 }}>
@@ -331,10 +396,10 @@ export default function TroLy35() {
     }
   };
 
-  const copyText = async (text) => {
+  const copyText = async (text, label) => {
     try {
       await navigator.clipboard.writeText(text);
-      setRunMsg('Đã copy câu trả lời.');
+      setRunMsg(label ? `Đã copy ${label}.` : 'Đã copy câu trả lời.');
       setRunMsgType('success');
     } catch {
       setRunMsg('Không copy được.');
@@ -610,7 +675,13 @@ export default function TroLy35() {
             rows={3}
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder={hasConversation ? 'Nhập yêu cầu tinh chỉnh: ngắn hơn, thêm dẫn chứng, đổi giọng...' : activeMode.placeholder}
+            onKeyDown={e => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !loading) {
+                e.preventDefault();
+                sendQuestion(e);
+              }
+            }}
+            placeholder={hasConversation ? 'Nhập yêu cầu tinh chỉnh: ngắn hơn, thêm dẫn chứng, đổi giọng... (Ctrl+Enter để gửi)' : `${activeMode.placeholder}`}
             disabled={loading}
             style={{ minHeight: 82, marginBottom: 8 }}
           />

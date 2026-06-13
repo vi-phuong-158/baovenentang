@@ -4,6 +4,38 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 1
+
+### Noi dung thuc hien
+- Doc brain (`04-current-tasks.md`, `06-ai-working-log.md`) va ghi ke hoach 3 dot nang cap chatbot/UI vao `docs/brain/04-current-tasks.md` truoc khi code.
+- Them `web/src/lib/markdown.js`: renderer Markdown nhe, tu viet, khong them package Node moi. Ho tro heading (#..###), dam, nghieng, code inline, danh sach (-, *, 1.), blockquote, doan van. Output sanitize bang `dompurify` (da co san) voi allowlist tag/attr.
+- Cap nhat `web/src/index.css`: them nhom style `.chat-markdown` cho noi dung render trong bong bong cau tra loi (p/h3-h5/ul/ol/li/strong/em/code/blockquote).
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - `MessageText` render Markdown cho cau tra loi assistant; giu plain text cho tin nhan user va tin loi (prop `plain`).
+  - Them `PendingIndicator` hien tien trinh theo buoc (Phan tich -> Tra cuu dan chung -> Soan noi dung) thay cho text "Dang tra loi..." tinh, khop 3 buoc backend.
+  - Them `copyParts(mode, raw)` + hang nut "Copy" theo phan cho mode Phan bac (Ban day du/Comment ngan/Hashtag) va Viet bai (Bai viet/Caption MXH/Hashtag), lay tu `message.responseRaw`.
+  - `copyText(text, label)` bao toast theo ten phan da copy.
+  - Textarea nhap cau hoi ho tro phim tat Ctrl/Cmd+Enter de gui; cap nhat placeholder.
+
+### Ly do
+- Theo yeu cau nguoi dung: review du an va trien khai Dot 1 cai thien trai nghiem chatbot, uu tien viec gon - rui ro thap - hieu qua ngay.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong frontend tab Tro ly 35 va file CSS dung chung.
+- Khong doi API/schema/backend GAS, khong them dependency moi (dung `dompurify` san co).
+- Markdown render qua `dangerouslySetInnerHTML` nhung da sanitize bang dompurify voi allowlist han che, khong cho attribute -> giam rui ro XSS.
+- `package-lock.json` bi npm install lam nhieu metadata `peer` da duoc restore, khong commit.
+
+### Kiem thu da chay
+- `cd web; npm install; npm run build` -> build thanh cong (TroLy35 chunk ~21kB, sanitize chunk dompurify duoc tach rieng).
+
+### Cach test thu cong
+1. `cd web; npm run dev`, mo tab Tro ly 35, nhap ma truy cap.
+2. Gui mot cau hoi mode Phan bac: kiem tra spinner doi text theo buoc; cau tra loi render dam/nghieng/danh sach; co hang nut Copy (Ban day du/Comment/Hashtag).
+3. Doi sang mode Viet bai: kiem tra nut Copy (Bai viet/Caption MXH/Hashtag) copy dung tung phan.
+4. Bam Ctrl+Enter trong o nhap de gui nhanh.
+5. Mo lai mot muc trong Lich su: noi dung van hien dung (render Markdown an toan voi text thuong).
+
 ## [2026-06-12] Them Podcast am thanh cho sach Dai doan ket
 
 ### Noi dung thuc hien

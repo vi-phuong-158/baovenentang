@@ -13,6 +13,14 @@
 
 ## Công việc đang thực hiện
 - 🚧 **Thiết lập bộ nhớ dự án dùng chung (Shared AI Project Brain)**: Tạo các tài liệu hướng dẫn và lưu trữ ngữ cảnh dự án (`AGENTS.md`, `CLAUDE.md` và thư mục `docs/brain/`) cho Claude Code và Codex.
+- 🚧 **Nâng cấp UX chatbot Trợ lý 35 (review 2026-06-13)**: Lộ trình 3 đợt cải thiện trải nghiệm hội thoại và giao diện, không thêm package Node mới (dùng `dompurify` đã có).
+  - **Đợt 1 (đang làm)** — gọn, rủi ro thấp, hiệu quả thấy ngay:
+    1. Render Markdown nhẹ trong bong bóng câu trả lời (đậm/nghiêng/danh sách/heading) thay cho `MessageText` chỉ tách đoạn theo `\n\n`. Tự viết parser → HTML, sanitize bằng `dompurify`, không thêm dependency.
+    2. Hiển thị tiến trình theo bước khi chờ trả lời (Đang phân tích → Tra cứu dẫn chứng → Soạn nội dung) khớp 3 bước backend `analyze → searchKnowledge → generate`.
+    3. Copy theo phần cho mode Viết bài/Phản bác (bản đầy đủ, comment ngắn, caption MXH, hashtag) thay vì chỉ copy cả khối.
+    4. Hỗ trợ phím tắt Ctrl/Cmd+Enter để gửi câu hỏi.
+  - **Đợt 2 (backlog)**: Hiện khối Phân tích (độ nguy hiểm, thủ đoạn, cảnh báo an toàn) + dẫn chứng RAG có link nguồn; badge nhãn kiểm duyệt; persist phiên chat hiện tại vào storage.
+  - **Đợt 3 (backlog)**: Tách inline style `TroLy35.jsx`/`BottomNav.jsx` sang CSS class; Dark mode qua `prefers-color-scheme`; cải thiện a11y (`role="log"`/`aria-live`, tương phản `--ink-mute`).
 
 ## Công việc tiếp theo (Backlog/Chờ thực hiện)
 
