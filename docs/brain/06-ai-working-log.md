@@ -4,6 +4,32 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Tro ly 35 truy cap tu do (an o nhap ma, proxy tiem ma chung)
+
+### File da sua
+- `web/api/gas.js`: them `TROLY35_ACCESS_CODE` (env) + set `TROLY35_ACTIONS`; trong POST tu gan `accessCode` cho cac action `troly35_*` khi client khong gui.
+- `web/src/pages/TroLy35.jsx`: go card "Truy cap", badge "Noi bo", toan bo state/handler ma truy cap (`accessCode`, `remember`, `accessMsg`, `saveAccess`, `ACCESS_KEY`); them hang `ACCESS_CODE` (fallback dev tu `VITE_TROLY35_ACCESS_CODE`); `loadTrends`/`loadHistory` bo phu thuoc ma va tai ngay khi vao trang; `sendQuestion`/`submitFeedback` bo chan thieu ma.
+- `web/src/css/troly35.css`: go cac class khong con dung (`t35-internal-badge`, `t35-header-badges`, `t35-access-*`, `t35-remember`).
+- `.claude/CLAUDE.md`: bo sung env Vercel `TROLY35_ACCESS_CODE` va ghi chu truy cap tu do; `docs/brain/03-decisions.md`: them quyet dinh #8.
+
+### Ly do
+- Bo rao can nhap ma truy cap noi bo de nguoi dung dung Tro ly 35 tu do, ma van khong lo ma trong frontend bundle (tiem o proxy server-side) va khong phai deploy lai backend GAS.
+
+### Rui ro va dieu kien van hanh
+- **Bat buoc dat env `TROLY35_ACCESS_CODE` tren Vercel** (plaintext khop `TROLY35_ACCESS_CODE_SHA256` trong Script Properties). Thieu -> proxy khong tiem ma -> backend tu choi.
+- **Han muc/ngay va lich su/xu huong dung CHUNG** cho moi nguoi vi cung mot ma. Neu can tach theo nguoi dung hoac an lich su/xu huong, phai thiet ke lai.
+- **Dev local goi truc tiep GAS** (khong qua proxy): dat `VITE_TROLY35_ACCESS_CODE` trong `.env` local; de trong o production.
+
+### Kiem thu da chay
+- `cd web; npm run build` -> pass (2 lan, truoc va sau khi don CSS).
+- `grep` xac nhan khong con tham chieu `accessCode`/`ACCESS_KEY`/`saveAccess`/`Lock`/`Key` sai sot trong `TroLy35.jsx` (chi con hang `ACCESS_CODE`).
+
+### Cach test thu cong
+1. Tren Vercel dat env `TROLY35_ACCESS_CODE` = ma goc Tro ly 35, redeploy.
+2. Mo app -> tab `Tro ly 35`: khong con o nhap ma; lich su/xu huong tai ngay.
+3. Gui prompt (rebuttal/fact_check/article_writer), kiem tra co ket qua, dat feedback tot/xau, doi cua so xu huong 7/30 ngay.
+4. Kiem tra Network: request `troly35_run` tu client khong kem `accessCode` that; backend van tra `success: true`.
+
 ## [2026-06-13] Tach toan bo inline style sang CSS class (Dot 3 - bo sung)
 
 ### Noi dung thuc hien

@@ -7,8 +7,6 @@ import {
   Clock3,
   Copy,
   ExternalLink,
-  Key,
-  Lock,
   MessageSquareText,
   RefreshCw,
   Send,
@@ -23,11 +21,15 @@ import { markdownToHtml } from '../lib/markdown.js';
 import '../css/troly35.css';
 import logo35 from '../../logo.png';
 
-const ACCESS_KEY = 'troly35_access_code';
 const STYLE_KEY = 'troly35_style';
 const CHAT_SESSION_KEY = 'troly35_chat_session';
 const HISTORY_LIMIT = 20;
 const CHAT_HISTORY_TURNS = 8;
+
+// Truy cập tự do: không bắt nhập mã. Trong production, proxy /api/gas tự gắn
+// mã chung từ env TROLY35_ACCESS_CODE. Biến VITE_ dưới đây chỉ dùng khi dev gọi
+// trực tiếp GAS (không qua proxy); để trống ở production để không lộ trong bundle.
+const ACCESS_CODE = (import.meta.env.VITE_TROLY35_ACCESS_CODE || '').trim();
 
 function loadChatSession() {
   try {
@@ -406,12 +408,6 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
 }
 
 export default function TroLy35() {
-  const savedCode = localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY) || '';
-  const [accessCode, setAccessCode] = useState(savedCode);
-  const [remember, setRemember] = useState(!!localStorage.getItem(ACCESS_KEY));
-  const [accessMsg, setAccessMsg] = useState(savedCode ? 'Đã tải mã truy cập.' : '');
-  const [accessMsgType, setAccessMsgType] = useState('success');
-
   const [mode, setMode] = useState(() => loadChatSession()?.mode || 'rebuttal');
   const [style, setStyle] = useState(() => {
     try { return localStorage.getItem(STYLE_KEY) || 'chinhluan'; } catch { return 'chinhluan'; }
@@ -436,11 +432,8 @@ export default function TroLy35() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const code = accessCode.trim();
-    if (code) {
-      loadTrends(code, trendWindow);
-      loadHistory(code);
-    }
+    loadTrends(trendWindow);
+    loadHistory();
   }, []);
 
   useEffect(() => {
@@ -462,36 +455,10 @@ export default function TroLy35() {
     setMessages(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
   };
 
-  const saveAccess = () => {
-    const v = accessCode.trim();
-    if (!v) {
-      sessionStorage.removeItem(ACCESS_KEY);
-      localStorage.removeItem(ACCESS_KEY);
-      setAccessMsg('Đã xóa mã.');
-      setAccessMsgType('neutral');
-      setTrends(null);
-      setHistory([]);
-      setHistoryMsg('');
-      return;
-    }
-    if (remember) {
-      localStorage.setItem(ACCESS_KEY, v);
-      sessionStorage.removeItem(ACCESS_KEY);
-    } else {
-      sessionStorage.setItem(ACCESS_KEY, v);
-      localStorage.removeItem(ACCESS_KEY);
-    }
-    setAccessMsg('Đã lưu mã truy cập.');
-    setAccessMsgType('success');
-    loadTrends(v, trendWindow);
-    loadHistory(v);
-  };
-
-  const loadTrends = async (code, windowDays) => {
-    if (!code) return;
+  const loadTrends = async (windowDays) => {
     setTrendsLoading(true);
     try {
-      const res = await getTrends({ accessCode: code, windowDays });
+      const res = await getTrends({ accessCode: ACCESS_CODE, windowDays });
       if (res.success !== false) setTrends(res.data || res);
     } catch {
       setTrends(null);
@@ -500,12 +467,11 @@ export default function TroLy35() {
     }
   };
 
-  const loadHistory = async (code) => {
-    if (!code) return;
+  const loadHistory = async () => {
     setHistoryLoading(true);
     setHistoryMsg('');
     try {
-      const res = await getTroLy35History({ accessCode: code, limit: HISTORY_LIMIT });
+      const res = await getTroLy35History({ accessCode: ACCESS_CODE, limit: HISTORY_LIMIT });
       if (res.success === false) throw new Error(res.error || 'Không tải được lịch sử.');
       setHistory(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -540,11 +506,6 @@ export default function TroLy35() {
 
   const submitFeedback = async (message, rating, confirmBad = false) => {
     if (!message.requestId || message.feedback) return;
-    const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
-    if (!code) {
-      updateAssistantMessage(message.id, { feedbackError: 'Vui lòng lưu mã truy cập trước.' });
-      return;
-    }
 
     const note = (message.feedbackDraft || '').trim();
     if (rating === 'bad' && !confirmBad) {
@@ -559,7 +520,7 @@ export default function TroLy35() {
     updateAssistantMessage(message.id, { feedbackLoading: true, feedbackError: '' });
     try {
       const res = await sendFeedback({
-        accessCode: code,
+        accessCode: ACCESS_CODE,
         rating,
         responseId: message.requestId,
         queryPreview: message.queryText || '',
@@ -574,8 +535,8 @@ export default function TroLy35() {
         showFeedbackNote: false,
         feedbackDraft: note,
       });
-      loadTrends(code, trendWindow);
-      loadHistory(code);
+      loadTrends(trendWindow);
+      loadHistory();
     } catch (err) {
       updateAssistantMessage(message.id, {
         feedbackLoading: false,
@@ -613,7 +574,6 @@ export default function TroLy35() {
   const sendQuestion = async (e) => {
     e.preventDefault();
 
-    const code = accessCode.trim() || sessionStorage.getItem(ACCESS_KEY) || '';
     const content = question.trim();
     const selectedMode = getMode(mode).value;
     const isFollowUp = messages.some(m => m.role === 'assistant' && !m.pending && !m.error);
@@ -622,11 +582,6 @@ export default function TroLy35() {
       .slice(-CHAT_HISTORY_TURNS)
       .map(m => ({ role: m.role, text: m.text }));
 
-    if (!code) {
-      setRunMsg('Vui lòng nhập mã truy cập nội bộ.');
-      setRunMsgType('error');
-      return;
-    }
     if (content.length < (isFollowUp ? 2 : 20)) {
       setRunMsg(isFollowUp
         ? 'Vui lòng nhập yêu cầu chỉnh sửa (vd: ngắn hơn, thêm dẫn chứng).'
@@ -650,7 +605,7 @@ export default function TroLy35() {
     setLoading(true);
 
     try {
-      const res = await runTroLy35({ accessCode: code, mode: selectedMode, content, style, history });
+      const res = await runTroLy35({ accessCode: ACCESS_CODE, mode: selectedMode, content, style, history });
       if (!res.success) throw new Error(res.error || 'Không xử lý được yêu cầu.');
 
       const answer = formatAnswer(selectedMode, res);
@@ -659,8 +614,8 @@ export default function TroLy35() {
           ? { ...item, text: answer, pending: false, requestId: res.requestId, responseRaw: res.result || {}, analysis: res.analysis || {}, knowledge: res.knowledge || [] }
           : item
       ));
-      loadTrends(code, trendWindow);
-      loadHistory(code);
+      loadTrends(trendWindow);
+      loadHistory();
     } catch (err) {
       setMessages(prev => prev.map(item =>
         item.id === assistantMessage.id
@@ -680,38 +635,8 @@ export default function TroLy35() {
   return (
     <div className="page page-fade">
       <div className="page-header">
-        <div className="row t35-header-badges">
-          <div className="pill t35-internal-badge">
-            <Lock size={11} /> Nội bộ
-          </div>
-        </div>
         <h1>Trợ lý 35</h1>
         <p>Hỏi đáp nhanh, hỗ trợ xử lý thông tin</p>
-      </div>
-
-      <div className="card tinted t35-card">
-        <div className="row t35-access-head">
-          <div className="chip red"><Lock size={14} /></div>
-          <span className="t35-card-title">Truy cập</span>
-        </div>
-        <div className="t35-access-row">
-          <input
-            className="field"
-            type="password"
-            value={accessCode}
-            onChange={e => setAccessCode(e.target.value)}
-            placeholder="Nhập mã truy cập nội bộ"
-            onKeyDown={e => e.key === 'Enter' && saveAccess()}
-          />
-          <button className="btn sm t35-access-save" onClick={saveAccess}>
-            <Key size={14} /> Lưu
-          </button>
-        </div>
-        <label className="t35-remember">
-          <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
-          Ghi nhớ mã <span className="hint">(chỉ dùng trên thiết bị cá nhân)</span>
-        </label>
-        {accessMsg && <div className={`msg ${accessMsgType}`}>{accessMsg}</div>}
       </div>
 
       <div className="card elevated t35-card t35-chat-card">
@@ -819,7 +744,7 @@ export default function TroLy35() {
             type="button"
             className="btn ghost sm t35-icon-btn"
             aria-label="Tải lại lịch sử"
-            onClick={() => loadHistory(accessCode || sessionStorage.getItem(ACCESS_KEY))}
+            onClick={() => loadHistory()}
             disabled={historyLoading}
           >
             {historyLoading ? <RefreshCw size={13} className="spinner" /> : <RefreshCw size={13} />}
@@ -863,7 +788,7 @@ export default function TroLy35() {
             {[7, 30].map(w => (
               <button
                 key={w}
-                onClick={() => { setTrendWindow(w); loadTrends(accessCode || sessionStorage.getItem(ACCESS_KEY), w); }}
+                onClick={() => { setTrendWindow(w); loadTrends(w); }}
                 className={`btn sm t35-trend-btn ${trendWindow === w ? 'primary' : 'ghost'}`}
               >
                 {w} ngày
@@ -873,7 +798,7 @@ export default function TroLy35() {
         </div>
 
         {trendsLoading && <div className="empty t35-empty-pad"><RefreshCw size={16} className="spinner" /></div>}
-        {!trendsLoading && !trends && <div className="empty t35-empty-pad">Nhập mã để tải thống kê.</div>}
+        {!trendsLoading && !trends && <div className="empty t35-empty-pad">Chưa có dữ liệu thống kê.</div>}
         {trends && (
           <>
             <div className="t35-stat-grid">

@@ -4,6 +4,7 @@ const GAS_URL = process.env.GAS_DEPLOYMENT_URL;
 const GAS_API_TOKEN = process.env.GAS_API_TOKEN || process.env.API_ACCESS_TOKEN || '';
 const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || GAS_API_TOKEN;
 const IP_HASH_SALT = process.env.IP_HASH_SALT || '';
+const TROLY35_ACCESS_CODE = process.env.TROLY35_ACCESS_CODE || '';
 
 // Best-effort only on serverless instances; cost controls must live in GAS quotas.
 const RATE_LIMIT_WINDOW = 60 * 1000;
@@ -11,6 +12,8 @@ const RATE_LIMIT_MAX = 30;
 const ipHits = new Map();
 const TOKEN_INJECT_ACTIONS = new Set(['subscribe', 'submit_quiz', 'contact']);
 const ADMIN_ACTIONS = new Set(['bantin35_generate', 'bantin35_setup_trigger', 'bantin35_trigger_status', 'feedback_stats', 'video_export']);
+// Truy cập tự do: proxy tự gắn mã chung cho các action Trợ lý 35 nếu client không gửi.
+const TROLY35_ACTIONS = new Set(['troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends', 'troly35_feedback']);
 
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -99,6 +102,9 @@ export default async function handler(req, res) {
           ...parsedBody,
           clientIpHash: hashIp(ip),
         };
+        if (TROLY35_ACTIONS.has(action) && TROLY35_ACCESS_CODE && !upstreamBody.accessCode && !upstreamBody.access_code) {
+          upstreamBody.accessCode = TROLY35_ACCESS_CODE;
+        }
         if (shouldInjectToken(action)) {
           if (!GAS_API_TOKEN) return res.status(500).json({ success: false, error: 'API token not configured' });
           upstreamBody.api_token = GAS_API_TOKEN;

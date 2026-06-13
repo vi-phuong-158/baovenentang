@@ -62,3 +62,13 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
   - Giữ nguyên hàm `askBookAI`, schema và sheet `TU_SACH` để bật lại nhanh.
 - **Lý do giữ code thay vì xóa**: Đây là quyết định tạm thời; giữ hàm/contract giúp re-enable rẻ và không phá schema.
 - **Điều kiện bật lại**: Bổ sung quota/giới hạn theo người dùng cho `ask_book` (tương tự `troLy35AssertDailyLimit_`) trước khi mở lại UI hỏi đáp.
+
+## 8. Trợ lý 35 truy cập tự do, tiêm mã chung ở proxy (2026-06-13)
+- **Mục tiêu**: Bỏ rào cản nhập mã truy cập nội bộ ở UI Trợ lý 35, cho người dùng dùng tự do mà không lộ mã trong frontend bundle và không phải deploy lại backend GAS.
+- **Giải pháp**:
+  - Frontend `web/src/pages/TroLy35.jsx`: gỡ card "Truy cập", badge "Nội bộ", toàn bộ state/handler liên quan mã (`accessCode`, `remember`, `saveAccess`, `ACCESS_KEY`). UI gọi thẳng các action `troly35_*`, history/xu hướng tải ngay khi vào trang.
+  - Proxy `web/api/gas.js`: thêm `TROLY35_ACTIONS`; với POST các action này, nếu client không gửi `accessCode`, tự gắn từ env server-side `TROLY35_ACCESS_CODE` (không dùng `VITE_`, không lộ trong bundle).
+  - Dev gọi trực tiếp GAS (không qua proxy) có thể đặt `VITE_TROLY35_ACCESS_CODE` trong `.env` local; để trống ở production.
+- **Lý do không đổi backend**: Giữ nguyên `08-troly35.gs`; mã chung vẫn khớp `TROLY35_ACCESS_CODE_SHA256` nên backend xác thực như cũ, không cần `clasp push`/redeploy.
+- **Hệ quả/giới hạn**: Vì mọi người dùng chung một mã, hạn mức/ngày (`troLy35AssertDailyLimit_`) và lịch sử/xu hướng trở thành CHUNG cho tất cả. Nếu cần tách theo người dùng hoặc ẩn lịch sử/xu hướng, phải thiết kế lại (khóa theo IP hash hoặc bỏ panel lịch sử/xu hướng).
+- **Điều kiện vận hành**: Bắt buộc đặt env `TROLY35_ACCESS_CODE` trên Vercel (plaintext khớp SHA256 trong Script Properties), nếu không proxy không tiêm mã và backend sẽ từ chối.
