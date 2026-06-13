@@ -14,7 +14,7 @@
   --surface-2: #FAF6EB;
   --ink: #1A1410;
   --ink-soft: #6B5F4F;
-  --ink-mute: #A89D8A;
+  --ink-mute: #8A7E68;
   --line: #E5DDC8;
   --line-soft: #EFE8D6;
   --ok: #1F8A5B;
@@ -45,6 +45,48 @@
   --font-body: 'Be Vietnam Pro', -apple-system, sans-serif;
   --font-display: 'Bricolage Grotesque', 'Be Vietnam Pro', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  color-scheme: light dark;
+}
+
+/* ── Dark mode ───────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --red: #D9483B;
+    --red-dark: #B83227;
+    --red-soft: #3A211E;
+    --yellow: #F4C20D;
+    --yellow-soft: #3A3413;
+    --bg: #14110D;
+    --surface: #1F1B15;
+    --surface-2: #26211A;
+    --ink: #F2EBDD;
+    --ink-soft: #C7BDA9;
+    --ink-mute: #9A8F79;
+    --line: #3A3329;
+    --line-soft: #2D2820;
+    --ok: #3BBE83;
+    --ok-soft: #173228;
+    --blue: #6BA8D6;
+    --blue-soft: #16273A;
+
+    --shadow-card:
+      0 1px 0 rgba(255,255,255,.04) inset,
+      0 1px 2px rgba(0,0,0,.3),
+      0 4px 12px -4px rgba(0,0,0,.45);
+    --shadow-elevated:
+      0 1.5px 0 rgba(255,255,255,.05) inset,
+      0 10px 24px -8px rgba(0,0,0,.5),
+      0 28px 56px -20px rgba(0,0,0,.6);
+    --shadow-red: 0 6px 16px rgba(0,0,0,.45);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 15% 0%, #211b12 0%, transparent 38%),
+      radial-gradient(circle at 95% 100%, #1d1a13 0%, transparent 45%),
+      var(--bg);
+  }
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }

@@ -4,6 +4,33 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 3 (Dark mode + a11y)
+
+### Noi dung thuc hien
+- Cap nhat `web/src/index.css`:
+  - Them `color-scheme: light dark` vao `:root`.
+  - Them khoi `@media (prefers-color-scheme: dark)` override toan bo bien mau/shadow trong `:root` + background `body`. Vi phan lon inline style trong `TroLy35.jsx`/`BottomNav.jsx` dung `var(--...)`, dark mode tu thich ung ma khong can sua tung component.
+  - Tang tuong phan `--ink-mute` o light tu `#A89D8A` -> `#8A7E68`.
+- Cap nhat `web/src/pages/TroLy35.jsx`:
+  - Vung danh sach tin nhan them `role="log"`, `aria-live="polite"`, `aria-relevant`, `aria-label` de screen reader doc cau tra loi moi.
+  - Nut tai lai Lich su them `aria-label`.
+
+### Ly do
+- Theo yeu cau nguoi dung: tiep tuc Dot 3. Uu tien Dark mode + a11y vi gon va gia tri cao.
+
+### Rui ro va pham vi anh huong
+- Chi anh huong CSS dung chung + tab Tro ly 35.
+- KHONG thuc hien tach toan bo inline style sang CSS class (Dot 3 ban dau co muc nay): rui ro regression cao va vi pham quy tac "tranh refactor lan rong" trong CLAUDE.md -> de lai backlog.
+- `BottomNav.jsx` hardcode rgba sang nen thanh nav giu tong sang trong dark mode (chap nhan duoc, khong vo giao dien).
+
+### Kiem thu da chay
+- `cd web; npm run build` -> build thanh cong.
+
+### Cach test thu cong
+1. Bat dark mode he dieu hanh/trinh duyet, mo app: nen, card, bong bong chat, input chuyen sang nen toi; chu de doc.
+2. Tat dark mode: giao dien tro lai sang binh thuong.
+3. Dung screen reader: gui cau hoi, xac nhan cau tra loi moi duoc doc len (aria-live vung chat).
+
 ## [2026-06-13] Nang cap UX chatbot Tro ly 35 - Dot 2
 
 ### Noi dung thuc hien

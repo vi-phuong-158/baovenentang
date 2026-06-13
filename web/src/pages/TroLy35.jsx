@@ -788,7 +788,13 @@ export default function TroLy35() {
           </div>
         )}
 
-        <div style={{ minHeight: 260, maxHeight: 420, overflowY: 'auto', padding: '2px 2px 10px' }}>
+        <div
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions text"
+          aria-label="Hội thoại với Trợ lý 35"
+          style={{ minHeight: 260, maxHeight: 420, overflowY: 'auto', padding: '2px 2px 10px' }}
+        >
           {messages.length === 0 ? (
             <div className="empty" style={{ padding: '34px 12px 38px' }}>
               <img
@@ -853,6 +859,7 @@ export default function TroLy35() {
           <button
             type="button"
             className="btn ghost sm"
+            aria-label="Tải lại lịch sử"
             onClick={() => loadHistory(accessCode || sessionStorage.getItem(ACCESS_KEY))}
             disabled={historyLoading}
             style={{ padding: '6px 9px', fontSize: 12 }}
