@@ -35,6 +35,7 @@ Tính năng `Thư viện phản bác` công khai đã bị gỡ. Không re-add r
 
 - File UI chính: `web/src/pages/TroLy35.jsx`.
 - Backend chính: `backend/08-troly35.gs`.
+- **Truy cập tự do**: UI đã bỏ ô nhập mã. Proxy `web/api/gas.js` tự gắn `accessCode` (từ env `TROLY35_ACCESS_CODE`) cho mọi action `troly35_*` khi client không gửi. Hệ quả: hạn mức/ngày và lịch sử/xu hướng dùng CHUNG cho mọi người (cùng một mã). Backend không đổi.
 - Có 3 mode:
   - `rebuttal`
   - `fact_check`
@@ -130,8 +131,9 @@ Biến Vercel quan trọng:
 - `GAS_API_TOKEN` hoặc `API_ACCESS_TOKEN`
 - `ADMIN_API_TOKEN`
 - `IP_HASH_SALT`
+- `TROLY35_ACCESS_CODE`: mã gốc (plaintext) của Trợ lý 35, khớp với `TROLY35_ACCESS_CODE_SHA256` trong Script Properties. Proxy `web/api/gas.js` tự gắn mã này vào các action `troly35_*` khi client không gửi, phục vụ chế độ "truy cập tự do" (không bắt người dùng nhập mã). Đặt ở env Vercel (server-side), KHÔNG dùng `VITE_`.
 
-Không đưa secret thật vào biến `VITE_*` vì sẽ lộ trong frontend bundle.
+Không đưa secret thật vào biến `VITE_*` vì sẽ lộ trong frontend bundle. Riêng dev gọi trực tiếp GAS (không qua proxy) có thể tạm đặt `VITE_TROLY35_ACCESS_CODE` trong `.env` local để test; để trống ở production.
 
 ## Quy tắc chỉnh sửa
 

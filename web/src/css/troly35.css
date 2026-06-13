@@ -2,15 +2,6 @@
    TRỢ LÝ 35 — Page styles (tách từ inline style)
    ============================================================ */
 
-/* ── Header ──────────────────────────────────────────── */
-.pill.t35-internal-badge {
-  background: rgba(255, 255, 255, .18);
-  border: 1px solid rgba(255, 255, 255, .3);
-  color: #fff;
-  font-size: 11px;
-}
-.t35-header-badges { margin-bottom: 8px; }
-
 /* ── Card chung ──────────────────────────────────────── */
 .t35-card { margin-bottom: 12px; }
 .t35-card.last { margin-bottom: 0; margin-top: 4px; }
@@ -24,24 +15,7 @@
 
 .t35-card-head { justify-content: space-between; margin-bottom: 10px; }
 .t35-card-head.tight { margin-bottom: 8px; }
-.t35-access-head { margin-bottom: 8px; }
 .t35-pending { display: flex; align-items: center; gap: 7px; }
-
-/* ── Truy cập ────────────────────────────────────────── */
-.t35-access-row { display: flex; gap: 8px; margin-bottom: 8px; }
-.t35-access-row .field { flex: 1; }
-.t35-access-save { flex-shrink: 0; }
-
-.t35-remember {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-.t35-remember .hint { font-size: 11px; color: var(--ink-mute); }
 
 /* ── Mode + style selectors ──────────────────────────── */
 .t35-grid-3 {
