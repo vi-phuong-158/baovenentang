@@ -214,3 +214,34 @@ def test_notify_token_not_in_message():
     payload = mock_post.call_args[1]["json"]
     # URL chứa token, nhưng payload message không được chứa token
     assert "SUPERSECRET_TOKEN" not in payload["text"]
+
+
+
+# ── STEP_TIMINGS reset + log_timing_summary ─────────────────────────────────
+
+def test_step_timings_appended_on_success(tmp_path):
+    dr.STEP_TIMINGS.clear()
+    fake = tmp_path / "fake.py"
+    fake.write_text("import sys; sys.exit(0)")
+    dr.run_step("StepA", fake)
+    dr.run_step("StepB", fake)
+    names = [n for n, _ in dr.STEP_TIMINGS]
+    assert names == ["StepA", "StepB"]
+
+
+def test_log_timing_summary_handles_empty(caplog):
+    dr.STEP_TIMINGS.clear()
+    # Không có gì để in — không được raise
+    dr.log_timing_summary()
+
+
+def test_log_timing_summary_logs_total(tmp_path, caplog):
+    dr.STEP_TIMINGS.clear()
+    dr.STEP_TIMINGS.append(("Alpha", 1.5))
+    dr.STEP_TIMINGS.append(("Beta",  3.5))
+    with caplog.at_level("INFO"):
+        dr.log_timing_summary()
+    text = caplog.text
+    assert "Alpha" in text and "Beta" in text
+    assert "5.0" in text  # tổng
+

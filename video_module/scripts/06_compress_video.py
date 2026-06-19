@@ -28,7 +28,11 @@ MUSIC_DIR  = ROOT / "assets" / "music"
 MUSIC_EXTS = (".mp3", ".m4a", ".wav", ".ogg", ".aac")
 
 MAX_SIZE_MB = 50
-CRF_DEFAULT = 26
+CRF_DEFAULT = 24   # bắt đầu chất lượng cao hơn; tăng CRF tự động nếu vượt size
+
+# Dev escape hatch: render local không upload Telegram → cho phép > 50MB.
+# Bật bằng ALLOW_OVERSIZE_OUTPUT=1 trong .env hoặc CLI env var.
+ALLOW_OVERSIZE = os.getenv("ALLOW_OVERSIZE_OUTPUT", "").strip().lower() in ("1", "true", "yes")
 CRF_MAX     = 32
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -178,25 +182,30 @@ def run(
 
     # Bước 2: nén, tăng CRF nếu vượt 50 MB
     crf = CRF_DEFAULT
+    final_mb = float("inf")
     while crf <= CRF_MAX:
         compress(TEMP_FILE, output, crf)
-        size_mb = output.stat().st_size / (1024 * 1024)
-        log.info(f"CRF={crf} → {size_mb:.1f} MB")
-        if size_mb <= MAX_SIZE_MB:
+        final_mb = output.stat().st_size / (1024 * 1024)
+        log.info(f"CRF={crf} → {final_mb:.1f} MB")
+        if final_mb <= MAX_SIZE_MB:
             break
         crf += 2
-        if crf > CRF_MAX:
-            log.warning(f"Vẫn > {MAX_SIZE_MB} MB sau CRF={CRF_MAX}. Tiếp tục.")
 
     # Dọn file trung gian
     TEMP_FILE.unlink(missing_ok=True)
 
-    final_mb = output.stat().st_size / (1024 * 1024)
-    log.info(f"→ {output.name} ({final_mb:.1f} MB)")
-
     if final_mb > MAX_SIZE_MB:
-        log.warning(f"Video lớn hơn {MAX_SIZE_MB} MB — cân nhắc giảm bitrate hoặc rút ngắn duration.")
+        msg = (
+            f"Vẫn {final_mb:.1f} MB > {MAX_SIZE_MB} MB sau CRF={CRF_MAX}. "
+            f"Telegram bot upload sẽ reject file lớn hơn 50 MB."
+        )
+        if ALLOW_OVERSIZE:
+            log.warning(msg + " ALLOW_OVERSIZE_OUTPUT=1 → tiếp tục (dev mode).")
+        else:
+            log.error(msg + " Đặt ALLOW_OVERSIZE_OUTPUT=1 nếu muốn render local không upload.")
+            sys.exit(1)
 
+    log.info(f"→ {output.name} ({final_mb:.1f} MB)")
     return output
 
 

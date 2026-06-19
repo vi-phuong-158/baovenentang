@@ -216,3 +216,134 @@ def test_run_exits_if_video_missing(tmp_path):
          pytest.raises(SystemExit) as exc:
         post.run(tmp_path / "no_such_file.mp4")
     assert exc.value.code == 1
+
+
+# ── Tests: retry logic của _api ──────────────────────────────────────────────
+
+import requests as _requests
+
+
+def test_api_retries_on_connection_error(monkeypatch):
+    """ConnectionError lần 1+2, thành công lần 3 → trả result, không sleep thật."""
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": {"x": 1}}
+    calls = [_requests.ConnectionError("boom"),
+             _requests.ConnectionError("boom"),
+             ok]
+
+    def fake_post(url, **kw):
+        c = calls.pop(0)
+        if isinstance(c, Exception):
+            raise c
+        return c
+
+    with patch("requests.post", side_effect=fake_post), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("getMe")
+    assert result == {"x": 1}
+
+
+def test_api_retries_on_429_then_success(monkeypatch):
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    too_many = MagicMock()
+    too_many.json.return_value = {
+        "ok": False, "error_code": 429,
+        "description": "Too Many Requests",
+        "parameters": {"retry_after": 1},
+    }
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "ok"}
+    responses = [too_many, ok]
+
+    with patch("requests.post", side_effect=responses), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("sendVideo")
+    assert result == "ok"
+
+
+def test_api_does_not_retry_on_permanent_error(monkeypatch):
+    """Sai token (401) — không retry, fail luôn."""
+    sleeps = []
+    monkeypatch.setattr(post.time, "sleep", lambda s: sleeps.append(s))
+    bad = MagicMock()
+    bad.json.return_value = {
+        "ok": False, "error_code": 401, "description": "Unauthorized",
+    }
+    with patch("requests.post", return_value=bad), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        with pytest.raises(RuntimeError, match="Unauthorized"):
+            post._api("sendVideo")
+    assert sleeps == []  # không có retry
+
+
+def test_api_gives_up_after_max_retries(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(post.time, "sleep", lambda s: sleeps.append(s))
+
+    def always_fail(*_a, **_kw):
+        raise _requests.Timeout("slow")
+
+    with patch("requests.post", side_effect=always_fail), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        with pytest.raises(RuntimeError, match="mất kết nối"):
+            post._api("sendVideo")
+    # Đã sleep MAX_RETRIES - 1 = 2 lần
+    assert len(sleeps) == post.MAX_RETRIES - 1
+
+
+def test_api_retries_on_chunked_encoding_error(monkeypatch):
+    """ChunkedEncodingError xảy ra khi upload video lớn bị reset giữa chừng."""
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "uploaded"}
+    calls = [_requests.exceptions.ChunkedEncodingError("reset"), ok]
+
+    def fake_post(url, **kw):
+        c = calls.pop(0)
+        if isinstance(c, Exception):
+            raise c
+        return c
+
+    with patch("requests.post", side_effect=fake_post), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("sendVideo")
+    assert result == "uploaded"
+
+
+def test_api_handles_parameters_null(monkeypatch):
+    """Telegram trả 'parameters': null không được crash AttributeError."""
+    monkeypatch.setattr(post.time, "sleep", lambda _s: None)
+    transient = MagicMock()
+    transient.json.return_value = {
+        "ok": False, "error_code": 429,
+        "description": "Too Many Requests",
+        "parameters": None,
+    }
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "ok"}
+
+    with patch("requests.post", side_effect=[transient, ok]), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        result = post._api("sendVideo")
+    assert result == "ok"
+
+
+def test_api_caps_retry_after(monkeypatch):
+    """retry_after từ Telegram bị cap không vượt MAX_RETRY_AFTER_SEC."""
+    sleeps = []
+    monkeypatch.setattr(post.time, "sleep", lambda s: sleeps.append(s))
+    transient = MagicMock()
+    transient.json.return_value = {
+        "ok": False, "error_code": 429,
+        "description": "Flood control",
+        "parameters": {"retry_after": 3600},  # 1 giờ — quá dài
+    }
+    ok = MagicMock()
+    ok.json.return_value = {"ok": True, "result": "ok"}
+
+    with patch("requests.post", side_effect=[transient, ok]), \
+         patch.object(post, "BOT_TOKEN", "TOK"):
+        post._api("sendVideo")
+
+    assert sleeps == [post.MAX_RETRY_AFTER_SEC]

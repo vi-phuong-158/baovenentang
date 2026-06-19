@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+from datetime import datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -29,12 +30,20 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 class ImagePicker:
-    def __init__(self, library_dir: Path = LIBRARY_DIR, auto_fetch: bool = True):
+    def __init__(
+        self,
+        library_dir: Path = LIBRARY_DIR,
+        auto_fetch: bool = True,
+        seed: str | int | None = None,
+    ):
         self.library_dir = library_dir
         self.used: set[Path] = set()
         self.valid_categories = self._load_categories()
         self.auto_fetch = auto_fetch
         self._fetched: set[str] = set()  # tránh fetch lặp 1 category trong cùng phiên
+        if seed is None:
+            seed = datetime.now().strftime("%Y%m%d")
+        self._rng = random.Random(str(seed))
 
     def _load_categories(self) -> set[str]:
         if not CATEGORIES_FILE.exists():
@@ -79,7 +88,7 @@ class ImagePicker:
             if not images:
                 continue
             fresh = [p for p in images if p not in self.used]
-            chosen = random.choice(fresh) if fresh else random.choice(images)
+            chosen = self._rng.choice(fresh) if fresh else self._rng.choice(images)
             self.used.add(chosen)
             if try_cat != cat:
                 log.info(f"Category '{cat}' trống → fallback 'default' → {chosen.name}")

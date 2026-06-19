@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import threading
 import logging
 from pathlib import Path
 
@@ -28,8 +29,20 @@ SCENES_FILE  = ROOT / "data" / "scenes.json"
 DICT_FILE    = ROOT / "data" / "tts_dictionary.json"
 OUTPUT_AUDIO = ROOT / "audio" / "voiceover.mp3"
 
+def _env_int(name: str, default: int) -> int:
+    val = os.getenv(name, "").strip()
+    if not val:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        return default
+
+
 TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge")
+TTS_PROVIDER_TIMEOUT = _env_int("TTS_PROVIDER_TIMEOUT", 120)
 AUDIO_SYNC_TOLERANCE_SECONDS = 0.5
+TIMING_GAP_TOLERANCE_SECONDS = 0.05  # ngưỡng phát hiện khe hở giữa các scene (MP3 rounding)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -260,12 +273,18 @@ def sync_scene_timing_to_audio(scenes: dict, dictionary: dict, audio_duration: f
 
     current_total = scenes.get("duration_seconds") or sum(float(s.get("duration", 0)) for s in scene_list)
     has_timing_gap = False
+    cumulative_drift = 0.0
     for idx, scene in enumerate(scene_list):
         start = float(scene.get("start", 0))
         duration = float(scene.get("duration", 0))
         if idx < len(scene_list) - 1:
             next_start = float(scene_list[idx + 1].get("start", 0))
-            if abs((start + duration) - next_start) > 0.0004:
+            gap = abs((start + duration) - next_start)
+            cumulative_drift += gap
+            # Trigger re-sync nếu 1 khe quá lớn, HOẶC tổng drift cộng dồn vượt
+            # ngưỡng tổng — tránh trường hợp nhiều khe nhỏ dưới tolerance đơn lẻ
+            # nhưng cộng lại làm voice lệch animation cuối video.
+            if gap > TIMING_GAP_TOLERANCE_SECONDS or cumulative_drift > AUDIO_SYNC_TOLERANCE_SECONDS:
                 has_timing_gap = True
                 break
 
@@ -325,19 +344,98 @@ def get_adapter(provider: str):
 PROVIDER_FALLBACK_ORDER = ["google", "edge", "fpt", "viettel", "openai", "espeak"]
 
 
-def synthesize_with_fallback(text: str, output: Path, primary: str) -> str:
-    """Thử primary trước, nếu fail thì thử lần lượt các fallback."""
+def _cleanup_partial(output_dir: Path) -> None:
+    """Xoá file tạm .tmp-tts-* còn sót từ lần chạy trước."""
+    if not output_dir.exists():
+        return
+    for stale in output_dir.glob(".tmp-tts-*"):
+        try:
+            stale.unlink()
+        except OSError:
+            pass
+
+
+def synthesize_with_fallback(text: str, output: Path, primary: str,
+                              timeout: int = TTS_PROVIDER_TIMEOUT) -> str:
+    """Thử primary trước, nếu timeout/fail thì sang fallback kế tiếp.
+
+    Mỗi provider có giới hạn ``timeout`` giây và ghi vào file tạm riêng
+    (``.tmp-tts-<provider>-<pid>.mp3``); chỉ khi provider hoàn tất, file
+    tạm mới được rename atomic sang ``output``. Cách này tránh race
+    condition: nếu provider primary bị timeout rồi mới hoàn tất muộn,
+    nó chỉ chạm file tạm của chính nó, không đè output của fallback.
+
+    Thread chạy synthesize là daemon → khi process exit, thread bị huỷ
+    luôn, pipeline không bị treo ở atexit.
+    """
+    output.parent.mkdir(parents=True, exist_ok=True)
+    _cleanup_partial(output.parent)
+
     order = [primary] + [p for p in PROVIDER_FALLBACK_ORDER if p != primary]
+    last_err: Exception | None = None
+
     for provider in order:
         try:
             adapter = get_adapter(provider)
-            log.info(f"Thử TTS provider: {provider}")
-            adapter.synthesize(text, output)
-            log.info(f"TTS thành công với provider: {provider}")
-            return provider
         except Exception as e:
-            log.warning(f"TTS provider '{provider}' thất bại: {e}")
-    raise RuntimeError("Tất cả TTS provider đều thất bại.")
+            log.warning(f"TTS provider '{provider}' khởi tạo lỗi: {e}")
+            last_err = e
+            continue
+
+        temp = output.parent / f".tmp-tts-{provider}-{os.getpid()}.mp3"
+        result: dict = {"err": None, "ok": False}
+
+        def _worker(_adapter=adapter, _temp=temp, _result=result):
+            try:
+                _adapter.synthesize(text, _temp)
+                _result["ok"] = True
+            except Exception as worker_err:  # pylint: disable=broad-except
+                _result["err"] = worker_err
+
+        log.info(f"Thử TTS provider: {provider} (timeout={timeout}s)")
+        t = threading.Thread(target=_worker, daemon=True, name=f"tts-{provider}")
+        t.start()
+        t.join(timeout)
+
+        if t.is_alive():
+            last_err = TimeoutError(f"{provider} timeout {timeout}s")
+            log.warning(
+                f"TTS provider '{provider}' timeout sau {timeout}s — bỏ qua, "
+                f"thread daemon sẽ tự huỷ khi process exit"
+            )
+            continue
+
+        if result["err"] is not None:
+            last_err = result["err"]
+            log.warning(f"TTS provider '{provider}' thất bại: {result['err']}")
+            if temp.exists():
+                try:
+                    temp.unlink()
+                except OSError:
+                    pass
+            continue
+
+        if not temp.exists() or temp.stat().st_size == 0:
+            last_err = RuntimeError(f"{provider} hoàn tất nhưng không tạo file output")
+            log.warning(f"TTS provider '{provider}' không có output hợp lệ — bỏ qua")
+            if temp.exists():
+                try:
+                    temp.unlink()
+                except OSError:
+                    pass
+            continue
+
+        try:
+            temp.replace(output)
+        except OSError as e:
+            last_err = e
+            log.warning(f"TTS provider '{provider}' rename lỗi: {e}")
+            continue
+
+        log.info(f"TTS thành công với provider: {provider}")
+        return provider
+
+    raise RuntimeError(f"Tất cả TTS provider đều thất bại. Lỗi cuối: {last_err}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
