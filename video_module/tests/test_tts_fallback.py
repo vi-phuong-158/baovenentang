@@ -3,6 +3,7 @@ chống race khi primary timeout xong vẫn cố ghi đè output."""
 
 import importlib
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -17,26 +18,34 @@ mv = importlib.import_module("scripts.04_make_voice")
 
 class _FakeAdapter:
     def __init__(self, name: str, behavior: str = "ok",
-                 delay: float = 0.0, payload: bytes = b"\x00" * 16):
+                 delay: float = 0.0, payload: bytes = b"\x00" * 16,
+                 done_event: threading.Event | None = None):
         self._name = name
         self.behavior = behavior
         self.delay = delay
         self.payload = payload
         self.called = False
+        self.done_event = done_event
 
     def synthesize(self, text, output):
         self.called = True
-        if self.delay:
-            time.sleep(self.delay)
-        if self.behavior == "ok":
-            Path(output).write_bytes(self.payload)
-            return
-        if self.behavior == "raise":
-            raise RuntimeError(f"{self._name} bị lỗi giả lập")
-        if self.behavior == "empty":
-            # Hoàn tất nhưng không ghi gì — sai bug
-            return
-        raise ValueError(f"behavior không hợp lệ: {self.behavior}")
+        try:
+            if self.delay:
+                time.sleep(self.delay)
+            if self.behavior == "ok":
+                Path(output).write_bytes(self.payload)
+                return
+            if self.behavior == "raise":
+                raise RuntimeError(f"{self._name} bị lỗi giả lập")
+            if self.behavior == "empty":
+                # Hoàn tất nhưng không ghi gì — sai bug
+                return
+            raise ValueError(f"behavior không hợp lệ: {self.behavior}")
+        finally:
+            # Báo hiệu thread đã chạy xong (kể cả nhánh return/raise) để test
+            # chờ chính xác thay vì sleep cứng theo wall-clock.
+            if self.done_event is not None:
+                self.done_event.set()
 
 
 def test_synthesize_uses_primary_when_ok(tmp_path):
@@ -88,7 +97,9 @@ def test_slow_primary_does_not_overwrite_fallback_output(tmp_path):
     """REGRESSION: trước fix, primary thread bị abandon vẫn ghi đè output.
     Bây giờ primary chỉ chạm temp file riêng, không ảnh hưởng output cuối."""
     out = tmp_path / "voice.mp3"
-    slow = _FakeAdapter("edge", "ok", delay=1.0, payload=b"PRIMARY_LATE_WRITE")
+    slow_done = threading.Event()
+    slow = _FakeAdapter("edge", "ok", delay=1.0, payload=b"PRIMARY_LATE_WRITE",
+                        done_event=slow_done)
     fast = _FakeAdapter("google", "ok", payload=b"FALLBACK_FAST")
 
     def factory(provider):
@@ -100,8 +111,8 @@ def test_slow_primary_does_not_overwrite_fallback_output(tmp_path):
     assert used == "google"
     assert out.read_bytes() == b"FALLBACK_FAST"
 
-    # Chờ đủ lâu để primary thread hoàn tất nếu nó còn sống
-    time.sleep(1.2)
+    # Chờ chính xác đến khi primary thread hoàn tất (không sleep cứng → hết flaky)
+    assert slow_done.wait(timeout=5), "primary thread không kết thúc trong 5s"
 
     # Output vẫn phải là của fallback, không bị primary ghi đè
     assert out.read_bytes() == b"FALLBACK_FAST", (

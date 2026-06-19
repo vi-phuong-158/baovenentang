@@ -96,7 +96,7 @@ function isAlreadyHandled_(message) {
   // Fallback: caption bắt đầu bằng cờ hiệu chuẩn (prefix + markdown bold) —
   // anchor đầu dòng để tránh false-positive khi nội dung bản tin trùng chữ.
   const caption = message.caption || '';
-  if (/^✅ \*ĐÃ DUYỆT VÀ ĐĂNG\*|^❌ \*ĐÃ TỪ CHỐI\*/.test(caption)) {
+  if (/^(✅ \*ĐÃ DUYỆT VÀ ĐĂNG\*|❌ \*ĐÃ TỪ CHỐI\*)/.test(caption)) {
     return true;
   }
   return false;

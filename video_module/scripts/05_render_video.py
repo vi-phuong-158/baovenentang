@@ -299,7 +299,7 @@ def _split_chunks(text: str,
         buf.append(tok)
         buf_chars = new_chars
 
-        last_char = tok[-1] if tok else ""
+        last_char = tok[-1]  # tok luôn khác rỗng vì text.split() bỏ token trống
         if last_char in ".!?":
             _flush()
         elif last_char in ",;:" and len(buf) >= 4:
@@ -430,6 +430,11 @@ def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
             total_w = sum(weights)
             t_cursor = start + sub_in_offset
             for i, w in enumerate(weights):
+                # Scene quá ngắn: nếu dòng kế tiếp sẽ hiện vào/đã qua thời điểm
+                # fade-out thì dừng, tránh phụ đề pop-in khi scene đang mờ đi.
+                # Luôn giữ ít nhất dòng đầu (i == 0) để không mất hết phụ đề.
+                if i > 0 and t_cursor >= out_t:
+                    break
                 lines.append(
                     f"  tl.to('#{sid}-sub-{i}', {{opacity:1, duration:{chunk_fade}}}, {t_cursor:.3f});"
                 )

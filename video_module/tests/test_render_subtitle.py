@@ -118,3 +118,29 @@ def test_gsap_block_emits_chunk_animations():
     assert "#intro-subtitle" in js
     # Không còn dùng stagger từng từ
     assert ".sub-word" not in js
+
+
+def test_gsap_block_short_scene_does_not_overflow_fadeout():
+    """Scene cực ngắn nhiều chunk: không được lên lịch fade-in dòng phụ đề
+    vào/đã qua thời điểm scene fade-out, nhưng vẫn phải giữ dòng đầu tiên."""
+    mod = load_render_module()
+    scenes = [
+        {
+            "id": "briefs",
+            "headline": "H",
+            "text": "T",
+            # Nhiều câu để tạo nhiều chunk trong một scene rất ngắn
+            "voiceover": "Một. Hai. Ba. Bốn. Năm. Sáu.",
+            "start": 0,
+            "duration": 1.5,
+        },
+    ]
+    js = mod.build_gsap_block(scenes, total_dur=1.5)
+    # Dòng đầu luôn được hiện
+    assert "#briefs-sub-0" in js
+    # out_t = start + dur - fade; mọi fade-in của sub-line phải nằm trước out_t
+    import re
+    fade = min(0.5, 1.5 * 0.08)
+    out_t = 0 + 1.5 - fade
+    for m in re.finditer(r"#briefs-sub-\d+'.*?opacity:1.*?,\s*([\d.]+)\);", js):
+        assert float(m.group(1)) < out_t, f"sub-line fade-in tại {m.group(1)} >= out_t {out_t}"
