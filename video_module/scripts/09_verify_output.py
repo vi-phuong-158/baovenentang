@@ -12,7 +12,8 @@ Kiểm tra trên bản đầy đủ (final.mp4):
   2. Có cả luồng video + audio
   3. Thời lượng >= MIN_DURATION_SECONDS
   4. Khung hình KHÔNG đen: trích vài frame, đo YAVG (độ sáng trung bình) > ngưỡng
-  5. Loudness tích hợp gần -16 LUFS (chỉ CẢNH BÁO, không chặn)
+  5. Hook hiện ngay frame đầu (FIRST_FRAME_T): YAVG > ngưỡng đen (RULE #2)
+  6. Loudness tích hợp gần -16 LUFS (chỉ CẢNH BÁO, không chặn)
 
 Bản ngắn (final_short.mp4) chỉ kiểm tra nhẹ và CẢNH BÁO — không chặn pipeline,
 vì nó là artifact tùy chọn.
@@ -32,13 +33,15 @@ load_dotenv(ROOT / ".env")
 
 FINAL_FULL  = ROOT / "output" / "final.mp4"
 FINAL_SHORT = ROOT / "output" / "final_short.mp4"
+FRAME0_JPG  = ROOT / "output" / "verify_frame0.jpg"   # frame đầu xuất ra để soi trực quan
 
 # ── Ngưỡng kiểm tra (RULE #8) ──────────────────────────────────────────────────
 MIN_DURATION_SECONDS = 45.0   # video đầy đủ phải dài tối thiểu 45s
 MIN_DURATION_SHORT   = 8.0    # bản ngắn tối thiểu 8s
 BLACK_YAVG_THRESHOLD = 12.0   # YAVG (0-255) <= ngưỡng coi như khung hình đen
+FIRST_FRAME_T        = 0.05   # giây — hook phải hiện đầy đủ NGAY frame đầu (RULE #2)
 TARGET_LUFS          = -16.0  # loudness mục tiêu
-LUFS_WARN_DELTA      = 6.0    # lệch quá ngưỡng này → cảnh báo
+LUFS_WARN_DELTA      = 3.0    # lệch quá ngưỡng này → cảnh báo (mục tiêu ~-16 LUFS)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -115,12 +118,26 @@ def frame_brightness(video: Path, t: float) -> float | None:
     return None
 
 
+def export_frame(video: Path, t: float, out: Path) -> bool:
+    """Xuất 1 frame tại giây t ra ảnh JPG (để soi trực quan khi cần kiểm duyệt)."""
+    cmd = [
+        FFMPEG, "-hide_banner", "-y", "-ss", f"{t:.3f}",
+        "-i", str(video),
+        "-frames:v", "1",
+        str(out),
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    return r.returncode == 0 and out.exists()
+
+
 def check_not_black(video: Path, duration: float) -> tuple[bool, float]:
     """
-    Trích vài frame rải đều (TRÁNH frame 0 vì hook fade-in), lấy YAVG lớn nhất.
+    Trích vài frame rải đều ở giữa/cuối video, lấy YAVG lớn nhất.
     Trả về (đạt?, YAVG_max). Đạt nếu có ít nhất 1 frame sáng hơn ngưỡng.
+
+    Frame đầu (hook) được kiểm riêng bằng check ở FIRST_FRAME_T (RULE #2 mới yêu cầu
+    hook hiện đầy đủ ngay frame đầu để thumbnail nền tảng không bị đen).
     """
-    # Bỏ qua frame 0: scene intro fade/pop-in nên giây 0 có thể tối (xem RULE #2).
     samples = sorted({
         min(2.0, duration * 0.1),
         duration * 0.5,
@@ -191,6 +208,21 @@ def verify_video(video: Path, *, min_duration: float, full: bool) -> list[str]:
         errors.append(
             f"{label}: khung hình có vẻ ĐEN (YAVG_max={y_max:.1f} <= {BLACK_YAVG_THRESHOLD})"
         )
+
+    # Hook ở frame đầu — chỉ áp dụng bản đầy đủ. Nền tảng dùng frame đầu làm thumbnail
+    # nên hook PHẢI hiện ngay, không được đen/trống (RULE #2).
+    if full:
+        y0 = frame_brightness(video, FIRST_FRAME_T)
+        export_frame(video, FIRST_FRAME_T, FRAME0_JPG)
+        if y0 is None:
+            log.warning(f"[{label}] không đọc được YAVG frame đầu @ {FIRST_FRAME_T}s — bỏ qua check.")
+        else:
+            log.info(f"[{label}] YAVG frame đầu @ {FIRST_FRAME_T}s = {y0:.1f}")
+            if y0 <= BLACK_YAVG_THRESHOLD:
+                errors.append(
+                    f"{label}: frame đầu @ {FIRST_FRAME_T}s ĐEN/TRỐNG (YAVG={y0:.1f} <= "
+                    f"{BLACK_YAVG_THRESHOLD}) — hook chưa hiện ngay, thumbnail nền tảng sẽ bị đen"
+                )
 
     # Loudness — chỉ áp dụng bản đầy đủ, CẢNH BÁO (không chặn)
     if full:

@@ -156,6 +156,13 @@ def run(
         return None
 
     output.parent.mkdir(exist_ok=True)
+
+    # Xóa bản short cũ NGAY đầu: nếu lần chạy hôm nay tạo short lỗi, không được để
+    # file short của lần chạy trước sót lại khiến bước đăng duyệt gửi nhầm bản cũ.
+    output.unlink(missing_ok=True)
+    tmp_output = output.with_suffix(".tmp.mp4")
+    tmp_output.unlink(missing_ok=True)
+
     max_seconds = _max_seconds()
 
     segments: list[tuple[float, float, str]] = []
@@ -170,17 +177,20 @@ def run(
         ids = ", ".join(sid for _, _, sid in segments)
         approx = sum(end - start for start, end, _ in segments)
         log.info(f"Bản ngắn gồm {len(segments)} scene [{ids}] ~{approx:.0f}s")
-        ok = render_segments(full_video, segments, output)
+        ok = render_segments(full_video, segments, tmp_output)
     else:
         log.warning(f"Không xác định được scene — cắt {max_seconds:.0f}s đầu của final.mp4.")
-        ok = trim_head(full_video, max_seconds, output)
+        ok = trim_head(full_video, max_seconds, tmp_output)
 
-    if ok and output.exists():
+    # Chỉ "công bố" bản short khi render thành công: thay thế nguyên tử từ file tạm.
+    if ok and tmp_output.exists() and tmp_output.stat().st_size > 0:
+        os.replace(tmp_output, output)
         size_mb = output.stat().st_size / (1024 * 1024)
         log.info(f"→ {output.name} ({size_mb:.1f} MB)")
         return output
 
-    log.warning("Không tạo được bản ngắn — pipeline vẫn tiếp tục với bản đầy đủ.")
+    tmp_output.unlink(missing_ok=True)
+    log.warning("Không tạo được bản ngắn — pipeline vẫn tiếp tục với bản đầy đủ (đã xóa short cũ).")
     return None
 
 

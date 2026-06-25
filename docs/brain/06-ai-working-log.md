@@ -51,6 +51,26 @@ Khi tiep tuc soi chuoi cung ung RAG, phat hien ly do "khong lay duoc can cu" pha
 4. `syncTccsApprovedChunksToPinecone()` va/hoac `syncTroLy35KnowledgeToPinecone()`.
 5. `testTroLy35Setup()` -> xac nhan probe Pinecone > 0 match.
 
+## [2026-06-20] Khac phuc finding review nang cap video tu dong
+
+### Noi dung thuc hien
+- `video_module/scripts/08_make_short.py`: xoa `final_short.mp4` cu ngay dau, render qua `final_short.tmp.mp4`, chi thay file dich khi FFmpeg thanh cong de tranh gui nham short cu.
+- `video_module/daily_run.py`: doi thu tu pipeline thanh nen -> tao short -> verify -> dang duyet.
+- `video_module/scripts/07_post_telegram_review.py`: chi gui short neu `mtime(short) >= mtime(final.mp4)`.
+- `video_module/scripts/09_verify_output.py`: them check hook o frame dau `FIRST_FRAME_T=0.05s`, xuat `output/verify_frame0.jpg`, siet canh bao loudness ve nguong 3 LUFS.
+- `video_module/scripts/06_compress_video.py`: dung pool SFX va round-robin transition, giu loudnorm/SFX tuy chon va guard file >50MB.
+
+### Rui ro
+- Verify frame dau co the chan cac video intro fade-in cham theo pipeline cu; pipeline hien tai yeu cau hook hien ngay tu frame dau.
+- Short van la artifact tuy chon: neu tao short fail, pipeline tiep tuc voi video day du nhung khong con gui short cu.
+
+### Kiem thu
+- Chay `python -m py_compile` cho cac script video lien quan.
+- Chay `python -m pytest tests -q` trong `video_module`.
+- Test thu cong: chay `python scripts/09_verify_output.py` sau khi co `output/final.mp4`, kiem tra `output/verify_frame0.jpg`.
+
+---
+
 ## [2026-06-13] Tro ly 35 truy cap tu do (an o nhap ma, proxy tiem ma chung)
 
 ### File da sua

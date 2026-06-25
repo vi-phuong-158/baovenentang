@@ -190,6 +190,14 @@ def send_short_if_present() -> None:
     """Gửi kèm bản ngắn ~30s (nếu có) để cán bộ xem trước bản dùng cho TikTok/Reels. Không chặn nếu lỗi."""
     if not SHORT_FILE.exists():
         return
+    # Chống gửi nhầm bản short cũ: chỉ gửi nếu short được tạo cùng/đợt sau bản đầy đủ
+    # vừa render. Nếu short cũ hơn final.mp4 → là tàn dư lần chạy trước, bỏ qua.
+    try:
+        if VIDEO_FILE.exists() and SHORT_FILE.stat().st_mtime < VIDEO_FILE.stat().st_mtime:
+            log.warning("final_short.mp4 cũ hơn final.mp4 — bỏ qua bản ngắn (tránh gửi bản lỗi thời).")
+            return
+    except OSError:
+        pass
     caption = (
         "🎬 *Bản ngắn ~30s — TikTok / Reels / Shorts*\n\n"
         "Cắt tự động từ bản đầy đủ ở trên. Dùng để đăng kênh video ngắn sau khi bản đầy đủ được duyệt."

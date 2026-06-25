@@ -117,3 +117,13 @@ Kết quả:
 4. Restore và re-index CodeGraph.
 5. Làm SFX rotation/cycle.
 6. Siết cảnh báo loudness.
+
+## Trạng thái khắc phục (2026-06-20)
+
+- [x] **Finding 1 (P1)** — `08_make_short.py` xóa short cũ + render qua `final_short.tmp.mp4` rồi `os.replace`; `daily_run.py` đổi thứ tự nén → short → verify → đăng duyệt; `07_post_telegram_review.py` chỉ gửi short khi `mtime >= final.mp4`.
+- [x] **Finding 2 (P2)** — `09_verify_output.py` thêm check hook tại `FIRST_FRAME_T=0.05s`, xuất `verify_frame0.jpg`, bỏ comment cũ về fade-in.
+- [x] **Finding 3 (P2)** — `.codegraph/.gitignore` đã restore. (Cần chạy lại `codegraph init -i` trên máy để tái tạo index.)
+- [x] **Finding 4 (P3)** — `find_sfx_pool` + round-robin transition trong `build_sfx_events`.
+- [x] **Finding 5 (P3)** — `LUFS_WARN_DELTA` 6.0 → 3.0.
+
+Kiểm thử sau khắc phục: `py_compile` OK · `pytest tests` 87 passed · `09_verify_output.py` PASSED (check frame đầu + cảnh báo loudness mới đều kích hoạt) · test rời SFX rotation đạt.

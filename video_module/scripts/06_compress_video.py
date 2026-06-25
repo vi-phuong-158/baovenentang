@@ -159,7 +159,8 @@ def _sfx_enabled() -> bool:
 
 
 def find_sfx_pool(category: str) -> list[Path]:
-    """Trả về danh sách file SFX khớp các tên ứng viên của category để luân phiên."""
+    """Trả về DANH SÁCH file SFX khớp các tên ứng viên của category (để luân phiên,
+    tránh lặp đúng một tiếng ở mọi chuyển cảnh — RULE #6)."""
     if not SFX_DIR.exists():
         return []
     pool: list[Path] = []
@@ -173,7 +174,8 @@ def find_sfx_pool(category: str) -> list[Path]:
 
 def build_sfx_events(scenes: dict) -> list[tuple[Path, float, float]]:
     """Tạo danh sách (file, thời điểm giây, âm lượng dB) từ scenes.json:
-    chuyển cảnh dùng SFX transition luân phiên; hook/cta ưu tiên SFX riêng."""
+    chuyển cảnh dùng SFX transition LUÂN PHIÊN (round-robin) để không lặp một tiếng;
+    hook (intro) và cta ưu tiên SFX riêng, thiếu thì fallback sang pool transition."""
     scene_list = sorted(scenes.get("scenes", []), key=lambda s: float(s.get("start", 0)))
     if not scene_list:
         return []
@@ -185,7 +187,7 @@ def build_sfx_events(scenes: dict) -> list[tuple[Path, float, float]]:
     cta_sfx  = cta_pool[0]  if cta_pool  else (transition_pool[0] if transition_pool else None)
 
     events: list[tuple[Path, float, float]] = []
-    trans_i = 0
+    trans_i = 0  # con trỏ round-robin qua transition_pool
 
     def next_transition() -> Path | None:
         nonlocal trans_i
