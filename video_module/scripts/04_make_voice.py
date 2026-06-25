@@ -51,6 +51,8 @@ log = logging.getLogger(__name__)
 
 GOV_DOC_RE   = re.compile(r"\b(\d{1,4})/(\d{4})/([A-ZĐa-zđ][A-ZĐa-zđ0-9]{1,11}(?:-[A-ZĐa-zđ]{2,10})?)\b")
 PARTY_DOC_RE = re.compile(r"\b(\d{1,4})-([A-ZĐ]{2,4}/TW)\b")
+# Số hiệu KHÔNG kèm năm: 749/QĐ-TTg, 12/CT-TTg ... (phải chạy SAU GOV_DOC_RE)
+NOYEAR_DOC_RE = re.compile(r"\b(\d{1,4})/([A-ZĐ]{1,3}-[A-ZĐa-zđ]{2,8})\b")
 
 
 # ── Normalizer ────────────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ def spell_digits(s: str) -> str:
 
 
 def _doc_type_label(suffix: str, dictionary: dict) -> str:
-    """Tra doc_type_label từ suffix văn bản."""
+    """Tra cụm phát hành đầy đủ (vd 'Nghị định của Chính phủ') từ suffix văn bản."""
     prefix_map = dictionary.get("doc_type_prefix", {})
     su = suffix.upper()
     for k, v in prefix_map.items():
@@ -74,39 +76,51 @@ def _doc_type_label(suffix: str, dictionary: dict) -> str:
     return suffix
 
 
+def _doc_label(su: str, dictionary: dict) -> str:
+    """Tra nhãn loại văn bản ('Nghị định số'...) theo tiền tố suffix (đã upper)."""
+    for k, v in dictionary.get("doc_type_label", {}).items():
+        if su.startswith(k.upper()):
+            return v
+    return "Văn bản số"
+
+
+def _doc_body(label: str, issuer_phrase: str) -> str:
+    """Bỏ phần loại văn bản trùng ở đầu cụm phát hành để tránh đọc lặp.
+    label='Nghị định số', issuer_phrase='Nghị định của Chính phủ' → 'của Chính phủ'."""
+    doc_word = label.replace(" số", "").strip()
+    if doc_word and issuer_phrase.startswith(doc_word):
+        return issuer_phrase[len(doc_word):].strip()
+    return issuer_phrase
+
+
 def expand_gov_doc(m: re.Match, dictionary: dict) -> str:
     """181/2026/NĐ-CP → 'Nghị định số một tám một năm hai không hai sáu của Chính phủ'."""
     num, year, suffix = m.group(1), m.group(2), m.group(3)
     issuer = _doc_type_label(suffix, dictionary)
-
-    # Tìm label loại văn bản
-    label_map = dictionary.get("doc_type_label", {})
-    su = suffix.upper()
-    label = "Văn bản số"
-    for k, v in label_map.items():
-        if su.startswith(k):
-            label = v
-            break
-
-    # Đọc số: "181" → "một tám một", "2026" → "hai không hai sáu"
-    num_spoken  = spell_digits(num)
-    year_spoken = spell_digits(year)
-    return f"{label} {num_spoken} năm {year_spoken} {issuer}"
+    label = _doc_label(suffix.upper(), dictionary)
+    body = _doc_body(label, issuer)
+    return f"{label} {spell_digits(num)} năm {spell_digits(year)} {body}".strip()
 
 
 def expand_party_doc(m: re.Match, dictionary: dict) -> str:
-    """57-NQ/TW → 'Nghị quyết số năm mươi bảy của Bộ Chính trị'."""
+    """57-NQ/TW → 'Nghị quyết số năm bảy của Bộ Chính trị'."""
     num, suffix = m.group(1), m.group(2)
     issuer = _doc_type_label(suffix, dictionary)
-    label_map = dictionary.get("doc_type_label", {})
-    su = suffix.split("/")[0].upper()
-    label = "Văn bản số"
-    for k, v in label_map.items():
-        if su.startswith(k):
-            label = v
-            break
-    num_spoken = spell_digits(num)
-    return f"{label} {num_spoken} {issuer}"
+    label = _doc_label(suffix.split("/")[0].upper(), dictionary)
+    body = _doc_body(label, issuer)
+    return f"{label} {spell_digits(num)} {body}".strip()
+
+
+def expand_noyear_doc(m: re.Match, dictionary: dict) -> str:
+    """749/QĐ-TTg → 'Quyết định số bảy bốn chín của Thủ tướng Chính phủ'.
+    Chỉ mở rộng khi nhận diện được suffix; nếu không, để nguyên tránh đọc hỏng."""
+    num, suffix = m.group(1), m.group(2)
+    issuer = _doc_type_label(suffix, dictionary)
+    if issuer == suffix:
+        return m.group(0)
+    label = _doc_label(suffix.split("-")[0].upper(), dictionary)
+    body = _doc_body(label, issuer)
+    return f"{label} {spell_digits(num)} {body}".strip()
 
 
 def expand_abbreviations(text: str, dictionary: dict) -> str:
@@ -121,11 +135,13 @@ def expand_abbreviations(text: str, dictionary: dict) -> str:
 
 def normalize_text(text: str, dictionary: dict) -> str:
     """Chuẩn hoá text voiceover trước khi gửi TTS."""
-    # 1. Expand số hiệu văn bản Chính phủ
+    # 1. Expand số hiệu văn bản Chính phủ (có năm) — phải chạy TRƯỚC NOYEAR
     text = GOV_DOC_RE.sub(lambda m: expand_gov_doc(m, dictionary), text)
-    # 2. Expand số hiệu văn bản Đảng
+    # 2. Expand số hiệu văn bản Đảng (-XX/TW)
     text = PARTY_DOC_RE.sub(lambda m: expand_party_doc(m, dictionary), text)
-    # 3. Expand viết tắt
+    # 3. Expand số hiệu không kèm năm (749/QĐ-TTg, 12/CT-TTg)
+    text = NOYEAR_DOC_RE.sub(lambda m: expand_noyear_doc(m, dictionary), text)
+    # 4. Expand viết tắt
     text = expand_abbreviations(text, dictionary)
     return text
 

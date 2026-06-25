@@ -8,6 +8,7 @@ Mục tiêu: < 50 MB. Nếu vượt, tăng CRF tự động.
 """
 
 import os
+import json
 import subprocess
 import sys
 import logging
@@ -21,11 +22,24 @@ load_dotenv(ROOT / ".env")
 
 VIDEO_RAW  = ROOT / "output" / "video_raw.mp4"
 AUDIO_FILE = ROOT / "audio" / "voiceover.mp3"
+SCENES_FILE = ROOT / "data" / "scenes.json"
 OUTPUT     = ROOT / "output" / "final.mp4"
 TEMP_FILE  = ROOT / "output" / "final_with_audio.mp4"
+TEMP_SFX   = ROOT / "output" / "final_with_sfx.mp4"
 
 MUSIC_DIR  = ROOT / "assets" / "music"
 MUSIC_EXTS = (".mp3", ".m4a", ".wav", ".ogg", ".aac")
+
+# ── SFX (RULE #6) — tùy chọn, đọc từ assets/sfx/, tự bỏ qua nếu trống ──────────
+SFX_DIR  = ROOT / "assets" / "sfx"
+SFX_EXTS = (".wav", ".mp3", ".ogg", ".m4a", ".aac")
+# Mỗi "loại" SFX thử lần lượt các tên file (không phân biệt phần mở rộng).
+SFX_MAP = {
+    "transition": ["whoosh", "swoosh", "transition", "swipe"],
+    "hook":       ["pop", "notify", "ding"],
+    "cta":        ["success", "ding", "chime", "notify"],
+}
+SFX_DB = {"transition": -14.0, "hook": -12.0, "cta": -12.0}
 
 MAX_SIZE_MB = 50
 CRF_DEFAULT = 24   # bắt đầu chất lượng cao hơn; tăng CRF tự động nếu vượt size
@@ -34,6 +48,10 @@ CRF_DEFAULT = 24   # bắt đầu chất lượng cao hơn; tăng CRF tự độ
 # Bật bằng ALLOW_OVERSIZE_OUTPUT=1 trong .env hoặc CLI env var.
 ALLOW_OVERSIZE = os.getenv("ALLOW_OVERSIZE_OUTPUT", "").strip().lower() in ("1", "true", "yes")
 CRF_MAX     = 32
+
+# Loudness mục tiêu (RULE #8 loha-video-maker) — chuẩn hoá ở bước nén cuối.
+TARGET_LUFS = -16.0
+LOUDNORM_AF = f"loudnorm=I={TARGET_LUFS}:TP=-1.5:LRA=11"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -136,14 +154,108 @@ def merge_audio_with_music(video: Path, voice: Path, music: Path, out: Path, mus
     return _run_ffmpeg(cmd, "merge+music", fatal=False)
 
 
+def _sfx_enabled() -> bool:
+    return os.getenv("SFX_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def find_sfx_pool(category: str) -> list[Path]:
+    """Trả về danh sách file SFX khớp các tên ứng viên của category để luân phiên."""
+    if not SFX_DIR.exists():
+        return []
+    pool: list[Path] = []
+    for base in SFX_MAP.get(category, []):
+        for ext in SFX_EXTS:
+            p = SFX_DIR / f"{base}{ext}"
+            if p.exists() and p not in pool:
+                pool.append(p)
+    return pool
+
+
+def build_sfx_events(scenes: dict) -> list[tuple[Path, float, float]]:
+    """Tạo danh sách (file, thời điểm giây, âm lượng dB) từ scenes.json:
+    chuyển cảnh dùng SFX transition luân phiên; hook/cta ưu tiên SFX riêng."""
+    scene_list = sorted(scenes.get("scenes", []), key=lambda s: float(s.get("start", 0)))
+    if not scene_list:
+        return []
+    transition_pool = find_sfx_pool("transition")
+    hook_pool       = find_sfx_pool("hook")
+    cta_pool        = find_sfx_pool("cta")
+
+    hook_sfx = hook_pool[0] if hook_pool else (transition_pool[0] if transition_pool else None)
+    cta_sfx  = cta_pool[0]  if cta_pool  else (transition_pool[0] if transition_pool else None)
+
+    events: list[tuple[Path, float, float]] = []
+    trans_i = 0
+
+    def next_transition() -> Path | None:
+        nonlocal trans_i
+        if not transition_pool:
+            return None
+        f = transition_pool[trans_i % len(transition_pool)]
+        trans_i += 1
+        return f
+
+    for s in scene_list:
+        sid   = s.get("id", "")
+        start = float(s.get("start", 0))
+        if sid == "intro":
+            if hook_sfx:
+                events.append((hook_sfx, max(0.0, start + 0.15), SFX_DB["hook"]))
+        elif sid == "cta":
+            if cta_sfx:
+                events.append((cta_sfx, start, SFX_DB["cta"]))
+            elif start > 0.05:
+                t = next_transition()
+                if t:
+                    events.append((t, start, SFX_DB["transition"]))
+        elif start > 0.05:
+            t = next_transition()
+            if t:
+                events.append((t, start, SFX_DB["transition"]))
+    return events
+
+
+def mix_sfx(video_with_audio: Path, events: list[tuple[Path, float, float]], out: Path) -> bool:
+    """Chèn các SFX vào đúng giây trên audio sẵn có (giọng [+ nhạc]). Không fatal."""
+    inputs: list[str] = ["-i", str(video_with_audio)]
+    for f, _, _ in events:
+        inputs += ["-i", str(f)]
+
+    parts, labels = [], []
+    for i, (_f, t, db) in enumerate(events):
+        ms = max(0, int(round(t * 1000)))
+        idx = i + 1
+        parts.append(
+            f"[{idx}:a]aformat=sample_rates=44100:channel_layouts=stereo,"
+            f"volume={db}dB,adelay={ms}|{ms}[s{i}]"
+        )
+        labels.append(f"[s{i}]")
+
+    n = len(events) + 1
+    filter_complex = (
+        ";".join(parts)
+        + ";[0:a]" + "".join(labels)
+        + f"amix=inputs={n}:duration=first:normalize=0[aout]"
+    )
+    cmd = [find_ffmpeg(), "-y"] + inputs + [
+        "-filter_complex", filter_complex,
+        "-map", "0:v:0", "-map", "[aout]",
+        "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "160k",
+        str(out),
+    ]
+    return _run_ffmpeg(cmd, "sfx", fatal=False)
+
+
 def compress(src: Path, out: Path, crf: int = CRF_DEFAULT) -> None:
-    """Nén H.264/AAC với CRF cho trước."""
+    """Nén H.264/AAC với CRF cho trước; chuẩn hoá loudness về ~-16 LUFS (RULE #8)."""
     cmd = [
         find_ffmpeg(), "-y",
         "-i", str(src),
         "-c:v", "libx264",
         "-crf", str(crf),
         "-preset", "medium",
+        "-af", LOUDNORM_AF,
         "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         str(out),
@@ -180,11 +292,32 @@ def run(
     if not used_music:
         merge_audio(video_raw, audio_file, TEMP_FILE)
 
+    # Bước 1b: chèn SFX (tùy chọn) — bỏ qua nếu tắt hoặc không có file trong assets/sfx/
+    compress_src = TEMP_FILE
+    if _sfx_enabled():
+        events: list[tuple[Path, float, float]] = []
+        if SCENES_FILE.exists():
+            try:
+                scenes = json.loads(SCENES_FILE.read_text(encoding="utf-8"))
+                events = build_sfx_events(scenes)
+            except Exception as e:  # noqa: BLE001 — SFX là tùy chọn
+                log.warning(f"Đọc scenes.json cho SFX lỗi ({e}) — bỏ qua SFX.")
+        if events:
+            log.info(f"Chèn {len(events)} SFX vào {SFX_DIR.name}/...")
+            if mix_sfx(TEMP_FILE, events, TEMP_SFX):
+                compress_src = TEMP_SFX
+            else:
+                log.warning("Trộn SFX thất bại — dùng audio không SFX.")
+        else:
+            log.info("Không có file SFX phù hợp trong assets/sfx/ — bỏ qua SFX.")
+    else:
+        log.info("SFX_ENABLED=0 — bỏ qua SFX.")
+
     # Bước 2: nén, tăng CRF nếu vượt 50 MB
     crf = CRF_DEFAULT
     final_mb = float("inf")
     while crf <= CRF_MAX:
-        compress(TEMP_FILE, output, crf)
+        compress(compress_src, output, crf)
         final_mb = output.stat().st_size / (1024 * 1024)
         log.info(f"CRF={crf} → {final_mb:.1f} MB")
         if final_mb <= MAX_SIZE_MB:
@@ -193,6 +326,7 @@ def run(
 
     # Dọn file trung gian
     TEMP_FILE.unlink(missing_ok=True)
+    TEMP_SFX.unlink(missing_ok=True)
 
     if final_mb > MAX_SIZE_MB:
         msg = (

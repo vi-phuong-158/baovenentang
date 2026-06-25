@@ -163,7 +163,7 @@ body {
 /* Content Area & Glass Card */
 .content {
   position: absolute;
-  top: 240px; bottom: 380px; left: 0; right: 0;
+  top: 240px; bottom: 560px; left: 0; right: 0;
   display: flex; align-items: center; justify-content: center;
   padding: 0 60px;
 }
@@ -213,9 +213,10 @@ body {
   letter-spacing: 1px;
 }
 
-/* Subtitle bubble — chia thành nhiều dòng ngắn, hiển thị lần lượt */
+/* Subtitle bubble — đặt ở vùng an toàn (RULE #3): cách đáy ~380px để không
+   bị UI TikTok/Reels/Shorts (nút tương tác, caption, username) che khuất. */
 .subtitle-bar {
-  position:absolute; bottom:140px; left:80px; right:80px;
+  position:absolute; bottom:380px; left:80px; right:80px;
   min-height: 140px;
   padding: 28px 40px;
   border-radius: 28px;
@@ -314,6 +315,32 @@ DOC_NUM_RE = re.compile(r"(\b\d+/\d+/[A-ZĐa-zđ0-9-]+|\b\d+-[A-ZĐ]+/TW|\b\d+/[
 
 def wrap_doc_numbers(text: str) -> str:
     return DOC_NUM_RE.sub(r'<span style="white-space: nowrap;">\1</span>', text)
+
+
+def _norm_token(w: str) -> str:
+    """Chuẩn hoá 1 từ để so khớp keyword: bỏ dấu câu hai đầu, về chữ thường (giữ dấu tiếng Việt)."""
+    return re.sub(r"^\W+|\W+$", "", w, flags=re.UNICODE).lower()
+
+
+def keyword_mask(words: list[str], keywords) -> list[bool]:
+    """Đánh dấu các từ thuộc một cụm keyword (RULE #3 — tô accent).
+    Khớp theo CỤM liên tiếp nguyên văn để tránh tô nhầm từ dừng (vd 'an' trong 'Bộ Công an')."""
+    mask = [False] * len(words)
+    if not keywords or not isinstance(keywords, (list, tuple)):
+        return mask
+    norm_words = [_norm_token(w) for w in words]
+    for kw in keywords:
+        if not isinstance(kw, str):
+            continue
+        kw_tokens = [t for t in (_norm_token(x) for x in kw.split()) if t]
+        if not kw_tokens:
+            continue
+        n = len(kw_tokens)
+        for i in range(len(norm_words) - n + 1):
+            if norm_words[i:i + n] == kw_tokens:
+                for k in range(n):
+                    mask[i + k] = True
+    return mask
 
 
 def build_scene_div(scene: dict, bg_image_rel: str | None = None) -> str:
@@ -415,14 +442,20 @@ def build_gsap_block(scenes: list[dict], total_dur: float) -> str:
         chunk_fade = 0.25     # thời gian crossfade giữa 2 dòng phụ đề
 
         lines.append(f"  // {sid}: {start}s → {start+dur}s")
-        lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
+        if sid == "intro":
+            # RULE #2: intro hiển thị đầy đủ từ frame 0 (set ở init_js) để thumbnail
+            # nền tảng không bị đen/trống. Chỉ chạy Ken Burns + phụ đề.
+            lines.append(f"  // {sid}: hook tĩnh từ frame 0, không animate vào")
+        else:
+            lines.append(f"  tl.to('#scene-{sid}', {{opacity:1, duration:{fade}}}, {start+0.1});")
+            lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
+            lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
+            if sid != "message":
+                lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
+            lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
+
         # Ken Burns: zoom nhẹ ảnh nền suốt thời lượng scene
         lines.append(f"  tl.fromTo('#bg-{sid}', {{scale:1.0}}, {{scale:1.08, duration:{dur}, ease:'none'}}, {start});")
-        lines.append(f"  tl.to('#scene-{sid} .logo-strip', {{opacity:1, y:0, duration:{fade}}}, {start+0.2});")
-        lines.append(f"  tl.to('#scene-{sid} .content-card', {{opacity:1, y:0, duration:{fade}}}, {start+0.25});")
-        if sid != "message":
-            lines.append(f"  tl.to('#{sid}-headline', {{opacity:1, y:0, duration:{fade}}}, {start+0.35});")
-        lines.append(f"  tl.to('#{sid}-text, #{sid}-url', {{opacity:1, duration:{fade}}}, {start+0.5});")
 
         if n_chunks > 0:
             lines.append(f"  tl.to('#{sid}-subtitle', {{opacity:1, duration:{fade}}}, {start+0.5});")
@@ -463,11 +496,21 @@ def generate_index_html(scenes: dict, scene_bg_map: dict[str, str | None] | None
     init_js_parts = []
     for s in scene_list:
         sid = s["id"]
-        init_js_parts.append(
-            f"  gsap.set(['#scene-{sid}', '#scene-{sid} .logo-strip', '#scene-{sid} .content-card', "
-            f"'#{sid}-headline', '#{sid}-text', '#{sid}-url', '#{sid}-subtitle'], "
-            f"{{opacity:0, y:30}});"
-        )
+        if sid == "intro":
+            # RULE #2: HOOK hiện ĐẦY ĐỦ ngay frame 0 (thumbnail nền tảng = frame 0).
+            # Intro hiển thị tĩnh từ đầu; chỉ giữ phụ đề ẩn tới khi có lời đọc.
+            init_js_parts.append(
+                f"  gsap.set(['#scene-{sid}', '#scene-{sid} .logo-strip', '#scene-{sid} .content-card', "
+                f"'#{sid}-headline', '#{sid}-text', '#{sid}-url'], "
+                f"{{opacity:1, y:0}});"
+            )
+            init_js_parts.append(f"  gsap.set('#{sid}-subtitle', {{opacity:0, y:30}});")
+        else:
+            init_js_parts.append(
+                f"  gsap.set(['#scene-{sid}', '#scene-{sid} .logo-strip', '#scene-{sid} .content-card', "
+                f"'#{sid}-headline', '#{sid}-text', '#{sid}-url', '#{sid}-subtitle'], "
+                f"{{opacity:0, y:30}});"
+            )
         init_js_parts.append(
             f"  gsap.set('#scene-{sid} .sub-line', {{opacity:0}});"
         )

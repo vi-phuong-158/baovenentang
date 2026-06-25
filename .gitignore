@@ -1,5 +1,9 @@
 tools/.env
 *.env
+.env.local
+**/.env.local
+web/*.log
+web/.*.log
 web/node_modules/
 web/dist/
 backend/.clasp.json

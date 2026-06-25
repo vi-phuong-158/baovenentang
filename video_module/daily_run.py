@@ -153,6 +153,7 @@ STEPS = [
     ("Sinh voiceover",    ROOT / "scripts" / "04_make_voice.py"),
     ("Render video",      ROOT / "scripts" / "05_render_video.py"),
     ("Nén + ghép audio",  ROOT / "scripts" / "06_compress_video.py"),
+    ("Verify output",     ROOT / "scripts" / "09_verify_output.py"),
     ("Tạo bản ngắn 30s",  ROOT / "scripts" / "08_make_short.py"),
     ("Đăng nhóm duyệt",  ROOT / "scripts" / "07_post_telegram_review.py"),
 ]
