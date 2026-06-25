@@ -677,10 +677,11 @@ ${content}
 
 Trả về JSON đúng schema. Quy tắc bắt buộc:
 1. Nếu nội dung là yêu cầu phản bác một quan điểm (VD: "phản bác quan điểm cho rằng X", "bác bỏ luận điểm X", "chứng minh sai X"...), hãy trích xuất luận điểm X cần phản bác, đặt co_luan_dieu_sai_trai=true, và ghi luận điểm đó vào luan_diem_sai. Phân tích luận điểm X như thể đó là nội dung cần phản hồi.
-2. Nếu không thấy luận điệu sai trái rõ ràng và không phải yêu cầu phản bác, đặt co_luan_dieu_sai_trai=false và giải thích ngắn trong muc_tieu_chinh_tri.
-3. chu_de phải chọn gần nhất trong danh sách: ${topicList}.
-4. do_nguy_hiem là số nguyên 1-5.
-5. Thêm canh_bao_an_toan nếu nội dung có nguy cơ nhạy cảm, thiếu nguồn hoặc cần người duyệt.`;
+2. Ở chế độ "${TROLY35_MODES.REBUTTAL}", người dùng đang chủ động muốn phản bác: nếu nội dung chứa quan điểm một chiều, gây tranh cãi, suy diễn hoặc có dấu hiệu xuyên tạc/sai lệch, hãy trích thành luận điểm cần phản bác (ghi vào luan_diem_sai) và đặt co_luan_dieu_sai_trai=true. Chỉ đặt co_luan_dieu_sai_trai=false khi nội dung hoàn toàn trung lập, khách quan hoặc đã đúng chủ trương, đường lối.
+3. Nếu không thấy luận điệu sai trái rõ ràng và không thuộc các trường hợp trên, đặt co_luan_dieu_sai_trai=false và giải thích ngắn trong muc_tieu_chinh_tri.
+4. chu_de phải chọn gần nhất trong danh sách: ${topicList}.
+5. do_nguy_hiem là số nguyên 1-5.
+6. Thêm canh_bao_an_toan nếu nội dung có nguy cơ nhạy cảm, thiếu nguồn hoặc cần người duyệt.`;
 
   const analysis = troLy35CallGeminiJson_(prompt, TROLY35_ANALYSIS_SCHEMA);
   return troLy35NormalizeAnalysis_(analysis);
@@ -701,7 +702,12 @@ function troLy35BuildArticleAnalysis_(content, topicHint) {
 }
 
 function troLy35GenerateRebuttalDraft_(content, analysis, knowledge, style, conversationBlock) {
-  if (analysis.co_luan_dieu_sai_trai === false) {
+  const hasKnowledge = Array.isArray(knowledge) && knowledge.length > 0;
+
+  // Chỉ trả về bản dè dặt khi VỪA không phát hiện luận điểm sai trái rõ ràng,
+  // VỪA không có tư liệu RAG nào để làm căn cứ. Nếu đã lấy được tư liệu liên quan,
+  // vẫn sinh bản nháp phản bác dựa trên tư liệu đó (tránh "có tư liệu nhưng 0 căn cứ").
+  if (analysis.co_luan_dieu_sai_trai === false && !hasKnowledge) {
     return {
       phien_ban_day_du: 'Chưa phát hiện luận điểm sai trái rõ ràng trong nội dung đã nhập. Nên rà soát thêm ngữ cảnh và nguồn trước khi phản hồi.',
       phien_ban_comment: 'Mình chưa thấy đủ căn cứ để kết luận nội dung này là sai trái. Nên kiểm tra thêm nguồn gốc và bối cảnh trước khi bình luận.',
@@ -716,9 +722,12 @@ function troLy35GenerateRebuttalDraft_(content, analysis, knowledge, style, conv
   const feedbackHints = troLy35GetFeedbackHints_();
   const styleBlock = troLy35StylePrompt_(style);
   const convoBlock = conversationBlock || '';
+  const uncertainBlock = analysis.co_luan_dieu_sai_trai === false
+    ? '\nLƯU Ý: Phân tích chưa khẳng định chắc chắn nội dung là sai trái, nhưng đã có tư liệu liên quan trong kho. Hãy bám vào tư liệu RAG để cung cấp căn cứ, lập luận đúng mực, nêu rõ điểm còn cần kiểm chứng trong ghi_chu thay vì từ chối phản hồi.\n'
+    : '';
 
   const prompt = `Bạn là trợ lý soạn bản nháp phản hồi cho cán bộ con người. Hãy viết tự tin, có lập luận rõ ràng, không công kích cá nhân, không kêu gọi spam, không tự động đăng lên mạng xã hội.
-${feedbackHints}${styleBlock}
+${feedbackHints}${styleBlock}${uncertainBlock}
 NỘI DUNG GỐC:
 """
 ${content}

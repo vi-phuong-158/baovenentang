@@ -4,6 +4,35 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-06-25] Tro ly 35: noi rang buoc RAG phan bac (lay duoc can cu)
+
+### Van de
+Mode `rebuttal` thuong tra ve "Chua du can cu" / 0 dan chung du kho RAG co tu lieu lien quan.
+
+### Nguyen nhan goc (chan doan)
+1. **Cong chan cung** trong `troLy35GenerateRebuttalDraft_`: khi `analysis.co_luan_dieu_sai_trai === false` thi tra ve ban de dat va **vut bo toan bo `knowledge` da lay tu RAG** (`dan_chung_su_dung: []`).
+2. **Prompt phan tich qua de dat**: `troLy35AnalyzeInput_` de gan `co_luan_dieu_sai_trai=false` cho noi dung mo ho, ke ca khi nguoi dung dang o mode phan bac.
+3. Khau Pinecone **khong** chat (khong loc nguong diem, luon tra `topK=5`) -> van de khong nam o retrieval.
+
+### File da sua
+- `backend/08-troly35.gs`:
+  - `troLy35GenerateRebuttalDraft_`: cong chan chi short-circuit khi `co_luan_dieu_sai_trai === false` **VA** khong co `knowledge`. Neu da co tu lieu RAG -> van sinh ban nhap phan bac dua tren tu lieu. Them `uncertainBlock` vao prompt de model bam vao RAG, ghi diem can kiem chung vao `ghi_chu` thay vi tu choi.
+  - `troLy35AnalyzeInput_`: them quy tac mode-aware cho `${TROLY35_MODES.REBUTTAL}` - thien ve trich luan diem can phan bac khi noi dung mot chieu/gay tranh cai/co dau hieu xuyen tac; chi dat false khi noi dung trung lap/khach quan/dung chu truong.
+
+### Khong sua (co y)
+- **Khong noi dieu kien "Da duyet"** cua kho `PHAN_BAC_KHO` (`troLy35IsApprovedKnowledge_`) de giu chat luong can cu (tranh dua tu lieu chua kiem duyet vao noi dung nhay cam).
+- Khong dong schema, khong dong khau Pinecone/embedding.
+
+### Rui ro
+- Mode phan bac se "tu tin" hon, sinh phan bac ca khi noi dung con mo ho (mien la co tu lieu RAG). Van giu nhan kiem duyet + ghi_chu can kiem chung; ket qua van la ban nhap can nguoi dung ra soat.
+- Neu kho RAG that su rong (chua approve gi / Pinecone trong) thi van ra it can cu - day la van de du lieu, khong phai code.
+
+### Cach test
+1. Apps Script: `testTroLy35Setup()` -> kiem tra cau hinh + so dong PHAN_BAC_KHO.
+2. Mode `rebuttal`: dan mot noi dung mot chieu/mo ho ma kho co tu lieu lien quan -> truoc day ra "Chua du can cu", gio phai ra ban phan bac kem dan_chung tu RAG.
+3. Dan noi dung trung lap/khach quan that su -> van ra ban de dat (khong quy chup).
+4. Kiem tra `analysis.co_luan_dieu_sai_trai` va so "dan chung" hien o `AnalysisBlock`.
+
 ## [2026-06-13] Tro ly 35 truy cap tu do (an o nhap ma, proxy tiem ma chung)
 
 ### File da sua
