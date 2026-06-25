@@ -28,10 +28,28 @@ Mode `rebuttal` thuong tra ve "Chua du can cu" / 0 dan chung du kho RAG co tu li
 - Neu kho RAG that su rong (chua approve gi / Pinecone trong) thi van ra it can cu - day la van de du lieu, khong phai code.
 
 ### Cach test
-1. Apps Script: `testTroLy35Setup()` -> kiem tra cau hinh + so dong PHAN_BAC_KHO.
+1. Apps Script: `testTroLy35Setup()` -> kiem tra cau hinh + chan doan kho RAG (xem duoi).
 2. Mode `rebuttal`: dan mot noi dung mot chieu/mo ho ma kho co tu lieu lien quan -> truoc day ra "Chua du can cu", gio phai ra ban phan bac kem dan_chung tu RAG.
 3. Dan noi dung trung lap/khach quan that su -> van ra ban de dat (khong quy chup).
 4. Kiem tra `analysis.co_luan_dieu_sai_trai` va so "dan chung" hien o `AnalysisBlock`.
+
+### Chan doan tang du lieu/sync (nguyen nhan goc thu 2)
+Khi tiep tuc soi chuoi cung ung RAG, phat hien ly do "khong lay duoc can cu" phan lon nam o **van hanh**, khong phai code:
+- **TCCS_CHUNKS** tao ra voi status `Draft`/`Needs Review` (09a:600-601, 09b:249,703), KHONG phai "Da duyet".
+- **PHAN_BAC_KHO** sinh tu dong (09d:209) co status `Cho duyet`.
+- Ca `syncTccsApprovedChunksToPinecone` (09c:30) lan `syncTroLy35KnowledgeToPinecone` + Sheets fallback (`troLy35IsApprovedKnowledge_`) DEU chi nhan dong "Da duyet"/"approved".
+- **KHONG co trigger time-based** cho scrape/generate/sync RAG (07-main.gs chi co trigger cho runDailyNewsBot, runMonthlyArchive, runBanTin35DailyStep). Tat ca phai chay tay.
+=> Neu chua duyet tay + chua chay sync, Pinecone namespace rong -> RAG luon tra rong -> "khong co can cu". Day la human-in-the-loop co chu y cho noi dung nhay cam, KHONG tu dong noi long.
+
+### File da sua (bo sung)
+- `backend/08-troly35.gs`: them `troLy35DiagnoseKnowledge_()` va goi trong `testTroLy35Setup()`. Bao cao: PHAN_BAC_KHO tong/da duyet/da sync, TCCS_CHUNKS tong/da duyet/da index, va probe Pinecone (so match) de biet namespace co vector hay khong.
+
+### Quy trinh nap kho RAG (chay tay theo thu tu)
+1. `runTccsScrapeDrafts()` -> scrape bai TCCS thanh chunk Draft.
+2. (Tuy chon) `generatePhanBacFromTccs()` -> sinh entry PHAN_BAC_KHO "Cho duyet".
+3. Mo Sheet, doi status hop le -> "Da duyet".
+4. `syncTccsApprovedChunksToPinecone()` va/hoac `syncTroLy35KnowledgeToPinecone()`.
+5. `testTroLy35Setup()` -> xac nhan probe Pinecone > 0 match.
 
 ## [2026-06-13] Tro ly 35 truy cap tu do (an o nhap ma, proxy tiem ma chung)
 

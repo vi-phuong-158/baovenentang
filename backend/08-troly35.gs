@@ -659,9 +659,54 @@ function testTroLy35Setup() {
     Logger.log('Đã đủ cấu hình Gemini, Pinecone và mã truy cập.');
   }
 
-  const knowledgeCount = troLy35GetKnowledgeRows_().length;
-  Logger.log(`PHAN_BAC_KHO hiện có ${knowledgeCount} dòng.`);
+  troLy35DiagnoseKnowledge_();
   Logger.log('Nếu PHAN_BAC_KHO chưa có dữ liệu, chạy seedSampleData() hoặc seedTroLy35KnowledgeFromPhanBac().');
+}
+
+/**
+ * Chẩn đoán nhanh "vì sao RAG không lấy được căn cứ".
+ * Đếm tư liệu theo trạng thái duyệt và thử truy vấn Pinecone để xác nhận
+ * namespace có vector hay không. Chạy trực tiếp trong Apps Script.
+ */
+function troLy35DiagnoseKnowledge_() {
+  // 1. Kho PHAN_BAC_KHO: tổng vs đã duyệt (chỉ dòng đã duyệt mới vào RAG).
+  const knowledgeRows = troLy35GetKnowledgeRows_();
+  const approvedKnowledge = knowledgeRows.filter(troLy35IsApprovedKnowledge_);
+  const syncedKnowledge = approvedKnowledge.filter(item => item.pineconeId);
+  Logger.log(`[RAG] PHAN_BAC_KHO: ${knowledgeRows.length} dòng | ĐÃ DUYỆT (dùng được): ${approvedKnowledge.length} | đã sync Pinecone: ${syncedKnowledge.length}`);
+  if (knowledgeRows.length > 0 && approvedKnowledge.length === 0) {
+    Logger.log('[RAG] ⚠️ Có dữ liệu nhưng KHÔNG dòng nào "Đã duyệt" -> RAG rỗng. Hãy đổi "Chờ duyệt" -> "Đã duyệt" rồi chạy syncTroLy35KnowledgeToPinecone().');
+  }
+  if (approvedKnowledge.length > syncedKnowledge.length) {
+    Logger.log(`[RAG] ⚠️ ${approvedKnowledge.length - syncedKnowledge.length} dòng đã duyệt nhưng CHƯA sync Pinecone. Chạy syncTroLy35KnowledgeToPinecone().`);
+  }
+
+  // 2. Kho TCCS_CHUNKS: tổng vs đã duyệt vs đã index.
+  try {
+    const chunkSheet = getSheet_('TCCS_CHUNKS');
+    if (chunkSheet.getLastRow() > 1) {
+      const chunkRows = chunkSheet.getRange(2, 1, chunkSheet.getLastRow() - 1, chunkSheet.getLastColumn()).getValues();
+      const approvedChunks = chunkRows.filter(row => ['approved', 'đã duyệt', 'da duyet'].includes(cleanValue_(row[11]).toLowerCase()));
+      const indexedChunks = chunkRows.filter(row => cleanValue_(row[12]));
+      Logger.log(`[RAG] TCCS_CHUNKS: ${chunkRows.length} chunk | đã duyệt: ${approvedChunks.length} | đã index Pinecone: ${indexedChunks.length}`);
+      if (approvedChunks.length > indexedChunks.length) {
+        Logger.log('[RAG] ⚠️ Có chunk đã duyệt chưa index. Chạy syncTccsApprovedChunksToPinecone().');
+      }
+    } else {
+      Logger.log('[RAG] TCCS_CHUNKS: chưa có chunk nào.');
+    }
+  } catch (error) {
+    Logger.log(`[RAG] Không đọc được TCCS_CHUNKS: ${error}`);
+  }
+
+  // 3. Thử truy vấn Pinecone để xác nhận namespace thực sự có vector.
+  try {
+    const probe = troLy35EmbedText_('vai trò lãnh đạo của Đảng dân chủ nhân quyền');
+    const matches = troLy35QueryPinecone_(probe, 3);
+    Logger.log(`[RAG] Pinecone probe trả về ${matches.length} match (namespace="${CONFIG.PINECONE_NAMESPACE || 'troly35'}"). 0 match nghĩa là namespace rỗng hoặc chưa sync.`);
+  } catch (error) {
+    Logger.log(`[RAG] ⚠️ Không truy vấn được Pinecone: ${error}. Kiểm tra PINECONE_API_KEY / PINECONE_INDEX_HOST / namespace.`);
+  }
 }
 
 function troLy35AnalyzeInput_(content, topicHint, mode) {
