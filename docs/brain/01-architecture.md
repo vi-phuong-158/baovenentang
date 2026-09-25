@@ -1,3 +1,16 @@
+# Cập nhật kiến trúc 19/9/2026 — nhánh học tập
+
+Phần cập nhật này thay thế mô tả cũ bên dưới về history/trends/feedback và lưu quiz. Xem [Hướng triển khai học tập V6.1](../TROLY35_HOC_TAP_V6_1.md).
+
+- UI → proxy → GAS: history/trends/rate/feedback/submit_quiz bị tạm dừng ở cả proxy và nơi xử lý GAS; mã chung không xác thực cá nhân.
+- Chat: chỉ trạng thái React trong bộ nhớ, không session persistence; tắt ghi lịch sử/preview/kết quả và cache hội thoại mới. Dữ liệu cũ chưa xử lý; dịch vụ AI vẫn nhận nội dung công khai được gửi.
+- Tủ sách GET chỉ đọc, không seed; DaDuyet + metadata/nguồn; bỏ cache sách client và fallback chi tiết cũ. QUIZ thêm metadata, getApprovedQuizRows_ → getQuizTopics/getRandomQuiz → doGet; getRandomQuiz còn được Telegram gọi, dữ liệu cũ chưa duyệt có thể không được trả.
+- quiz_topics là GET mới; quiz nhận category, trả source/version. Tự học không ghi QUIZ_RESULT.
+- services/thu-tuan/Code.gs độc lập, project không public: trigger → script lock → duyệt/digest → Sheets riêng → MailApp từng người → nhật ký khóa kỳ/mã. Không doGet/doPost, không cùng backend public. Email HTML responsive + plain-text theo bố cục đã định; dữ liệu Sheet được escape, runtime không gọi AI; NotebookLM chỉ là link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
+- Schema append-only: QUIZ thêm 5 cột; TU_SACH thêm 3 cột; LoiDay_NoiDung giữ 10 cột đầu và nối thêm 7 trường nội dung, gồm NotebookLM_URL. Danh sách chính xác ở kế hoạch và README module. Chưa chạy migration hoặc thay dữ liệu cloud.
+
+CodeGraph đã được dùng trước sửa; doPost gọi handler lịch sử được xác nhận thêm bằng đọc router vì index không trả caller. Luồng rollout, kiểm thử và phần còn chưa xác minh nằm ở kế hoạch trên.
+
 # 01-architecture.md - Kiến trúc hệ thống
 
 ## Tech Stack & Các thành phần chính

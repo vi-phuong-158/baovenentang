@@ -1,3 +1,13 @@
+# Quyết định bổ sung 19/9/2026 — hồ sơ V6.1
+
+1. Chọn phạm vi công khai có duyệt, không dùng shared code làm phân quyền cá nhân. Thay quyết định #8 bên dưới: chỉ troly35_run được proxy gắn mã để bảo vệ dịch vụ; history/trends/feedback/rate bị chặn, không ghi lịch sử mới hoặc cache kết quả. Việc cho phép dữ liệu vẫn phải độc lập với xác thực.
+2. Quiz là tự học không định danh, không lưu, có chuyên đề/nguồn/giải thích. Tạm dừng submit_quiz; chưa xây chấm điểm chính thức.
+3. Tủ sách/quiz mặc định từ chối nội dung thiếu duyệt; giữ cột cũ và chỉ thêm cuối. Nội dung hiện có phải được rà soát, không tự điền người duyệt.
+4. Thư tuần dùng project Apps Script riêng, tắt mặc định, không thêm nền tảng hay dependency. Email HTML responsive có plain-text fallback; nội dung đã duyệt được escape và gửi theo bố cục cố định, runtime không gọi AI. Digest bao phủ nội dung email, NotebookLM URL, trạng thái/người/ngày duyệt và phiên bản. NotebookLM chỉ là link tra cứu mở rộng có nhắc đối chiếu nguồn. Khóa ngày thứ Hai theo Asia/Ho_Chi_Minh + mã người nhận; SENDING/UNKNOWN không tự retry; giữ trách nhiệm duyệt và quyền sửa thực tế.
+5. Không deploy, tạo trigger hoặc gửi thư thật trong đợt này. Commit, push và Draft PR chỉ dùng để review theo yêu cầu; chúng không xác nhận runtime hoặc production. Hoàn thiện hồ sơ không phụ thuộc nghiệm thu phần mềm. Chi tiết [Hướng triển khai học tập V6.1](../TROLY35_HOC_TAP_V6_1.md).
+
+Các quyết định phía dưới giữ làm lịch sử; mục cập nhật trên có hiệu lực cho nhánh này.
+
 # 03-decisions.md - Quyết định kỹ thuật
 
 Dưới đây là các quyết định kỹ thuật cốt lõi đã được thống nhất và áp dụng trong dự án:

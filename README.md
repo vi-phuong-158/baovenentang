@@ -1,3 +1,9 @@
+# Nhánh học tập theo lời Bác — cập nhật 19/9/2026
+
+Xem [kế hoạch triển khai V6.1](docs/TROLY35_HOC_TAP_V6_1.md) và [thư tuần độc lập](services/thu-tuan/README.md). Thay đổi hiện tại tạm dừng lịch sử/xu hướng/feedback và lưu quiz; Tủ sách/quiz chỉ trả nội dung đã duyệt đủ metadata. Không lưu chat mới hoặc cache hội thoại chung. Chưa triển khai hoặc xác nhận production; hướng dẫn chức năng cũ phía dưới là baseline trước thay đổi và cần đọc cùng bản cập nhật này.
+
+Kiểm tra cục bộ: node --test tests/hoc-tap.test.cjs; build frontend: npm run build trong web. Không chạy setup/seed/trigger hoặc gửi dữ liệu thật để kiểm tra khi chưa có quyền vận hành.
+
 # Trợ lý 35 - Bảo vệ nền tảng tư tưởng
 
 Hệ thống hỗ trợ công tác bảo vệ nền tảng tư tưởng trên môi trường số, gồm ứng dụng web React, backend Google Apps Script, cơ sở dữ liệu Google Sheets, tích hợp Gemini AI, Pinecone RAG, Telegram và Brevo Email.
