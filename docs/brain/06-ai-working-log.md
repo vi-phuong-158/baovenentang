@@ -984,3 +984,33 @@ codegraph impact validateApiToken_
 3. Mở app → tab `Học tập` → section `Tủ sách`.
 4. Xác nhận danh mục 10 tài liệu hiện ra; bấm vào một tài liệu, modal chi tiết bật lên và nằm trong viewport.
 5. Thử tìm kiếm theo tên/chủ đề/tác giả.
+
+---
+
+## [2026-09-26] Nghiệm thu Preview TEST — học tập theo lời Bác
+
+### Phạm vi và deployment
+- Nhánh: `codex/troly35-hoc-tap-loi-bac`.
+- Preview deployment: `dpl_DqNZDCsuPHpdxD1XTSvuYw8vb8N9`, commit `1859d29c2b89f81ca63ae6afb7e7b0674986a037`, trạng thái `READY`.
+- Gate cô lập: `TROLY35_PREVIEW_ENV_ISOLATION_PASS_MANUAL_VERIFICATION`.
+- Không sửa mã nguồn, không thay đổi biến môi trường, không redeploy trong bước nghiệm thu này.
+
+### Bằng chứng runtime chỉ đọc
+- Preview root trả HTTP 200.
+- Qua Preview `/api/gas?action=quiz&count=10` trả HTTP 200 và marker TEST `QUIZ-TEST-001`.
+- Qua Preview `/api/gas?action=books` trả HTTP 200 và marker TEST `BOOK-TEST-001`.
+- Hai marker chỉ có trong fixture TEST xác nhận đường đi: Preview → TEST GAS → TEST Google Sheet.
+- AI/Gemini, Pinecone và write flow không được gọi. Việc thiếu credential AI/Pinecone ở Preview TEST là chủ ý để fail closed.
+
+### An toàn và kết quả
+- Không đọc, in hoặc ghi secret; automation bypass chỉ được dùng trong header của request đọc và không được log.
+- Production data/deployment/services không bị thay đổi hoặc gọi; không gửi email, không sửa trigger, không merge PR.
+- Verdict: `TROLY35_PREVIEW_TEST_ACCEPTANCE_PASS`.
+
+### Giới hạn nghiệm thu
+- Production runtime/deployment chưa được kiểm thử.
+- Chưa kiểm tra schema hoặc dữ liệu Google Sheets Production.
+- Chưa kiểm thử GAS runtime Production.
+- Chưa kiểm thử runtime AI/Gemini/Pinecone.
+- Chưa kiểm thử write flow Production.
+- Không thực hiện email, trigger, scheduled job, setup, seed hoặc bất kỳ data mutation nào.
