@@ -98,16 +98,14 @@ const TU_SACH_SAMPLE_BOOKS = [
 ];
 
 function getBooks() {
-  seedTuSach();
   return tuSachGetRows_()
-    .filter(book => book.status === 'Hoạt động')
+    .filter(book => tuSachIsApproved_(book))
     .map(tuSachPublicBook_);
 }
 
 function getBookById(id) {
-  seedTuSach();
   const book = tuSachFindBook_(id);
-  if (!book || book.status !== 'Hoạt động') {
+  if (!book || !tuSachIsApproved_(book)) {
     throw new Error('Không tìm thấy sách.');
   }
   return tuSachPublicBook_(book);
@@ -121,9 +119,8 @@ function askBookAI(data) {
     throw new Error('Câu hỏi cần tối thiểu 5 ký tự.');
   }
 
-  seedTuSach();
   const book = tuSachFindBook_(data && data.bookId);
-  if (!book || book.status !== 'Hoạt động') {
+  if (!book || !tuSachIsApproved_(book)) {
     throw new Error('Không tìm thấy sách.');
   }
 
@@ -192,7 +189,7 @@ function seedTuSach() {
 function replaceTuSachWithSampleBooks() {
   const sheet = getSheet_('TU_SACH');
   if (sheet.getLastRow() > 1) {
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, SHEET_HEADERS.TU_SACH.length).clearContent();
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
   }
   const rows = TU_SACH_SAMPLE_BOOKS.map(tuSachBookToRow_);
   appendRows_(sheet, rows);
@@ -229,8 +226,8 @@ function tuSachBookToRow_(book) {
     book.mindMap,
     book.notebookUrl,
     JSON.stringify({ label: book.source, url: book.sourceUrl }),
-    'Hoạt động',
-    new Date()
+    'Nhap',
+    new Date(), '', '', ''
   ];
 }
 
@@ -248,8 +245,9 @@ function tuSachRowToBook_(row) {
     notebookUrl: cleanValue_(row[8]),
     source: source.label,
     sourceUrl: source.url,
-    status: cleanValue_(row[10]) || 'Hoạt động',
-    updatedAt: row[11] || ''
+    status: cleanValue_(row[10]) || 'Nhap',
+    updatedAt: row[11] || '',
+    approvedBy: cleanValue_(row[12]), approvedAt: row[13], version: cleanValue_(row[14])
   };
 }
 
@@ -292,4 +290,9 @@ function tuSachParseGeminiObject_(text) {
     .trim();
   const parsed = JSON.parse(cleaned);
   return Array.isArray(parsed) ? (parsed[0] || {}) : parsed;
+}
+
+function tuSachIsApproved_(book) {
+  return book.status === 'DaDuyet' && !!book.approvedBy && !!book.approvedAt &&
+    Number.isFinite(new Date(book.approvedAt).getTime()) && !!book.version && !!book.source && !!book.sourceUrl;
 }
