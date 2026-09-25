@@ -1014,3 +1014,13 @@ codegraph impact validateApiToken_
 - Chưa kiểm thử runtime AI/Gemini/Pinecone.
 - Chưa kiểm thử write flow Production.
 - Không thực hiện email, trigger, scheduled job, setup, seed hoặc bất kỳ data mutation nào.
+
+---
+
+## [2026-09-26] Production rollout readiness evidence
+
+- Pushed the standalone Preview acceptance documentation commit `db89057b84aa06de47a5a8bc68ff0a0028691a91`; PR #8 remains open and Draft.
+- Regression: `node --test tests/hoc-tap.test.cjs` 23/23 pass; 16 backend GAS files parsed; backend and weekly manifests parsed; `web` production build passed; `git diff --check` passed.
+- Production QUIZ/TU_SACH snapshot, Production GAS contract, and Production environment scope remain unverified because no Production Sheet identifier or safe metadata-only access was available in this task. No Production request or mutation was attempted.
+- Rollout runbook: `docs/TROLY35_PRODUCTION_ROLLOUT_RUNBOOK.md`.
+- Verdict remains `TROLY35_PRODUCTION_ROLLOUT_READINESS_BLOCKED_PRODUCTION_SNAPSHOT_ENVIRONMENT_AND_GAS_COMPATIBILITY_UNVERIFIED`.
