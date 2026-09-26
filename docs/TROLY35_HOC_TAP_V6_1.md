@@ -10,7 +10,7 @@ Chọn phạm vi học tập công khai có duyệt, không xây hệ thống đ
 - Luồng Trợ lý 35 không ghi lịch sử mới hoặc dùng cache kết quả hội thoại chung; UI không phục hồi/lưu session chat và xóa khóa session cũ trên tab hiện tại khi mở. Không khẳng định đã xóa dữ liệu trên nhà cung cấp, thiết bị khác hoặc dữ liệu lịch sử cũ.
 - Tủ sách và quiz chỉ phục vụ hàng DaDuyet có nguồn, người duyệt, ngày duyệt, phiên bản. GET sách không tự seed hoặc thay dữ liệu. Tủ sách không dùng cache local cũ; mở chi tiết phải lấy lại bản hiện hành, lỗi thì không phục hồi bản cũ.
 - Quiz chọn chuyên đề trước lấy câu, tính theo số câu thật, xem giải thích/nguồn, không ghi kết quả cá nhân. Bộ câu hỏi thiếu metadata chưa hiển thị; đây là chuyển đổi cần duyệt, không tự gắn dấu duyệt.
-- Thư tuần nằm ở services/thu-tuan, chạy trong project Apps Script riêng, không đưa vào backend public. Mặc định tắt, không tạo trigger hoặc gửi thư khi chỉ copy mã. Email dựng từ các trường nội dung đã duyệt theo đúng bố cục; có HTML responsive, plain-text fallback và escape giá trị Sheet. Digest ràng buộc nội dung, metadata duyệt, NotebookLM URL và phiên bản; NotebookLM chỉ là link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
+- Thư tuần nằm ở services/thu-tuan, chạy trong project Apps Script riêng, không đưa vào backend public. Mặc định tắt, không tạo trigger hoặc gửi thư khi chỉ copy mã. Email dựng từ các trường nội dung đã duyệt theo đúng bố cục; có HTML responsive, plain-text fallback và escape giá trị Sheet. Dấu duyệt (HMAC có khóa trong Script Properties) ràng buộc nội dung, metadata duyệt, NotebookLM URL và phiên bản; người duyệt phải thuộc allowlist. NotebookLM là tùy chọn, chỉ là link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
 
 ## Phân tích tác động trước sửa
 
@@ -43,7 +43,7 @@ Người phụ trách phải rà soát, được phép công bố và duyệt t�
 
 ## Kiểm tra cục bộ
 
-`node --test tests/hoc-tap.test.cjs` chạy bằng Node built-in test, dùng dữ liệu giả và I/O mock. Bao gồm router trực tiếp, proxy, trạng thái duyệt, lọc chủ đề, khóa, preview, quota, giao năm, gửi dở và ghi log lỗi. Đây không phải thử trên Google runtime hoặc gửi thư thật.
+`node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` chạy bằng Node built-in test, dùng dữ liệu giả và I/O mock. hoc-tap: router trực tiếp, proxy, trạng thái duyệt Tủ sách/quiz, lọc chủ đề. thu-tuan (từ 26/9/2026 tách riêng): duyệt/dấu HMAC/allowlist, khóa, preview, quota, thời gian, giao năm, gửi dở, đối soát, trigger, mô phỏng Sheets đổi chuỗi ngày thành Date, công cụ nhập corpus. Đây không phải thử trên Google runtime hoặc gửi thư thật.
 
 `npm run build` trong web xác minh bundle; dùng kiểm tra cú pháp qua Node VM cho .gs vì Node không nhận trực tiếp extension .gs.
 

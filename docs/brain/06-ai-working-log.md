@@ -1,5 +1,27 @@
 # [2026-09-19] Nhánh Trợ lý 35 học tập theo lời Bác
 
+## [2026-09-26] Thư tuần: audit độc lập, vá an toàn, công cụ nhập 52 tuần
+
+Phạm vi: chỉ services/thu-tuan, tests, tài liệu. Không đụng backend public/web. CodeGraph: mọi symbol thuTuan* chỉ nằm trong services/thu-tuan/Code.gs, không caller ngoài test → tác động cô lập.
+
+Lỗi tìm thấy và đã sửa (services/thu-tuan/Code.gs):
+- NGHIÊM TRỌNG – gửi trùng: nhật ký lọc theo cột Ky; setValues chuỗi 2026-09-21 vào ô định dạng tự động bị Sheets đổi thành Date → lần chạy sau không thấy log → gửi lại toàn bộ. Sửa: đặt định dạng '@' cho 7 cột text của dòng log trước khi ghi, và khớp log theo Khoa (tiền tố "key|").
+- Bypass duyệt: digest SHA-256 không khóa, ai sửa được Sheet đều tự tính được; runtime không đối chiếu NguoiDuyet với allowlist. Sửa: HMAC-SHA256 với THU_TUAN_APPROVAL_SECRET (hàm taoKhoaDuyetThuTuan tạo một lần, không in), kiểm tra allowlist khi gửi và trước từng người nhận.
+- NgayDuyet có mili-giây có thể không giữ nguyên qua Sheets → mọi bản duyệt hỏng. Sửa: chuẩn hóa về giây; hàm duyệt đọc lại và báo APPROVAL_NOT_VERIFIED nếu dấu không khớp.
+- NotebookLM bắt buộc, trái quyết định Owner → tùy chọn (trống thì thư không có phần NotebookLM).
+- MaCB trùng giữa dòng TamDung/DangNhan bị bỏ qua im lặng → INVALID_RECIPIENT_LIST. Trạng thái log trống/lạ → giữ lại như UNKNOWN.
+- Bổ sung: reason code cho CONTENT_NOT_APPROVED, KY_NOT_PLAIN_TEXT, thông tin kỳ/mã/quota trong preview, remaining khi DEFERRED, kiemTraLichThuTuan/goLichThuTuan, duyetKyThuTuan (wrapper, mặc định YYYY-MM-DD → từ chối).
+
+Mới: services/thu-tuan/tools/corpus-to-sheet.cjs (Markdown 52 tuần → CSV nháp, trạng thái Nhap, không điền duyệt, từ chối ghi vào repo); tests/thu-tuan.test.cjs (42 test, gồm mô phỏng Sheets tự đổi ngày/làm tròn giây, E2E duyệt→xem trước→gửi→chạy lại). Các test Thư tuần cũ chuyển khỏi tests/hoc-tap.test.cjs (còn 6 test Quiz/Tủ sách/proxy). README module viết lại thành hướng dẫn vận hành.
+
+Kiểm thử: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs → 48/48 PASS. Mutation check: gỡ lần lượt 8 lớp bảo vệ (khớp Khoa, định dạng text, allowlist, HMAC, giữ UNKNOWN, cờ ENABLED, escape HTML, kiểm tra lại giữa lượt) → mỗi lần đều có test fail.
+
+Corpus: bộ 52 tuần ở thư mục hồ sơ (ngoài repo) parse đủ 52/52, 9 trường, không trùng tuần/mã, khớp 100% JSON V4, 52/52 trích dẫn tìm thấy trong Toàn tập Markdown (đối chứng âm OK). 0 NotebookLM URL, 0 bản đã được con người duyệt. CSV nháp tạo tại <thư mục hồ sơ>/.work/thu-tuan-import/ (không commit).
+
+Rủi ro: dấu duyệt HMAC làm dấu cũ (nếu có) mất hiệu lực – chưa có dữ liệu thật nên không ảnh hưởng. Đổi khóa = phải duyệt lại. Session.getActiveUser có thể trả rỗng ngoài cùng miền Workspace → duyệt bị từ chối (an toàn, cần thử ở TEST). Chưa chạy Google runtime thật.
+
+Cách test: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs; nghiệm thu runtime theo services/thu-tuan/README.md mục 9.
+
 ## [2026-09-25] Hoàn thiện Thư tuần và xác minh acceptance local
 
 Cập nhật services/thu-tuan/Code.gs để giữ nguyên 10 cột đầu của LoiDay_NoiDung, nối thêm bảy trường cho Chủ đề, Bối cảnh, Phân tích, hai phần liên hệ, Hành động tuần này và NotebookLM_URL. Email lấy trực tiếp dữ liệu đã duyệt, giữ thứ tự yêu cầu, có HTML responsive và plain-text fallback; HTML escape mọi trường Sheet. Runtime không gọi AI. Digest bao gồm nội dung gửi, NotebookLM_URL, trạng thái/người/ngày duyệt và phiên bản; thay đổi sau duyệt chặn gửi. NotebookLM chỉ xuất hiện dưới dạng link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
