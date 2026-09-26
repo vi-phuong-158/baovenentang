@@ -1,3 +1,13 @@
+# Công việc cập nhật 19/9/2026
+
+- Đã tạo nhánh codex/troly35-hoc-tap-loi-bac theo yêu cầu người dùng.
+- Đã viết mã chặn dữ liệu chung, ngừng lưu chat, duyệt Tủ sách/quiz, tự học theo chuyên đề, module thư tuần riêng và test mock.
+- Chưa triển khai hoặc kiểm thử GAS/MailApp thật; chưa nhập metadata duyệt, tạo bảng nhận thật, tạo trigger hay gửi thư.
+- Cần đối chiếu migration, nguồn/duyệt/thu hồi mọi kênh, tồn kho dữ liệu cũ, thời hạn lưu và bản triển khai trước nghiệm thu.
+- Bằng chứng kiểm tra cục bộ ghi trong nhật ký; các mục hoàn thành cũ bên dưới không xác nhận tính đúng của production hiện tại.
+
+Kế hoạch: [Hướng triển khai học tập V6.1](../TROLY35_HOC_TAP_V6_1.md).
+
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
 ## Các tính năng đã hoàn thành

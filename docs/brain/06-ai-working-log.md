@@ -1,3 +1,59 @@
+# [2026-09-19] Nhánh Trợ lý 35 học tập theo lời Bác
+
+## [2026-09-26] Thư tuần: audit độc lập, vá an toàn, công cụ nhập 52 tuần
+
+Phạm vi: chỉ services/thu-tuan, tests, tài liệu. Không đụng backend public/web. CodeGraph: mọi symbol thuTuan* chỉ nằm trong services/thu-tuan/Code.gs, không caller ngoài test → tác động cô lập.
+
+Lỗi tìm thấy và đã sửa (services/thu-tuan/Code.gs):
+- NGHIÊM TRỌNG – gửi trùng: nhật ký lọc theo cột Ky; setValues chuỗi 2026-09-21 vào ô định dạng tự động bị Sheets đổi thành Date → lần chạy sau không thấy log → gửi lại toàn bộ. Sửa: đặt định dạng '@' cho 7 cột text của dòng log trước khi ghi, và khớp log theo Khoa (tiền tố "key|").
+- Bypass duyệt: digest SHA-256 không khóa, ai sửa được Sheet đều tự tính được; runtime không đối chiếu NguoiDuyet với allowlist. Sửa: HMAC-SHA256 với THU_TUAN_APPROVAL_SECRET (hàm taoKhoaDuyetThuTuan tạo một lần, không in), kiểm tra allowlist khi gửi và trước từng người nhận.
+- NgayDuyet có mili-giây có thể không giữ nguyên qua Sheets → mọi bản duyệt hỏng. Sửa: chuẩn hóa về giây; hàm duyệt đọc lại và báo APPROVAL_NOT_VERIFIED nếu dấu không khớp.
+- NotebookLM bắt buộc, trái quyết định Owner → tùy chọn (trống thì thư không có phần NotebookLM).
+- MaCB trùng giữa dòng TamDung/DangNhan bị bỏ qua im lặng → INVALID_RECIPIENT_LIST. Trạng thái log trống/lạ → giữ lại như UNKNOWN.
+- Bổ sung: reason code cho CONTENT_NOT_APPROVED, KY_NOT_PLAIN_TEXT, thông tin kỳ/mã/quota trong preview, remaining khi DEFERRED, kiemTraLichThuTuan/goLichThuTuan, duyetKyThuTuan (wrapper, mặc định YYYY-MM-DD → từ chối).
+
+Mới: services/thu-tuan/tools/corpus-to-sheet.cjs (Markdown 52 tuần → CSV nháp, trạng thái Nhap, không điền duyệt, từ chối ghi vào repo); tests/thu-tuan.test.cjs (42 test, gồm mô phỏng Sheets tự đổi ngày/làm tròn giây, E2E duyệt→xem trước→gửi→chạy lại). Các test Thư tuần cũ chuyển khỏi tests/hoc-tap.test.cjs (còn 6 test Quiz/Tủ sách/proxy). README module viết lại thành hướng dẫn vận hành.
+
+Kiểm thử: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs → 48/48 PASS. Mutation check: gỡ lần lượt 8 lớp bảo vệ (khớp Khoa, định dạng text, allowlist, HMAC, giữ UNKNOWN, cờ ENABLED, escape HTML, kiểm tra lại giữa lượt) → mỗi lần đều có test fail.
+
+Corpus: bộ 52 tuần ở thư mục hồ sơ (ngoài repo) parse đủ 52/52, 9 trường, không trùng tuần/mã, khớp 100% JSON V4, 52/52 trích dẫn tìm thấy trong Toàn tập Markdown (đối chứng âm OK). 0 NotebookLM URL, 0 bản đã được con người duyệt. CSV nháp tạo tại <thư mục hồ sơ>/.work/thu-tuan-import/ (không commit).
+
+Rủi ro: dấu duyệt HMAC làm dấu cũ (nếu có) mất hiệu lực – chưa có dữ liệu thật nên không ảnh hưởng. Đổi khóa = phải duyệt lại. Session.getActiveUser có thể trả rỗng ngoài cùng miền Workspace → duyệt bị từ chối (an toàn, cần thử ở TEST). Chưa chạy Google runtime thật.
+
+Cách test: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs; nghiệm thu runtime theo services/thu-tuan/README.md mục 9.
+
+## [2026-09-25] Hoàn thiện Thư tuần và xác minh acceptance local
+
+Cập nhật services/thu-tuan/Code.gs để giữ nguyên 10 cột đầu của LoiDay_NoiDung, nối thêm bảy trường cho Chủ đề, Bối cảnh, Phân tích, hai phần liên hệ, Hành động tuần này và NotebookLM_URL. Email lấy trực tiếp dữ liệu đã duyệt, giữ thứ tự yêu cầu, có HTML responsive và plain-text fallback; HTML escape mọi trường Sheet. Runtime không gọi AI. Digest bao gồm nội dung gửi, NotebookLM_URL, trạng thái/người/ngày duyệt và phiên bản; thay đổi sau duyệt chặn gửi. NotebookLM chỉ xuất hiện dưới dạng link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
+
+Cập nhật tests/hoc-tap.test.cjs với bốn kiểm thử có I/O mock cho đóng dấu approval, thay metadata, URL NotebookLM, và output email/escaping; tổng 23 test.
+
+Kiểm thử local: node --test tests/hoc-tap.test.cjs — 23/23 PASS; npm run build trong web — PASS; parse cú pháp 17 tệp .gs, node --check web/api/gas.js và parse appsscript.json — PASS.
+
+Preflight migration: checkout đang ở codex/troly35-hoc-tap-loi-bac tại a5b8bf8; bốn SHA được nêu ban đầu không có trong Git object database. GitHub API đã xác nhận origin/main ở a5b8bf8, nhánh đích và PR chưa tồn tại. Git HTTPS ban đầu báo SEC_E_NO_CREDENTIALS; gh auth status xác nhận CLI đã đăng nhập. Đây là trạng thái trước push.
+
+Rủi ro/gate: cần nối bảy header mới vào sheet nội dung trước runtime; chưa kiểm tra Google Sheets/MailApp thật, quyền người duyệt/quota, chưa nhập người nhận, chưa gửi thư, chưa tạo trigger hoặc deploy. Không đổi dữ liệu cloud.
+
+Đọc toàn bộ docs/brain và dùng CodeGraph explore/impact/callers/callees trước sửa. Tạo nhánh codex/troly35-hoc-tap-loi-bac từ main; không reset/stash, giữ thư mục cache chưa theo dõi sẵn có.
+
+File thay đổi: web/api/gas.js; web/src/api.js; pages/TroLy35.jsx, Quiz.jsx, TuSach.jsx; backend/04-sheets-db.gs, 07-main.gs, 08-troly35.gs, 08-tusach.gs; services/thu-tuan/Code.gs, appsscript.json, README.md; tests/hoc-tap.test.cjs; docs/TROLY35_HOC_TAP_V6_1.md; README và tài liệu brain.
+
+Lý do: xử lý dữ liệu chung trước sử dụng; giữ phần học tập công khai; tách module gửi riêng và chống gửi lại khi kết quả không chắc chắn. Hợp đồng API và tác động/schema/rollback đã ghi trong kế hoạch.
+
+Rủi ro: lịch sử/xu hướng/feedback/lưu quiz tạm dừng; Tủ sách/quiz cũ không hiện đến khi metadata duyệt đầy đủ. Mã không xóa dữ liệu production cũ và không xác nhận dữ liệu nhà cung cấp. Còn kiểm tra nguồn video/infographic/RAG và quyền duyệt/thời hạn lưu. Schema cloud phải được quản trị viên chuyển có kiểm soát trước rollout.
+
+Kiểm thử: node --test tests/hoc-tap.test.cjs; npm run build trong web; parse JS/.gs bằng Node. Kết quả cụ thể ghi ngay dưới đây. Không có kết quả Google runtime/production, không gửi email thật. Hướng dẫn test trực tiếp, migration và rollback ở kế hoạch; chỉ dùng dữ liệu giả/công khai được phép.
+
+## Kết quả kiểm tra ngày 19/9/2026
+
+- Node v24.11.0: node --test tests/hoc-tap.test.cjs — 19/19 thành công, không bỏ qua; toàn bộ Google I/O dùng mock. Có kiểm tra thu hồi metadata duyệt giữa lượt gửi và direct GAS submit_quiz.
+- npm run build trong web — thành công với dependencies có sẵn; không cài mới.
+- Parse 17 tệp .gs bằng Node VM và đọc manifest JSON — không lỗi cú pháp. Đây không thay kiểm tra Google runtime.
+- git diff --check — không có lỗi khoảng trắng; Git cảnh báo chuẩn hóa LF/CRLF và quyền đọc cache sẵn có, không thay đổi các cache đó.
+- Browser trên bản build với API fixture tại loopback: chọn chuyên đề B, đúng 2 câu của B; hiển thị đáp án/giải thích/nguồn; làm một đúng, một sai cho kết quả 1/2 = 50%; lỗi tải được hiển thị; chi tiết sách bị thu hồi không dùng bản cũ; giao diện trợ lý có thông báo phạm vi công khai và không có lịch sử/xu hướng/feedback. Nhật ký fixture không có submit_quiz hoặc API lịch sử.
+- Fixture không nối backend thật; CSP chặn kết nối/ảnh/frame ngoài origin. Chưa kiểm tra AI thật, Google Sheets/MailApp, phát thư, thiết bị di động hoặc nghiệm thu toàn bộ hệ thống.
+- Chưa commit, push, tạo trigger, nhập người nhận hoặc deploy. Bước còn lại trước vận hành: dữ liệu duyệt, chuyển schema có kiểm soát, cấu hình được phép và kiểm tra deployment cụ thể.
+
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
 Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc được thực hiện bởi các trợ lý AI lập trình (Claude Code, Codex, v.v.).
@@ -950,3 +1006,43 @@ codegraph impact validateApiToken_
 3. Mở app → tab `Học tập` → section `Tủ sách`.
 4. Xác nhận danh mục 10 tài liệu hiện ra; bấm vào một tài liệu, modal chi tiết bật lên và nằm trong viewport.
 5. Thử tìm kiếm theo tên/chủ đề/tác giả.
+
+---
+
+## [2026-09-26] Nghiệm thu Preview TEST — học tập theo lời Bác
+
+### Phạm vi và deployment
+- Nhánh: `codex/troly35-hoc-tap-loi-bac`.
+- Preview deployment: `dpl_DqNZDCsuPHpdxD1XTSvuYw8vb8N9`, commit `1859d29c2b89f81ca63ae6afb7e7b0674986a037`, trạng thái `READY`.
+- Gate cô lập: `TROLY35_PREVIEW_ENV_ISOLATION_PASS_MANUAL_VERIFICATION`.
+- Không sửa mã nguồn, không thay đổi biến môi trường, không redeploy trong bước nghiệm thu này.
+
+### Bằng chứng runtime chỉ đọc
+- Preview root trả HTTP 200.
+- Qua Preview `/api/gas?action=quiz&count=10` trả HTTP 200 và marker TEST `QUIZ-TEST-001`.
+- Qua Preview `/api/gas?action=books` trả HTTP 200 và marker TEST `BOOK-TEST-001`.
+- Hai marker chỉ có trong fixture TEST xác nhận đường đi: Preview → TEST GAS → TEST Google Sheet.
+- AI/Gemini, Pinecone và write flow không được gọi. Việc thiếu credential AI/Pinecone ở Preview TEST là chủ ý để fail closed.
+
+### An toàn và kết quả
+- Không đọc, in hoặc ghi secret; automation bypass chỉ được dùng trong header của request đọc và không được log.
+- Production data/deployment/services không bị thay đổi hoặc gọi; không gửi email, không sửa trigger, không merge PR.
+- Verdict: `TROLY35_PREVIEW_TEST_ACCEPTANCE_PASS`.
+
+### Giới hạn nghiệm thu
+- Production runtime/deployment chưa được kiểm thử.
+- Chưa kiểm tra schema hoặc dữ liệu Google Sheets Production.
+- Chưa kiểm thử GAS runtime Production.
+- Chưa kiểm thử runtime AI/Gemini/Pinecone.
+- Chưa kiểm thử write flow Production.
+- Không thực hiện email, trigger, scheduled job, setup, seed hoặc bất kỳ data mutation nào.
+
+---
+
+## [2026-09-26] Production rollout readiness evidence
+
+- Pushed the standalone Preview acceptance documentation commit `db89057b84aa06de47a5a8bc68ff0a0028691a91`; PR #8 remains open and Draft.
+- Regression: `node --test tests/hoc-tap.test.cjs` 23/23 pass; 16 backend GAS files parsed; backend and weekly manifests parsed; `web` production build passed; `git diff --check` passed.
+- Production QUIZ/TU_SACH snapshot, Production GAS contract, and Production environment scope remain unverified because no Production Sheet identifier or safe metadata-only access was available in this task. No Production request or mutation was attempted.
+- Rollout runbook: `docs/TROLY35_PRODUCTION_ROLLOUT_RUNBOOK.md`.
+- Verdict remains `TROLY35_PRODUCTION_ROLLOUT_READINESS_BLOCKED_PRODUCTION_SNAPSHOT_ENVIRONMENT_AND_GAS_COMPATIBILITY_UNVERIFIED`.

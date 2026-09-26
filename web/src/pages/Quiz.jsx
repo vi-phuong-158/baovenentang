@@ -1,170 +1,90 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
-import { getQuiz, submitQuiz } from '../api.js';
-
-const TOTAL = 10;
-const QUIZ_TITLE = 'Kiểm tra nhận thức về Nghị quyết Đại hội Đảng toàn quốc lần thứ XIV';
-
-function QuizFrame({ embedded, children }) {
-  return embedded
-    ? <div className="quiz-embedded">{children}</div>
-    : <div className="page page-fade">{children}</div>;
-}
-
-function QuizHeader({ embedded, children }) {
-  return embedded
-    ? <div className="quiz-embedded-header">{children}</div>
-    : <div className="page-header">{children}</div>;
-}
+import { getQuiz, getQuizTopics } from '../api.js';
 
 export default function Quiz({ embedded = false }) {
-  const [screen, setScreen] = useState('start'); // start | question | result
+  const [topics, setTopics] = useState([]);
+  const [topic, setTopic] = useState('');
   const [questions, setQuestions] = useState([]);
-  const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
+  const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState(null);
+  const [screen, setScreen] = useState('start');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const score = answers.filter(a => a.correct).length;
+  useEffect(() => {
+    let cancelled = false;
+    getQuizTopics().then(data => {
+      if (cancelled) return;
+      if (!Array.isArray(data)) throw new Error('Chưa tải được danh sách chuyên đề.');
+      setTopics(data);
+      setTopic(data[0] || '');
+    }).catch(e => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, []);
 
   const start = async () => {
-    setLoading(true);
-    setError('');
+    if (!topic || loading) return;
+    setLoading(true); setError('');
     try {
-      const res = await getQuiz(TOTAL);
-      const qs = Array.isArray(res) ? res : [];
-      if (qs.length === 0) throw new Error('Không có câu hỏi.');
-      setQuestions(qs);
-      setIndex(0);
-      setAnswers([]);
-      setPicked(null);
-      setScreen('question');
-    } catch (e) {
-      setError(e.message || 'Không tải được quiz.');
-    } finally {
-      setLoading(false);
-    }
+      const data = await getQuiz(10, topic);
+      if (!Array.isArray(data) || !data.length) throw new Error('Chuyên đề chưa có câu hỏi đã duyệt.');
+      if (data.some(q => q.category !== topic)) throw new Error('Bộ câu hỏi không khớp chuyên đề.');
+      setQuestions(data); setAnswers([]); setIndex(0); setPicked(null); setScreen('question');
+    } catch (e) { setError(e.message || 'Không tải được câu hỏi.'); }
+    finally { setLoading(false); }
   };
 
-  const select = (opt) => {
-    if (picked !== null) return;
-    const q = questions[index];
-    const correct = opt === q.correct;
-    setPicked(opt);
-    const newAnswers = [...answers, { question: q.question, answer: opt, correct }];
-
-    setTimeout(() => {
-      if (index + 1 < questions.length) {
-        setAnswers(newAnswers);
-        setIndex(i => i + 1);
-        setPicked(null);
-      } else {
-        setAnswers(newAnswers);
-        setScreen('result');
-        submitQuiz({ user: 'Khách', score: newAnswers.filter(a => a.correct).length, total: TOTAL, percentage: Math.round(newAnswers.filter(a => a.correct).length / TOTAL * 100) }).catch(() => {});
-      }
-    }, 900);
+  const next = () => {
+    if (picked === null) return;
+    const question = questions[index];
+    setAnswers(previous => [...previous, { ...question, picked, isCorrect: picked === question.correct }]);
+    if (index + 1 === questions.length) setScreen('result');
+    else setIndex(previous => previous + 1);
+    setPicked(null);
   };
-
-  const q = questions[index];
-
-  if (screen === 'start') return (
-    <QuizFrame embedded={embedded}>
-      <QuizHeader embedded={embedded}>
-        <h1>{QUIZ_TITLE}</h1>
-        <p>{TOTAL} câu hỏi ôn tập trọng tâm</p>
-      </QuizHeader>
-      <div className="card elevated" style={{ textAlign: 'center', padding: '28px 20px' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 6 }}>Nghị quyết Đại hội XIV</div>
-        <div className="text-sm text-soft" style={{ marginBottom: 20 }}>{TOTAL} câu · ~3 phút · kết quả lưu tự động</div>
-        <button className="btn primary full" onClick={start} disabled={loading}>
-          {loading ? <><RefreshCw size={16} className="spinner" /> Đang tải...</> : '▶ Bắt đầu'}
-        </button>
-      </div>
-      {error && <div className="msg error" style={{ marginTop: 12 }}>{error}</div>}
-    </QuizFrame>
-  );
-
-  if (screen === 'result') {
-    const pct = Math.round(score / TOTAL * 100);
-    const msg = pct >= 80 ? '🎉 Xuất sắc!' : pct >= 60 ? '👍 Tốt!' : '📚 Cần ôn thêm';
-    return (
-      <QuizFrame embedded={embedded}>
-        <QuizHeader embedded={embedded}>
-          <h1>Kết quả</h1>
-        </QuizHeader>
-        <div className="card elevated" style={{ textAlign: 'center', padding: '28px 20px', marginBottom: 16 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 52, fontWeight: 800, color: 'var(--red)', letterSpacing: '-1px' }}>{pct}%</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{msg}</div>
-          <div className="text-sm text-soft" style={{ marginBottom: 20 }}>Đúng {score}/{TOTAL} câu</div>
-          <button className="btn primary full" onClick={start}>Làm lại</button>
-        </div>
-        <div className="section-label">Chi tiết</div>
-        {answers.map((a, i) => (
-          <div key={i} className="card" style={{ marginBottom: 8 }}>
-            <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-              {a.correct
-                ? <CheckCircle size={18} color="var(--ok)" style={{ flexShrink: 0, marginTop: 2 }} />
-                : <XCircle size={18} color="var(--red)" style={{ flexShrink: 0, marginTop: 2 }} />}
-              <div>
-                <div className="text-sm" style={{ fontWeight: 600, marginBottom: 2 }}>{a.question}</div>
-                <div className="text-xs text-soft">Bạn chọn: {a.answer}</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </QuizFrame>
-    );
-  }
-
-  // Question screen
-  const opts = Object.entries(q.options || {});
+  const current = questions[index];
+  const score = answers.filter(a => a.isCorrect).length;
   return (
-    <QuizFrame embedded={embedded}>
-      <QuizHeader embedded={embedded}>
-        <div style={{ paddingBottom: 14 }}>
-        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,.8)' }}>Câu {index + 1} / {TOTAL}</span>
-          <span className="text-xs mono" style={{ color: 'rgba(255,255,255,.8)' }}>{score} đúng</span>
-        </div>
-        <div style={{ display: 'flex', gap: 3 }}>
-          {Array.from({ length: TOTAL }).map((_, i) => (
-            <div key={i} style={{
-              flex: 1, height: 4, borderRadius: 2,
-              background: i < index ? 'rgba(255,255,255,.9)' : i === index ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.2)',
-              transition: 'background .3s',
-            }} />
-          ))}
-        </div>
+    <div className={embedded ? 'quiz-embedded' : 'page page-fade'}>
+      <div className={embedded ? 'quiz-embedded-header' : 'page-header'}>
+        <h1>Tự học theo chuyên đề</h1>
+        <p>Kết quả tham khảo trên thiết bị, không lưu và không dùng đánh giá cán bộ.</p>
       </div>
-      </QuizHeader>
-
-      <div className="card elevated" style={{ marginBottom: 12 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, lineHeight: 1.4 }}>
-          {q.question}
+      {error && <div role="alert" className="msg error">{error}</div>}
+      {screen === 'start' && <div className="card elevated">
+        <label htmlFor="quiz-topic">Chuyên đề đã duyệt</label>
+        <select id="quiz-topic" className="field" value={topic} onChange={e => setTopic(e.target.value)} disabled={loading}>
+          {!topics.length && <option value="">Chưa có chuyên đề đã duyệt</option>}
+          {topics.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <p>Tối đa 10 câu. Xem đáp án, giải thích và nguồn sau mỗi câu.</p>
+        <button className="btn primary full" onClick={start} disabled={!topic || loading}>
+          {loading ? <><RefreshCw size={16} className="spinner" /> Đang tải</> : 'Bắt đầu tự học'}
+        </button>
+      </div>}
+      {screen === 'question' && current && <>
+        <div className="card elevated"><p>{topic} · Câu {index + 1}/{questions.length}</p><h2>{current.question}</h2></div>
+        <div className="col">
+          {Object.entries(current.options).map(([key, text]) => <button key={key} className={`btn full ${picked === key ? 'primary' : 'ghost'}`} disabled={picked !== null} onClick={() => setPicked(key)}>{key}. {text}</button>)}
         </div>
-      </div>
-
-      <div className="col" style={{ gap: 8 }}>
-        {opts.map(([key, text]) => {
-          let bg = 'var(--surface)';
-          let border = '1.5px solid var(--line)';
-          let color = 'var(--ink)';
-          if (picked !== null) {
-            if (key === q.correct) { bg = 'var(--ok-soft)'; border = '1.5px solid var(--ok)'; color = 'var(--ok)'; }
-            else if (key === picked) { bg = 'var(--red-soft)'; border = '1.5px solid var(--red)'; color = 'var(--red)'; }
-          }
-          return (
-            <button key={key} onClick={() => select(key)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderRadius: 14, border, background: bg, color, fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, cursor: picked ? 'default' : 'pointer', transition: 'all .2s', textAlign: 'left', width: '100%' }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(0,0,0,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{key}</span>
-              {text}
-            </button>
-          );
-        })}
-      </div>
-    </QuizFrame>
+        {picked !== null && <div className="card" aria-live="polite">
+          <p>{picked === current.correct ? 'Đúng.' : 'Chưa đúng.'} Đáp án: {current.correct}.</p>
+          <p>{current.explanation}</p><p className="text-sm">Nguồn: {current.source}</p>
+          <button className="btn primary full" onClick={next}>{index + 1 === questions.length ? 'Xem kết quả' : 'Câu tiếp theo'}</button>
+        </div>}
+      </>}
+      {screen === 'result' && <>
+        <div className="card elevated"><h2>Đúng {score}/{questions.length} câu ({Math.round(score / questions.length * 100)}%)</h2>
+          <p>Kết quả chỉ phục vụ tự học, không xác nhận danh tính hoặc kết quả chính thức.</p>
+          <button className="btn primary full" onClick={() => { setScreen('start'); setQuestions([]); setAnswers([]); }}>Chọn chuyên đề</button>
+        </div>
+        {answers.map((a, i) => <div key={`${a.id}-${i}`} className="card">
+          <div className="row">{a.isCorrect ? <CheckCircle size={18} /> : <XCircle size={18} />}<strong>{a.question}</strong></div>
+          <p>Bạn chọn {a.picked}; đáp án {a.correct}.</p><p>{a.explanation}</p><p className="text-sm">Nguồn: {a.source}</p>
+        </div>)}
+      </>}
+    </div>
   );
 }

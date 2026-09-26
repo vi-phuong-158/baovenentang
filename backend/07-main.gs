@@ -133,7 +133,11 @@ function doGet(e) {
 
       case 'quiz':
         const count = parseInt(params.count, 10) || 10;
-        result = { success: true, data: getRandomQuiz(count) };
+        result = { success: true, data: getRandomQuiz(count, params.category) };
+        break;
+
+      case 'quiz_topics':
+        result = { success: true, data: getQuizTopics() };
         break;
 
       case 'books':

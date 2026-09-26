@@ -49,7 +49,8 @@ const SHEET_HEADERS = {
   ],
   QUIZ: [
     'ID', 'Câu hỏi', 'Đáp án A', 'Đáp án B',
-    'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích', 'Chủ đề'
+    'Đáp án C', 'Đáp án D', 'Đáp án đúng', 'Giải thích', 'Chủ đề',
+    'Nguồn', 'Trạng thái duyệt', 'Người duyệt', 'Ngày duyệt', 'Phiên bản'
   ],
   QUIZ_RESULT: [
     'Thời gian', 'Người làm', 'Đơn vị', 'Điểm', 'Tổng câu', 'Chi tiết'
@@ -57,7 +58,7 @@ const SHEET_HEADERS = {
   TU_SACH: [
     'ID', 'Tiêu đề', 'Tác giả/Cơ quan', 'Năm', 'Chủ đề',
     'Tóm tắt', 'Podcast gợi ý', 'Sơ đồ tư duy', 'NotebookLM URL',
-    'Nguồn', 'Trạng thái', 'Ngày cập nhật'
+    'Nguồn', 'Trạng thái', 'Ngày cập nhật', 'Người duyệt', 'Ngày duyệt', 'Phiên bản'
   ],
   TROLY35_FEEDBACK: [
     'Thời gian', 'Query Hash', 'Rating', 'Comment', 'Response ID',
@@ -430,50 +431,36 @@ function getArticles(days, page, limit) {
 /**
  * Lấy câu hỏi quiz ngẫu nhiên.
  */
-function getRandomQuiz(count = 1) {
+function getApprovedQuizRows_() {
   const sheet = getSheet_('QUIZ');
+  if (sheet.getLastRow() <= 1 || sheet.getLastColumn() < 14) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
+    .filter(row => cleanValue_(row[10]) === 'DaDuyet' && cleanValue_(row[11]) && row[12] &&
+      Number.isFinite(new Date(row[12]).getTime()) && cleanValue_(row[13]) && cleanValue_(row[9]) &&
+      cleanValue_(row[8]) && cleanValue_(row[0]) && cleanValue_(row[1]) && cleanValue_(row[7]) &&
+      ['A','B','C','D'].includes(cleanValue_(row[6]).toUpperCase()) &&
+      [2,3,4,5].every(i => cleanValue_(row[i])));
+}
 
-  if (sheet.getLastRow() <= 1) return [];
+function getQuizTopics() {
+  return Array.from(new Set(getApprovedQuizRows_().map(row => cleanValue_(row[8])))).sort();
+}
 
-  const limit = Math.max(1, Number(count) || 1);
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  const shuffled = shuffleRows_(data);
-
-  return shuffled.slice(0, limit).map(row => ({
-    id: row[0],
-    question: row[1],
-    options: {
-      A: row[2],
-      B: row[3],
-      C: row[4],
-      D: row[5]
-    },
-    correct: (row[6] || '').toString().trim().toUpperCase(),
-    explanation: row[7],
-    category: row[8]
+function getRandomQuiz(count = 1, category = '') {
+  const limit = Math.min(50, Math.max(1, Math.floor(Number(count) || 1)));
+  const topic = cleanValue_(category);
+  const rows = getApprovedQuizRows_().filter(row => !topic || cleanValue_(row[8]) === topic);
+  return shuffleRows_(rows).slice(0, limit).map(row => ({
+    id: row[0], question: row[1], options: { A: row[2], B: row[3], C: row[4], D: row[5] },
+    correct: cleanValue_(row[6]).toUpperCase(), explanation: row[7], category: cleanValue_(row[8]),
+    source: row[9], version: row[13]
   }));
 }
 
-/**
- * Lưu kết quả làm quiz.
- */
 function saveQuizResult(data) {
-  const sheet = getSheet_('QUIZ_RESULT');
-  const details = data.details || data.answers || {};
-
-  sheet.appendRow([
-    new Date(),
-    cleanValue_(data.user) || 'Khách',
-    cleanValue_(data.organization),
-    Number(data.score) || 0,
-    Number(data.total) || 0,
-    JSON.stringify(details)
-  ]);
+  throw new Error('Bài tự học chỉ hiển thị kết quả trên thiết bị; chưa ghi nhận kết quả chính thức.');
 }
 
-/**
- * Cập nhật thống kê hàng ngày.
- */
 function updateDailyStats(stats) {
   const sheet = getSheet_('THONG_KE');
   sheet.appendRow([
