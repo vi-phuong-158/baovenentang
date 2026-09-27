@@ -4,6 +4,29 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-09-27] Tạm tắt Dark mode chưa hoàn thiện
+
+### Thay đổi
+- `web/src/index.css`: đổi `color-scheme` thành `light` và gỡ toàn bộ `@media (prefers-color-scheme: dark)` đang đổi biến màu, bóng đổ và nền trang.
+- `docs/brain/04-current-tasks.md`: ghi nhận Dark mode hiện được tạm tắt.
+
+### Lý do
+- Theo yêu cầu người dùng, giao diện luôn dùng màu sáng cho tới khi Dark mode được hoàn thiện.
+
+### Rủi ro
+- Ứng dụng không còn giao diện tối khi hệ điều hành bật Dark mode; các điều khiển mặc định của trình duyệt cũng được yêu cầu hiển thị theo bảng màu sáng. Không thay đổi luồng ứng dụng hoặc API.
+
+### Kiểm tra
+- `cd web; npm run build` — thành công, Vite build 1.608 module.
+- `rg -n -i 'prefers-color-scheme|color-scheme' web/src` — chỉ còn `color-scheme: light` trong `index.css`.
+- Trình duyệt tại `http://127.0.0.1:5174/`: stylesheet được xác nhận từ đúng checkout; dù `prefers-color-scheme: dark` là `true`, trang đã render với `color-scheme: light` và nền sáng.
+- `git -c core.whitespace=cr-at-eol diff --check` — pass.
+
+### Cách kiểm tra thủ công
+1. Chạy `cd web; npm run dev`.
+2. Bật Dark mode của hệ điều hành/trình duyệt rồi mở ứng dụng hoặc tải lại trang.
+3. Xác nhận nền, thẻ, chữ, input và điều khiển vẫn theo bảng màu sáng.
+
 ## [2026-06-25] Tro ly 35: noi rang buoc RAG phan bac (lay duoc can cu)
 
 ### Van de

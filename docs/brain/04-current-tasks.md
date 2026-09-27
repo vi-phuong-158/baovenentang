@@ -1,5 +1,9 @@
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
+## Cập nhật 27/9/2026 — Tạm tắt Dark mode
+
+- Dark mode đã được gỡ khỏi giao diện cho tới khi hoàn thiện; ứng dụng luôn dùng bảng màu sáng, kể cả khi hệ điều hành bật chế độ tối. Chi tiết thay đổi và cách kiểm tra nằm trong `06-ai-working-log.md`.
+
 ## Các tính năng đã hoàn thành
 - ✅ **Bộ chọn phong cách phản bác**: Thêm tham số `style` (`chinhluan`, `tretrung`, `ngangon`) cho mode Phản bác ở cả frontend UI và backend prompt generator.
 - ✅ **Hội thoại đa lượt (Trợ lý 35)**: Cho phép tinh chỉnh câu trả lời của AI, neo phân tích/RAG vào câu hỏi gốc đầu tiên của luồng chat, hiển thị thread chat và nới lỏng giới hạn ký tự cho câu tinh chỉnh.
@@ -20,7 +24,7 @@
     3. Copy theo phần cho mode Viết bài/Phản bác (bản đầy đủ, comment ngắn, caption MXH, hashtag) thay vì chỉ copy cả khối.
     4. Hỗ trợ phím tắt Ctrl/Cmd+Enter để gửi câu hỏi.
   - **Đợt 2 (đã làm)**: Hiện khối "Phân tích & dẫn chứng" có thể gập (độ nguy hiểm dạng badge màu, luận điểm sai, thủ đoạn, cảnh báo an toàn) + danh sách dẫn chứng RAG kèm link nguồn; badge nhãn kiểm duyệt (`nhan_kiem_duyet`) tách khỏi nội dung; persist phiên chat hiện tại vào `sessionStorage` (khôi phục khi reload).
-  - **Đợt 3 (đã làm)**: Dark mode qua `@media (prefers-color-scheme: dark)` override biến CSS trong `:root` (inline style dùng `var()` tự thích ứng); cải thiện a11y (vùng chat `role="log"`/`aria-live`, `aria-label` nút tải lại lịch sử, tăng tương phản `--ink-mute`); **tách toàn bộ inline style** `TroLy35.jsx` sang `web/src/css/troly35.css` và `BottomNav.jsx` sang nhóm `.bottom-nav*` trong `index.css` (theo yêu cầu rõ của người dùng). Giá trị giữ nguyên; selector mở rộng `.btn`/`.pill`/`.field` được nâng specificity (`.btn.t35-*`, `.pill.t35-*`, `.field.t35-compose-input`) để thắng `.btn.sm`/`textarea.field`. BottomNav đổi tương tác scale từ JS handler sang `:active` CSS; vẫn hardcode rgba sáng nên thanh nav giữ tông sáng trong dark mode (chấp nhận được).
+  - **Đợt 3 (đã làm)**: Dark mode từng được thêm bằng `@media (prefers-color-scheme: dark)` nhưng đã tạm gỡ ngày 27/9/2026 theo yêu cầu vì chưa hoàn thiện. Các phần còn lại gồm cải thiện a11y (vùng chat `role="log"`/`aria-live`, `aria-label` nút tải lại lịch sử, tăng tương phản `--ink-mute`) và **tách toàn bộ inline style** `TroLy35.jsx` sang `web/src/css/troly35.css` và `BottomNav.jsx` sang nhóm `.bottom-nav*` trong `index.css` (theo yêu cầu rõ của người dùng). Giá trị giữ nguyên; selector mở rộng `.btn`/`.pill`/`.field` được nâng specificity (`.btn.t35-*`, `.pill.t35-*`, `.field.t35-compose-input`) để thắng `.btn.sm`/`textarea.field`. BottomNav đổi tương tác scale từ JS handler sang `:active` CSS.
 
 ## Công việc tiếp theo (Backlog/Chờ thực hiện)
 
