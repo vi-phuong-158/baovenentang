@@ -1,3 +1,72 @@
+# [2026-09-19] Nhánh Trợ lý 35 học tập theo lời Bác
+## [2026-09-28] Thư tuần: canonical email v2 và kiểm toán recipient
+
+Owner xác nhận bỏ các mục Liên hệ An ninh đối ngoại và Gợi ý tự soi, tự liên hệ khỏi thư mới. Code giữ hai cột vật lý cũ chỉ để tương thích; parser nhận dạng nhãn Markdown cũ rồi bỏ giá trị. HTML và plain text lấy từ cùng payload canonical: trích dẫn/nguồn → Bối cảnh → Phân tích/ý nghĩa → Liên hệ CAND → Hành động tuần này → NotebookLM tùy chọn.
+
+Đổi HMAC sang canonical version 2 và loại cả hai trường legacy khỏi danh sách canonical/required. Dấu v1 không còn khớp nên bản nội dung đã có phải được duyệt lại bằng hàm duyệt; không sửa dấu hoặc dữ liệu thật thủ công. Kiểm tra header sheet cả số cột để từ chối cột thừa. Preview nay trả total/valid/invalid/duplicate cùng pending/alreadySent/unknown, không có PII; kiểm tra từng dòng active và paused, và lặp audit ngay trước mỗi lần gửi.
+
+Files: services/thu-tuan/Code.gs; services/thu-tuan/tools/corpus-to-sheet.cjs; tests/thu-tuan.test.cjs; services/thu-tuan/README.md; docs/brain/01-architecture.md; docs/brain/03-decisions.md; docs/TROLY35_HOC_TAP_V6_1.md; docs/brain/06-ai-working-log.md.
+
+Validation: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs → 60/60 PASS, gồm regression cho chữ ký cũ, trường legacy, HTML/plain text, CSV import legacy, header thừa và audit recipient. npm run build trong web bị chặn vì thiếu dependency vite; không cài dependency. Runtime TEST thành công trên dữ liệu giả: duyệt và đọc lại dấu v2 của TEST-002 (tuần 2026-09-28); preview total=1, valid=1, invalid=0, duplicate=0; gửi đúng một thư tới TEST override, Gmail xác nhận một người nhận; kiểm tra MIME plain text/HTML, thứ tự section canonical và không có trường legacy. Sau gửi: enabled=false, TEST_MODE=false, override đã xóa, triggersOfThisAccount=0. Production không bị chạm.
+
+Rủi ro: approval stamp v1 không còn hợp lệ và cần duyệt lại. Approval secret của project TEST đã được xoay sau khi lộ trong tool output; dấu duyệt TEST cũ mất hiệu lực, còn dữ liệu cũ được giữ nguyên và TEST-002 đã được duyệt lại. Không thay đổi Production. Mặc định không bật THU_TUAN_ENABLED và không tạo trigger trong TEST_MODE.
+
+Cách test: node --test tests/thu-tuan.test.cjs; node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs; nghiệm thu Apps Script trên TEST theo services/thu-tuan/README.md mục 9, với đúng một TEST_RECIPIENT và không dùng Production.
+
+## [2026-09-26] Thư tuần: audit độc lập, vá an toàn, công cụ nhập 52 tuần
+
+Phạm vi: chỉ services/thu-tuan, tests, tài liệu. Không đụng backend public/web. CodeGraph: mọi symbol thuTuan* chỉ nằm trong services/thu-tuan/Code.gs, không caller ngoài test → tác động cô lập.
+
+Lỗi tìm thấy và đã sửa (services/thu-tuan/Code.gs):
+- NGHIÊM TRỌNG – gửi trùng: nhật ký lọc theo cột Ky; setValues chuỗi 2026-09-21 vào ô định dạng tự động bị Sheets đổi thành Date → lần chạy sau không thấy log → gửi lại toàn bộ. Sửa: đặt định dạng '@' cho 7 cột text của dòng log trước khi ghi, và khớp log theo Khoa (tiền tố "key|").
+- Bypass duyệt: digest SHA-256 không khóa, ai sửa được Sheet đều tự tính được; runtime không đối chiếu NguoiDuyet với allowlist. Sửa: HMAC-SHA256 với THU_TUAN_APPROVAL_SECRET (hàm taoKhoaDuyetThuTuan tạo một lần, không in), kiểm tra allowlist khi gửi và trước từng người nhận.
+- NgayDuyet có mili-giây có thể không giữ nguyên qua Sheets → mọi bản duyệt hỏng. Sửa: chuẩn hóa về giây; hàm duyệt đọc lại và báo APPROVAL_NOT_VERIFIED nếu dấu không khớp.
+- NotebookLM bắt buộc, trái quyết định Owner → tùy chọn (trống thì thư không có phần NotebookLM).
+- MaCB trùng giữa dòng TamDung/DangNhan bị bỏ qua im lặng → INVALID_RECIPIENT_LIST. Trạng thái log trống/lạ → giữ lại như UNKNOWN.
+- Bổ sung: reason code cho CONTENT_NOT_APPROVED, KY_NOT_PLAIN_TEXT, thông tin kỳ/mã/quota trong preview, remaining khi DEFERRED, kiemTraLichThuTuan/goLichThuTuan, duyetKyThuTuan (wrapper, mặc định YYYY-MM-DD → từ chối).
+
+Mới: services/thu-tuan/tools/corpus-to-sheet.cjs (Markdown 52 tuần → CSV nháp, trạng thái Nhap, không điền duyệt, từ chối ghi vào repo); tests/thu-tuan.test.cjs (42 test, gồm mô phỏng Sheets tự đổi ngày/làm tròn giây, E2E duyệt→xem trước→gửi→chạy lại). Các test Thư tuần cũ chuyển khỏi tests/hoc-tap.test.cjs (còn 6 test Quiz/Tủ sách/proxy). README module viết lại thành hướng dẫn vận hành.
+
+Kiểm thử: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs → 48/48 PASS. Mutation check: gỡ lần lượt 8 lớp bảo vệ (khớp Khoa, định dạng text, allowlist, HMAC, giữ UNKNOWN, cờ ENABLED, escape HTML, kiểm tra lại giữa lượt) → mỗi lần đều có test fail.
+
+Corpus: bộ 52 tuần ở thư mục hồ sơ (ngoài repo) parse đủ 52/52, 9 trường, không trùng tuần/mã, khớp 100% JSON V4, 52/52 trích dẫn tìm thấy trong Toàn tập Markdown (đối chứng âm OK). 0 NotebookLM URL, 0 bản đã được con người duyệt. CSV nháp tạo tại <thư mục hồ sơ>/.work/thu-tuan-import/ (không commit).
+
+Rủi ro: dấu duyệt HMAC làm dấu cũ (nếu có) mất hiệu lực – chưa có dữ liệu thật nên không ảnh hưởng. Đổi khóa = phải duyệt lại. Session.getActiveUser có thể trả rỗng ngoài cùng miền Workspace → duyệt bị từ chối (an toàn, cần thử ở TEST). Chưa chạy Google runtime thật.
+
+Cách test: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs; nghiệm thu runtime theo services/thu-tuan/README.md mục 9.
+
+## [2026-09-25] Hoàn thiện Thư tuần và xác minh acceptance local
+
+Cập nhật services/thu-tuan/Code.gs để giữ nguyên 10 cột đầu của LoiDay_NoiDung, nối thêm bảy trường cho Chủ đề, Bối cảnh, Phân tích, hai phần liên hệ, Hành động tuần này và NotebookLM_URL. Email lấy trực tiếp dữ liệu đã duyệt, giữ thứ tự yêu cầu, có HTML responsive và plain-text fallback; HTML escape mọi trường Sheet. Runtime không gọi AI. Digest bao gồm nội dung gửi, NotebookLM_URL, trạng thái/người/ngày duyệt và phiên bản; thay đổi sau duyệt chặn gửi. NotebookLM chỉ xuất hiện dưới dạng link tra cứu cuối thư kèm nhắc đối chiếu nguồn.
+
+Cập nhật tests/hoc-tap.test.cjs với bốn kiểm thử có I/O mock cho đóng dấu approval, thay metadata, URL NotebookLM, và output email/escaping; tổng 23 test.
+
+Kiểm thử local: node --test tests/hoc-tap.test.cjs — 23/23 PASS; npm run build trong web — PASS; parse cú pháp 17 tệp .gs, node --check web/api/gas.js và parse appsscript.json — PASS.
+
+Preflight migration: checkout đang ở codex/troly35-hoc-tap-loi-bac tại a5b8bf8; bốn SHA được nêu ban đầu không có trong Git object database. GitHub API đã xác nhận origin/main ở a5b8bf8, nhánh đích và PR chưa tồn tại. Git HTTPS ban đầu báo SEC_E_NO_CREDENTIALS; gh auth status xác nhận CLI đã đăng nhập. Đây là trạng thái trước push.
+
+Rủi ro/gate: cần nối bảy header mới vào sheet nội dung trước runtime; chưa kiểm tra Google Sheets/MailApp thật, quyền người duyệt/quota, chưa nhập người nhận, chưa gửi thư, chưa tạo trigger hoặc deploy. Không đổi dữ liệu cloud.
+
+Đọc toàn bộ docs/brain và dùng CodeGraph explore/impact/callers/callees trước sửa. Tạo nhánh codex/troly35-hoc-tap-loi-bac từ main; không reset/stash, giữ thư mục cache chưa theo dõi sẵn có.
+
+File thay đổi: web/api/gas.js; web/src/api.js; pages/TroLy35.jsx, Quiz.jsx, TuSach.jsx; backend/04-sheets-db.gs, 07-main.gs, 08-troly35.gs, 08-tusach.gs; services/thu-tuan/Code.gs, appsscript.json, README.md; tests/hoc-tap.test.cjs; docs/TROLY35_HOC_TAP_V6_1.md; README và tài liệu brain.
+
+Lý do: xử lý dữ liệu chung trước sử dụng; giữ phần học tập công khai; tách module gửi riêng và chống gửi lại khi kết quả không chắc chắn. Hợp đồng API và tác động/schema/rollback đã ghi trong kế hoạch.
+
+Rủi ro: lịch sử/xu hướng/feedback/lưu quiz tạm dừng; Tủ sách/quiz cũ không hiện đến khi metadata duyệt đầy đủ. Mã không xóa dữ liệu production cũ và không xác nhận dữ liệu nhà cung cấp. Còn kiểm tra nguồn video/infographic/RAG và quyền duyệt/thời hạn lưu. Schema cloud phải được quản trị viên chuyển có kiểm soát trước rollout.
+
+Kiểm thử: node --test tests/hoc-tap.test.cjs; npm run build trong web; parse JS/.gs bằng Node. Kết quả cụ thể ghi ngay dưới đây. Không có kết quả Google runtime/production, không gửi email thật. Hướng dẫn test trực tiếp, migration và rollback ở kế hoạch; chỉ dùng dữ liệu giả/công khai được phép.
+
+## Kết quả kiểm tra ngày 19/9/2026
+
+- Node v24.11.0: node --test tests/hoc-tap.test.cjs — 19/19 thành công, không bỏ qua; toàn bộ Google I/O dùng mock. Có kiểm tra thu hồi metadata duyệt giữa lượt gửi và direct GAS submit_quiz.
+- npm run build trong web — thành công với dependencies có sẵn; không cài mới.
+- Parse 17 tệp .gs bằng Node VM và đọc manifest JSON — không lỗi cú pháp. Đây không thay kiểm tra Google runtime.
+- git diff --check — không có lỗi khoảng trắng; Git cảnh báo chuẩn hóa LF/CRLF và quyền đọc cache sẵn có, không thay đổi các cache đó.
+- Browser trên bản build với API fixture tại loopback: chọn chuyên đề B, đúng 2 câu của B; hiển thị đáp án/giải thích/nguồn; làm một đúng, một sai cho kết quả 1/2 = 50%; lỗi tải được hiển thị; chi tiết sách bị thu hồi không dùng bản cũ; giao diện trợ lý có thông báo phạm vi công khai và không có lịch sử/xu hướng/feedback. Nhật ký fixture không có submit_quiz hoặc API lịch sử.
+- Fixture không nối backend thật; CSP chặn kết nối/ảnh/frame ngoài origin. Chưa kiểm tra AI thật, Google Sheets/MailApp, phát thư, thiết bị di động hoặc nghiệm thu toàn bộ hệ thống.
+- Chưa commit, push, tạo trigger, nhập người nhận hoặc deploy. Bước còn lại trước vận hành: dữ liệu duyệt, chuyển schema có kiểm soát, cấu hình được phép và kiểm tra deployment cụ thể.
+
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
 Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc được thực hiện bởi các trợ lý AI lập trình (Claude Code, Codex, v.v.).
@@ -973,3 +1042,135 @@ codegraph impact validateApiToken_
 3. Mở app → tab `Học tập` → section `Tủ sách`.
 4. Xác nhận danh mục 10 tài liệu hiện ra; bấm vào một tài liệu, modal chi tiết bật lên và nằm trong viewport.
 5. Thử tìm kiếm theo tên/chủ đề/tác giả.
+
+---
+
+## [2026-09-26] Nghiệm thu Preview TEST — học tập theo lời Bác
+
+### Phạm vi và deployment
+- Nhánh: `codex/troly35-hoc-tap-loi-bac`.
+- Preview deployment: `dpl_DqNZDCsuPHpdxD1XTSvuYw8vb8N9`, commit `1859d29c2b89f81ca63ae6afb7e7b0674986a037`, trạng thái `READY`.
+- Gate cô lập: `TROLY35_PREVIEW_ENV_ISOLATION_PASS_MANUAL_VERIFICATION`.
+- Không sửa mã nguồn, không thay đổi biến môi trường, không redeploy trong bước nghiệm thu này.
+
+### Bằng chứng runtime chỉ đọc
+- Preview root trả HTTP 200.
+- Qua Preview `/api/gas?action=quiz&count=10` trả HTTP 200 và marker TEST `QUIZ-TEST-001`.
+- Qua Preview `/api/gas?action=books` trả HTTP 200 và marker TEST `BOOK-TEST-001`.
+- Hai marker chỉ có trong fixture TEST xác nhận đường đi: Preview → TEST GAS → TEST Google Sheet.
+- AI/Gemini, Pinecone và write flow không được gọi. Việc thiếu credential AI/Pinecone ở Preview TEST là chủ ý để fail closed.
+
+### An toàn và kết quả
+- Không đọc, in hoặc ghi secret; automation bypass chỉ được dùng trong header của request đọc và không được log.
+- Production data/deployment/services không bị thay đổi hoặc gọi; không gửi email, không sửa trigger, không merge PR.
+- Verdict: `TROLY35_PREVIEW_TEST_ACCEPTANCE_PASS`.
+
+### Giới hạn nghiệm thu
+- Production runtime/deployment chưa được kiểm thử.
+- Chưa kiểm tra schema hoặc dữ liệu Google Sheets Production.
+- Chưa kiểm thử GAS runtime Production.
+- Chưa kiểm thử runtime AI/Gemini/Pinecone.
+- Chưa kiểm thử write flow Production.
+- Không thực hiện email, trigger, scheduled job, setup, seed hoặc bất kỳ data mutation nào.
+
+---
+
+## [2026-09-26] Production rollout readiness evidence
+
+- Pushed the standalone Preview acceptance documentation commit `db89057b84aa06de47a5a8bc68ff0a0028691a91`; PR #8 remains open and Draft.
+- Regression: `node --test tests/hoc-tap.test.cjs` 23/23 pass; 16 backend GAS files parsed; backend and weekly manifests parsed; `web` production build passed; `git diff --check` passed.
+- Production QUIZ/TU_SACH snapshot, Production GAS contract, and Production environment scope remain unverified because no Production Sheet identifier or safe metadata-only access was available in this task. No Production request or mutation was attempted.
+- Rollout runbook: `docs/TROLY35_PRODUCTION_ROLLOUT_RUNBOOK.md`.
+- Verdict remains `TROLY35_PRODUCTION_ROLLOUT_READINESS_BLOCKED_PRODUCTION_SNAPSHOT_ENVIRONMENT_AND_GAS_COMPATIBILITY_UNVERIFIED`.
+
+---
+
+## [2026-09-27] Thư tuần: nghiệm thu runtime thật trên Apps Script + Sheets TEST
+
+### Phạm vi
+- Vận hành trực tiếp một dự án Apps Script TEST độc lập (không liên kết backend/production) và hai Google Sheet TEST (Nội dung + Riêng tư), theo đúng quy trình 10 bước ở `services/thu-tuan/README.md` mục 9.
+- Toàn bộ dữ liệu là fixture đánh dấu `TEST`/`TEST-001`; người nhận là 2 địa chỉ alias Gmail do chủ tài khoản tự cung cấp và tự sở hữu (không tự suy đoán).
+- Không đụng Content/Private Sheet Production, không tạo Production trigger, không merge PR #8.
+
+### Kết quả từng bước (verdict evidence, không có email/ID/secret thật)
+1. `THU_TUAN_ENABLED=false` ban đầu; cơ chế `duyetKyThuTuan`/`duyetNoiDungThuTuan` tạo stamp phê duyệt HMAC hoạt động đúng: trước khi duyệt → nội dung bị chặn hợp lệ.
+2. Sau `duyetKyThuTuan` → `APPROVED`. `xemTruocThuTuan` → `PREVIEW`, `notebookLM:true`.
+3. Đổi NotebookLM_URL sang domain lạ → bị chặn với `INVALID_NOTEBOOKLM_URL` (kiểm tra định dạng URL chạy trước kiểm tra chữ ký HMAC; runbook gốc dự đoán `STAMP_MISMATCH` nhưng mã nguồn chặn sớm hơn và chặt hơn — không phải lỗi). Trả lại URL hợp lệ, duyệt lại → `APPROVED`.
+4. Thêm 2 người nhận TEST (`TrangThai=DangNhan`) → `xemTruocThuTuan` báo `pending:2, alreadySent:0, unknown:0`.
+5. Bật `THU_TUAN_ENABLED=true`, chạy `guiThuTuan` → `COMPLETE, sent:2`. Đã mở từng email thật: subject đúng, đủ 9 mục đúng thứ tự, dấu tiếng Việt hiển thị đúng, `multipart/alternative` có cả phần văn bản thuần lẫn HTML, header `To` chỉ có đúng 1 người nhận (không Cc/Bcc), có nút NotebookLM và câu miễn trừ trách nhiệm, SPF/DKIM/DMARC đều PASS.
+6. Chạy lại `guiThuTuan` ngay → `sent:0, alreadySent:2`, không có email mới, `ThuTuan_NhatKyGui` không phát sinh dòng mới.
+7. Mô phỏng lỗi Sheets tự chuyển cột `Ky` từ text sang Date (không đụng cột `Khoa`) → chạy lại `guiThuTuan` vẫn `alreadySent:2` — chống trùng gửi vẫn đúng vì khoá là `Khoa`, không phải `Ky`.
+8. Đặt một dòng log về `TrangThai=UNKNOWN` → `guiThuTuan` trả `RECONCILIATION_REQUIRED, unknown:1, sent:0`, không gửi thêm email. Khôi phục lại `SENT`.
+9. `caiLichThuTuan` → `CREATED` (xác nhận qua trang Kích hoạt, đúng 1 trigger `guiThuTuan` theo giờ). Gọi lại → `EXISTS`, số trigger không đổi. `kiemTraLichThuTuan` phản ánh đúng số lượng (0 → 1 → 0). `goLichThuTuan` → `REMOVED, count:1`.
+10. Tắt lại `THU_TUAN_ENABLED=false`; `guiThuTuan` hoàn tất rất nhanh (đường early-return `DISABLED`, không có Logger.log ở nhánh này nên xác nhận qua thời gian chạy + cấu hình + không có email mới), không có email mới. Xoá hàm chẩn đoán tạm `testIdentityQuota` khỏi Code.gs sống trên Apps Script TEST.
+
+### An toàn và giới hạn
+- Mọi bước OAuth "Cho phép" đều được hỏi xác nhận trước khi bấm tiếp; không tự ý bấm qua màn hình cấp quyền.
+- Trước khi gửi email thật, đã dừng lại hỏi và chờ người dùng xác nhận + cung cấp địa chỉ email TEST của chính họ (Gmail alias `+test1`/`+test2`), không tự suy đoán hoặc bịa địa chỉ.
+- `THU_TUAN_APPROVAL_SECRET` không bao giờ được in ra chat hay ghi vào log này.
+- Production Content/Private Sheet, Production Web App, PR #8: không đọc, không sửa, không merge.
+- Không phát hiện lỗi mã nguồn nào trong quá trình nghiệm thu → không có thay đổi code, không commit.
+- Regression: `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` → 48/48 pass; `git status`/`git diff --check` sạch (không có thay đổi tracked file nào).
+- Verdict: `THU_TUAN_TEST_RUNTIME_ACCEPTANCE_PASS`.
+
+### Cách kiểm tra lại
+1. Đăng nhập dự án Apps Script TEST tương ứng, xem "Thực thi" để thấy lịch sử các lần chạy `guiThuTuan`/`xemTruocThuTuan`/`duyetKyThuTuan`/`caiLichThuTuan`/`goLichThuTuan`/`kiemTraLichThuTuan` mô tả ở trên.
+2. Mở Sheet Riêng tư TEST, tab `ThuTuan_NhatKyGui`: 2 dòng `SENT` khớp `Khoa = <Ky>|TESTCB1` và `...|TESTCB2`.
+3. Mở hộp thư Gmail của người nhận TEST, tìm email chủ đề "Lời Bác dạy — tuần từ <Ky>" để đối chiếu nội dung/định dạng.
+
+---
+
+## [2026-09-27] THU_TUAN_PRODUCTION_READINESS_READONLY
+
+**BLOCKED — PRODUCTION READ-ONLY ACCESS NOT AVAILABLE.** Không có quyền đọc Script Properties/trigger của Production hoặc định danh Content/Private Sheet có thẩm quyền. Tìm kiếm Drive chỉ nhận diện được tài nguyên TEST; không mở Sheet phỏng đoán. Không tạo resource, seed, sửa Sheet, trigger, bật gửi hay gửi email.
+
+- UNVERIFIED — Content Sheet config; Private Sheet config; tab `ThuTuan_NguoiNhan`; tab `ThuTuan_NhatKyGui`.
+- UNVERIFIED — Chỉ kiểm tra presence của `THU_TUAN_APPROVAL_SECRET` (không đọc/in giá trị); `THU_TUAN_APPROVER_EMAILS`; `THU_TUAN_ENABLED=false`; không còn TEST recipient.
+- UNVERIFIED — Không có `SENDING`/`UNKNOWN` cần đối soát; corpus Production đã import; số tuần đã duyệt/chưa duyệt/thiếu source hoặc version.
+- UNVERIFIED — NotebookLM Production và trigger Production.
+- BLOCKED — Không thể xác định quota có thể kiểm tra read-only trong Production hay không.
+
+## [2026-09-27] PR #8 independent review
+
+Review toàn bộ 22 file trong diff `main...HEAD` (base `a5b8bf8`, head `5ead411`), bao gồm backend public, web/proxy, quiz/Tủ sách, Trợ lý 35 và `services/thu-tuan`. Sửa lỗi public GET có thể tạo/ghi lại schema QUIZ/TU_SACH; unresolved `SENDING`/`UNKNOWN` của recipient đã tạm dừng/xóa có thể bị bỏ khỏi reconciliation; kiểm tra tính nhất quán của log `Khoa`/`MaCB`/`Ky`; và map recipient với ID trùng tên thuộc tính JavaScript. Thêm regression tests. Rủi ro còn lại: approval quiz/Tủ sách dựa trên metadata cột, chưa ràng buộc mật mã với content; tài liệu yêu cầu đưa về nháp/duyệt lại và giới hạn quyền sửa Sheet, chưa xác minh được quyền Production.
+
+- Kiểm tra lại: `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 52/52 pass; `git diff --check` chạy sau thay đổi.
+- Không sửa PR state; không merge. Runtime acceptance TEST ghi ở mục trước là kết quả kế thừa, không chạy lại trong phiên review này.
+
+---
+
+## [2026-09-27] THU_TUAN_EMAIL_POLISH_AND_OWNER_ONLY_TEST
+
+- Cập nhật `services/thu-tuan/Code.gs` để email HTML/plain-text có thứ tự rõ ràng, thẻ lời trích dẫn và nguồn, các section dễ đọc, phần `GoiYLienHe` tùy chọn, NotebookLM ở cuối nội dung và footer kiểm duyệt. Không đổi `thuTuanDigest_`, danh sách field HMAC, adapter gửi, CC/BCC hay các cổng fail-closed.
+- Cập nhật `tests/thu-tuan.test.cjs` kiểm tra escaping đủ 5 ký tự HTML, section/`GoiYLienHe`, NotebookLM hợp lệ và trống, plain text, gửi từng người, không CC/BCC và digest không đổi. Cập nhật `services/thu-tuan/README.md` cho thứ tự nội dung mới.
+- Regression: `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 52/52 PASS; `git diff --check` — PASS.
+- Runtime TEST: tài khoản Gmail/Drive/Apps Script hiện hành trùng nhau; Script Properties TEST ban đầu để `THU_TUAN_ENABLED=false`, secret chỉ được xác nhận có mặt, allow-list có cấu hình, không có TEST trigger. Preview trả `PREVIEW`, `pending:1`, `quota:100`, `unknown:0`, `alreadySent:0`.
+- Gửi đúng một email TEST cho owner: `COMPLETE`, `sent:1`; Gmail xác nhận cùng subject, một người nhận đúng owner, không Cc/Bcc, `multipart/alternative` có HTML/plain text, tiếng Việt, nguồn, NotebookLM hợp lệ và footer. Dedupe tiếp theo: `sent:0`, `alreadySent:1`. Sửa trường đã duyệt trong Sheet TEST: `CONTENT_NOT_APPROVED`, `reason: STAMP_MISMATCH`, `sent:0`.
+- Đã phục hồi trường nội dung TEST và hai recipient TEST cũ; xóa recipient owner tạm thời khỏi danh sách nhưng giữ log `SENT` theo mã TEST để lưu bằng chứng dedupe. Sau kiểm tra: `THU_TUAN_ENABLED=false`, không có trigger hoặc `SENDING/UNKNOWN`; không sửa Production. Trạng thái Production vẫn `BLOCKED — PRODUCTION READ-ONLY ACCESS NOT AVAILABLE` như mục checklist trước.
+- Gmail web hiển thị đúng thư trong mailbox. Không xác nhận mobile visual: Gmail web shell ở viewport hẹp không cho xem trọn chiều ngang và Browser chặn preview `data:` URL; không thử cách vòng qua chính sách.
+- Files: `services/thu-tuan/Code.gs`, `services/thu-tuan/README.md`, `tests/thu-tuan.test.cjs`, `docs/brain/06-ai-working-log.md`. Test lại bằng regression command ở trên; rủi ro còn lại là Production rollout chưa được xác minh/cho phép.
+- Out of scope / follow-up: `QUIZ_TUSACH_POST_APPROVAL_INTEGRITY_DECISION_PENDING`; đây là việc riêng, không block Thư tuần.
+
+---
+
+## [2026-09-27] THU_TUAN_EMAIL_FIXED_HERO
+
+- Làm mới bố cục email HTML Thư tuần “Lời Bác dạy” với header, banner, metadata, trích dẫn, nội dung theo section và footer; giữ thứ tự dữ liệu, escaping và bản plain text.
+- Thêm services/thu-tuan/EmailAssets.gs với JPEG người dùng cung cấp (1280×427, 37,334 bytes) mã hóa Base64 trong source. Adapter tạo Blob và gửi ảnh cố định qua inlineImages với CID loi-bac-hero; không dùng Drive, URL ngoài hay OAuth scope mới. Có thể tắt ảnh; lỗi tạo Blob vẫn gửi HTML/plain text không có ảnh.
+- Giữ nguyên approval gate, danh sách trường HMAC trong thuTuanDigest_, dedupe, reconciliation, recipient từng người và cấu hình gửi. Không đụng dữ liệu, properties, trigger hay gửi email Production. Verdict giữ nguyên: THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING.
+- Files: services/thu-tuan/Code.gs, services/thu-tuan/EmailAssets.gs, tests/thu-tuan.test.cjs, services/thu-tuan/README.md, docs/brain/06-ai-working-log.md. README ghi cách thêm hai file vào standalone Apps Script, cơ chế inline CID và fallback.
+- Regression: node --test tests/thu-tuan.test.cjs — 45/45 PASS; node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs — 53/53 PASS; git diff --check — PASS; CodeGraph sync — PASS.
+- Hướng dẫn test: chạy hai lệnh Node ở trên. Test dùng mock MailApp/Utilities; xác nhận attachment CID, byte JPEG, alt text, bố cục responsive, không tải ảnh ngoài, fallback, thứ tự gửi, escaping, plain text và digest. Kiểm tra trực quan trên mobile chưa được xác nhận; ứng dụng email có thể ẩn ảnh, nội dung chữ vẫn dùng được.
+- Rủi ro/trạng thái: chưa xác minh cấu hình Production; không thực hiện gửi thử Production. Production verdict tiếp tục là THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING.
+
+---
+
+## [2026-09-27] THU_TUAN_PRODUCTION_ACCEPTANCE_AUDIT
+
+- Thêm `THU_TUAN_TEST_MODE` và `THU_TUAN_TEST_RECIPIENT_EMAIL` cho một địa chỉ duy nhất. Khi bật, adapter không đọc sheet người nhận, ghi log dưới `THU_TUAN_TEST_OVERRIDE`; trigger bị chặn. Recipient thừa khi mode tắt và mode gõ sai đều fail-closed. Approval/HMAC, per-recipient send, dedupe và reconciliation giữ nguyên.
+- Production audit: Apps Script hiện có một project khớp module và tên/trạng thái của nó là TEST; không tìm thấy project Production tương ứng. TEST chạy độc lập, không deployment, không trigger ban đầu; timezone `Asia/Ho_Chi_Minh`, bốn OAuth scope giữ nguyên. Script Properties TEST có sheet IDs tách biệt, allowlist duy nhất và HMAC secret (chỉ xác nhận có mặt, không đọc/ghi log giá trị); gửi ban đầu tắt. Không đọc hay đổi resource Production.
+- TEST runtime: xác nhận tài khoản chạy khớp allowlist TEST duy nhất, đặt override tạm tới chính tài khoản đó và chỉ bật sau preview `pending:1, unknown:0`. Apps Script trả `COMPLETE, sent:1` lúc 23:27:44 `Asia/Ho_Chi_Minh` ngày 27/9/2026. Gmail xác nhận subject đúng, một header To, không Cc/Bcc, multipart/alternative có plain text 1,278 byte và HTML 7,522 byte; message size 69,273 byte. JPEG inline `image/jpeg`, 37,334 byte, Content-ID `loi-bac-hero`; HTML tham chiếu đúng CID. Preview ngay sau gửi trả `pending:0, alreadySent:1, unknown:0`; không có lần gửi thứ hai, reconciliation không còn mục chưa rõ.
+- Gmail Web/Desktop hiển thị banner đã nhúng với JPEG tự nhiên 1280×427, render khoảng 636.8×212.4 px, đúng tỷ lệ và nằm gọn trong khung. Screenshot bằng chứng lưu ngoài repository trong thư mục Codex với tên `thu-tuan-test-gmail-web.jpg`. Gmail Mobile chưa xác minh; fallback HTML/plain-text khi không có Blob vẫn được kiểm tra trong regression, nhưng chưa kiểm tra bằng cách tắt ảnh của Gmail.
+- Sau smoke: `THU_TUAN_ENABLED=false`, `THU_TUAN_TEST_MODE=false`, `THU_TUAN_TEST_RECIPIENT_EMAIL` đã xóa, kiểm tra Apps Script trả `triggersOfThisAccount:0`; helper cấu hình tạm đã gỡ khỏi source TEST. Không gửi tới danh sách Production, không đưa secret hoặc địa chỉ email vào repo/log, không thêm OAuth scope.
+- Regression sau thay đổi: `node --test tests/thu-tuan.test.cjs` — 50/50 PASS; `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 58/58 PASS; `git diff --check` — PASS; CodeGraph index cập nhật, không còn pending changes. Frontend build đã thử trong worktree nhưng không chạy được do `vite` không có trong `node_modules`; không cài dependency theo quy định repo. Không có lint/typecheck script trong `package.json`.
+- Blocker nghiệm thu Production: không tìm thấy project/config Production nên Script Properties, recipient source, quyền Gmail, trigger, sender và đối soát Production chưa xác minh; không gửi thử Production. Verdict: `THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING`.

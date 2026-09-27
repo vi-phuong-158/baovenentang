@@ -155,14 +155,15 @@ export default function TuSach({ embedded = false }) {
 
   const openBook = async (book) => {
     setDetailLoading(true);
-    setDetailBook(book);
+    setDetailBook(null);
     setSelectedMedia(null);
     setActiveBookId(book.id);
     try {
       const fresh = await getBookById(book.id);
       setDetailBook(fresh);
     } catch {
-      setDetailBook(book);
+      setDetailBook(null);
+      setError('Tài liệu không còn được phép hiển thị hoặc chưa tải được bản hiện hành. Vui lòng thử lại.');
     } finally {
       setDetailLoading(false);
     }

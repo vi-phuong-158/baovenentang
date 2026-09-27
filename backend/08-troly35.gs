@@ -302,157 +302,23 @@ function handleTroLy35Run(data) {
 }
 
 function handleTroLy35Rate(data) {
-  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
-
-  const requestId = cleanValue_(data && data.requestId);
-  const rating = Number(data && data.rating);
-  const note = cleanValue_(data && data.note).substring(0, 1000);
-
-  if (!requestId) throw new Error('Thiếu requestId.');
-  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-    throw new Error('Rating phải từ 1 đến 5.');
-  }
-
-  const sheet = getSheet_('TROLY35_HISTORY');
-  const rowIndex = troLy35FindHistoryRow_(sheet, requestId);
-  if (!rowIndex) throw new Error('Không tìm thấy lịch sử cần đánh giá.');
-
-  sheet.getRange(rowIndex, 12, 1, 2).setValues([[rating, note]]);
-
-  return {
-    success: true,
-    message: 'Đã lưu đánh giá',
-    requestId,
-    rating
-  };
+  // The shared access code does not identify a person. Deny at the source.
+  return { success: false, error: 'Chức năng dữ liệu chung đang tạm dừng để bảo đảm phạm vi truy cập.' };
 }
 
 function handleTroLy35Feedback(data) {
-  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  const accessCode = data && (data.accessCode || data.access_code);
-  troLy35RequireAccess_(accessCode, data && (data.clientIpHash || data.client_ip_hash));
-
-  const rating = cleanValue_(data && data.rating);
-  if (rating !== 'good' && rating !== 'bad') throw new Error('Rating phải là "good" hoặc "bad".');
-
-  const responseId = cleanValue_(data && (data.responseId || data.response_id));
-  if (!responseId) throw new Error('Thiếu responseId.');
-
-  const codeHash = troLy35Hash_(cleanValue_(accessCode)).substring(0, 12);
-  const queryPreview = cleanValue_(data && (data.queryPreview || data.query_preview));
-  const comment = cleanValue_(data && (data.comment || data.reason)).substring(0, 1000);
-
-  saveTroLy35Feedback_({
-    queryHash: cleanValue_(data && (data.queryHash || data.query_hash)) || troLy35Hash_(queryPreview),
-    rating,
-    comment,
-    responseId,
-    accessCodeHash: codeHash,
-    queryPreview,
-    responsePreview: cleanValue_(data && (data.responsePreview || data.response_preview)),
-    reason: cleanValue_(data && data.reason),
-  });
-
-  troLy35UpdateHistoryFeedback_(responseId, rating, comment);
-
-  return { success: true, message: 'Cảm ơn góp ý!' };
+  // The shared access code does not identify a person. Deny at the source.
+  return { success: false, error: 'Chức năng dữ liệu chung đang tạm dừng để bảo đảm phạm vi truy cập.' };
 }
 
 function handleTroLy35History(data) {
-  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
-
-  const limit = Math.min(50, Math.max(1, Number(data && data.limit) || 20));
-  const sheet = getSheet_('TROLY35_HISTORY');
-  if (sheet.getLastRow() <= 1) return { success: true, data: [] };
-
-  const start = Math.max(2, sheet.getLastRow() - limit + 1);
-  const dataRows = sheet.getRange(start, 1, sheet.getLastRow() - start + 1, sheet.getLastColumn()).getValues();
-  const rows = dataRows.reverse().map(row => {
-    const rating = row[11];
-    return {
-      timestamp: row[0],
-      requestId: row[1],
-      mode: row[2],
-      topic: row[3],
-      dangerLevel: row[4],
-      inputPreview: row[5],
-      sourceUrl: row[7],
-      answerText: troLy35FormatAnswerText_(row[2], troLy35ParseJsonSafe_(row[9])),
-      rating,
-      ratingStatus: troLy35RatingStatus_(rating),
-      note: row[12],
-      status: row[13],
-      error: row[14]
-    };
-  });
-
-  return { success: true, data: rows };
+  // The shared access code does not identify a person. Deny at the source.
+  return { success: false, error: 'Chức năng dữ liệu chung đang tạm dừng để bảo đảm phạm vi truy cập.' };
 }
 
 function handleTroLy35Trends(data) {
-  assertRequiredConfig_(REQUIRED_SHEET_CONFIG);
-  troLy35RequireAccess_(data && data.accessCode, data && (data.clientIpHash || data.client_ip_hash));
-
-  const windowDays = Math.min(30, Math.max(1, Number(data && data.windowDays) || 7));
-  const since = new Date();
-  since.setDate(since.getDate() - windowDays + 1);
-  since.setHours(0, 0, 0, 0);
-
-  const sheet = getSheet_('TROLY35_HISTORY');
-  if (sheet.getLastRow() <= 1) {
-    return {
-      success: true,
-      data: troLy35EmptyTrend_(windowDays)
-    };
-  }
-
-  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
-    .filter(row => {
-      const timestamp = new Date(row[0]);
-      return !Number.isNaN(timestamp.getTime()) && timestamp >= since && row[13] === 'DONE';
-    });
-
-  const topics = {};
-  let dangerTotal = 0;
-  let dangerCount = 0;
-  let rated = 0;
-  let goodRated = 0;
-
-  rows.forEach(row => {
-    const topic = row[3] || 'Chưa phân loại';
-    topics[topic] = (topics[topic] || 0) + 1;
-
-    const danger = Number(row[4]);
-    if (Number.isFinite(danger) && danger > 0) {
-      dangerTotal += danger;
-      dangerCount++;
-    }
-
-    const rating = Number(row[11]);
-    if (Number.isFinite(rating) && rating > 0) {
-      rated++;
-      if (rating >= 4) goodRated++;
-    }
-  });
-
-  const topTopics = Object.keys(topics)
-    .map(topic => ({ topic, count: topics[topic] }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  return {
-    success: true,
-    data: {
-      windowDays,
-      totalRequests: rows.length,
-      averageDangerLevel: dangerCount ? Number((dangerTotal / dangerCount).toFixed(2)) : 0,
-      goodRatingRate: rated ? Math.round((goodRated / rated) * 100) : 0,
-      topTopics,
-      lastUpdate: new Date().toLocaleString('vi-VN')
-    }
-  };
+  // The shared access code does not identify a person. Deny at the source.
+  return { success: false, error: 'Chức năng dữ liệu chung đang tạm dừng để bảo đảm phạm vi truy cập.' };
 }
 
 function syncTroLy35KnowledgeToPinecone(maxRows) {
@@ -1199,46 +1065,18 @@ function troLy35RunCacheKey_(mode, content, sourceUrl, topicHint, style, history
 }
 
 function troLy35GetCachedRun_(cacheKey) {
-  try {
-    const raw = CacheService.getScriptCache().get(cacheKey);
-    return raw ? JSON.parse(raw) : null;
-  } catch (_) {
-    return null;
-  }
+  // Never restore shared cached conversations, including entries from an older deploy.
+  return null;
 }
 
 function troLy35PutCachedRun_(cacheKey, payload) {
-  try {
-    CacheService.getScriptCache().put(cacheKey, JSON.stringify(payload), 1800);
-  } catch (error) {
-    Logger.log(`[Trợ lý 35] Không cache được response: ${error}`);
-  }
+  return false;
 }
 
 function troLy35SaveHistory_(data) {
-  const sheet = getSheet_('TROLY35_HISTORY');
-  const analysis = data.analysis || {};
-  const result = data.result || {};
-  const knowledge = data.knowledge || [];
-  const input = cleanValue_(data.input);
-
-  sheet.appendRow([
-    new Date(),
-    data.requestId,
-    data.mode,
-    analysis.chu_de || '',
-    Number(analysis.do_nguy_hiem) || '',
-    input.substring(0, 500),
-    CONFIG.TROLY35_SAVE_FULL_INPUT ? input : '',
-    cleanValue_(data.sourceUrl),
-    troLy35Stringify_(analysis, 45000),
-    troLy35Stringify_(result, 45000),
-    troLy35Stringify_(knowledge, 45000),
-    '',
-    '',
-    data.status || 'DONE',
-    cleanValue_(data.error)
-  ]);
+  // Public-learning profile: no prompt, preview, analysis, response or error persistence.
+  // Existing rows are retained for an authorized inventory; this does not delete them.
+  return false;
 }
 
 function troLy35FindHistoryRow_(sheet, requestId) {
