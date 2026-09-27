@@ -23,7 +23,7 @@ function weekly(extra={}){
  vm.runInContext(CODE,ctx);
  return ctx;
 }
-function contentRow(o={}){return Object.assign({Ky:'2026-09-21',ChuDe:'Kỷ luật và trách nhiệm',MaLoiDay:'LD-TEST-1',NoiDungNguyenVan:'Fixture only',NguonTrich:'Fixture source, Tập 0, tr. 0',GoiYLienHe:'',BoiCanh:'Fixture context',PhanTich:'Fixture analysis',LienHeCAND:'Fixture CAND link',LienHeAnNinhDoiNgoai:'Fixture external security link',HanhDongTuanNay:'Fixture action',NotebookLM_URL:'https://notebooklm.google.com/notebook/fixture-123',TrangThai:'DaDuyet',NguoiDuyet:REVIEWER,NgayDuyet:new Date('2026-09-19T03:00:00Z'),PhienBan:'1'},o);}
+function contentRow(o={}){return Object.assign({Ky:'2026-09-21',ChuDe:'Kỷ luật và trách nhiệm',MaLoiDay:'LD-TEST-1',NoiDungNguyenVan:'Fixture only',NguonTrich:'Fixture source, Tập 0, tr. 0',GoiYLienHe:'LEGACY_REFLECTION_SENTINEL',BoiCanh:'Fixture context',PhanTich:'Fixture analysis',LienHeCAND:'Fixture CAND link',LienHeAnNinhDoiNgoai:'LEGACY_ANND_SENTINEL',HanhDongTuanNay:'Fixture action',NotebookLM_URL:'https://notebooklm.google.com/notebook/fixture-123',TrangThai:'DaDuyet',NguoiDuyet:REVIEWER,NgayDuyet:new Date('2026-09-19T03:00:00Z'),PhienBan:'1'},o);}
 function stamp(ctx,c){c.DauVanBanDuyet=ctx.thuTuanDigest_(c,SECRET);return c;}
 function fixture(ctx=weekly(),o={}){
  const content=stamp(ctx,contentRow(o));
@@ -43,7 +43,7 @@ function memSheet(headers,rows=[],{textCols=[]}={}){
   if(fmt[r+','+c]!=='@'&&typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))return new Date(v+'T00:00:00+07:00'); // auto date
   return v;
  };
- const sheet={data,fmt,formatCalls:[],getLastRow:()=>data.length,
+ const sheet={data,fmt,formatCalls:[],getLastRow:()=>data.length,getLastColumn:()=>Math.max(0,...data.map(row=>row.length)),
   getRange(r,c,nr=1,nc=1){return{
    getValues:()=>Array.from({length:nr},(_,i)=>Array.from({length:nc},(_,j)=>(data[r-1+i]||[])[c-1+j]??'')),
    setValues:v=>v.forEach((row,i)=>{data[r-1+i]=data[r-1+i]||[];row.forEach((x,j)=>{data[r-1+i][c-1+j]=coerce(r+i,c+j,x);});}),
@@ -85,15 +85,15 @@ test('only complete DaDuyet content from an allow-listed reviewer with a valid s
  const f=fixture();assert.equal(f.run(false).status,'COMPLETE');assert.equal(f.sent.length,2);
 });
 test('each missing required field or approval field fails closed with a reason',()=>{
- const cases={TrangThai:'NOT_APPROVED',NguoiDuyet:'MISSING_REVIEWER',NgayDuyet:'INVALID_APPROVAL_DATE',PhienBan:'INCOMPLETE_CONTENT',NguonTrich:'INCOMPLETE_CONTENT',ChuDe:'INCOMPLETE_CONTENT',MaLoiDay:'INCOMPLETE_CONTENT',NoiDungNguyenVan:'INCOMPLETE_CONTENT',BoiCanh:'INCOMPLETE_CONTENT',PhanTich:'INCOMPLETE_CONTENT',LienHeCAND:'INCOMPLETE_CONTENT',LienHeAnNinhDoiNgoai:'INCOMPLETE_CONTENT',HanhDongTuanNay:'INCOMPLETE_CONTENT',DauVanBanDuyet:'STAMP_MISMATCH'};
+ const cases={TrangThai:'NOT_APPROVED',NguoiDuyet:'MISSING_REVIEWER',NgayDuyet:'INVALID_APPROVAL_DATE',PhienBan:'INCOMPLETE_CONTENT',NguonTrich:'INCOMPLETE_CONTENT',ChuDe:'INCOMPLETE_CONTENT',MaLoiDay:'INCOMPLETE_CONTENT',NoiDungNguyenVan:'INCOMPLETE_CONTENT',BoiCanh:'INCOMPLETE_CONTENT',PhanTich:'INCOMPLETE_CONTENT',LienHeCAND:'INCOMPLETE_CONTENT',HanhDongTuanNay:'INCOMPLETE_CONTENT',DauVanBanDuyet:'STAMP_MISMATCH'};
  for(const [field,reason] of Object.entries(cases)){const f=fixture();f.content[field]='';const r=f.run(false);assert.equal(r.status,'CONTENT_NOT_APPROVED',field);assert.equal(r.reason,reason,field);assert.equal(f.sent.length,0);assert.equal(f.logs.length,0);}
  for(const status of ['Nhap','daduyet','DaDuyet ','ChoDuyet']){const f=fixture();f.content.TrangThai=status;assert.equal(f.run(false).status,'CONTENT_NOT_APPROVED');assert.equal(f.sent.length,0);}
 });
 test('invalid approval date is rejected even when re-stamped',()=>{
  const ctx=weekly();const f=fixture(ctx,{NgayDuyet:'not-a-date'});assert.equal(f.run(false).reason,'INVALID_APPROVAL_DATE');assert.equal(f.sent.length,0);
 });
-test('editing any stamped field after approval invalidates it (incl. legacy GoiYLienHe and NotebookLM)',()=>{
- for(const field of ['ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','PhienBan']){
+test('editing any canonical stamped field after approval invalidates it (and NotebookLM)',()=>{
+ for(const field of ['ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','BoiCanh','PhanTich','LienHeCAND','HanhDongTuanNay','PhienBan']){
   const f=fixture();f.content[field]+=' (sửa)';const r=f.run(false);
   assert.equal(r.status,'CONTENT_NOT_APPROVED',field);assert.equal(r.reason,'STAMP_MISMATCH',field);assert.equal(f.sent.length,0);
  }
@@ -101,8 +101,18 @@ test('editing any stamped field after approval invalidates it (incl. legacy GoiY
  const g=fixture();g.content.NguoiDuyet='other@example.test';assert.equal(g.run(false).status,'CONTENT_NOT_APPROVED');
  const h=fixture();h.content.NgayDuyet=new Date('2026-09-20T03:00:00Z');assert.equal(h.run(false).reason,'STAMP_MISMATCH');
 });
+test('legacy input cannot affect canonical HMAC and old approval stamps fail closed',()=>{
+ const f=fixture(),stamp=f.content.DauVanBanDuyet;
+ for(const field of f.ctx.THU_TUAN_LEGACY_INPUT_FIELDS_)assert.equal(f.ctx.THU_TUAN_CANONICAL_FIELDS_.includes(field),false);
+ f.content.GoiYLienHe='changed legacy reflection';f.content.LienHeAnNinhDoiNgoai='changed legacy ANĐN';
+ assert.equal(f.ctx.thuTuanDigest_(f.content,SECRET),stamp);assert.equal(f.run(false).status,'COMPLETE');
+ const oldKeys=['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'];
+ const oldValue=JSON.stringify(oldKeys.map(k=>k==='NgayDuyet'?new Date(f.content[k]).toISOString():String(f.content[k])));
+ f.content.DauVanBanDuyet=crypto.createHmac('sha256',SECRET).update(oldValue).digest('hex');
+ assert.equal(f.run(false).reason,'STAMP_MISMATCH');
+});
 test('a stamp forged without the Script Properties key is rejected',()=>{
- const f=fixture();const c=f.content;const plain=JSON.stringify(['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'].map(k=>k==='NgayDuyet'?new Date(c[k]).toISOString():String(c[k])));
+ const f=fixture(),c=f.content;const plain=JSON.stringify([2,...['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','BoiCanh','PhanTich','LienHeCAND','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'].map(k=>k==='NgayDuyet'?new Date(c[k]).toISOString():String(c[k]))]);
  c.NoiDungNguyenVan='Nội dung chưa duyệt';
  for(const forged of [crypto.createHash('sha256').update(plain).digest('hex'),f.ctx.thuTuanDigest_(c,'x'.repeat(32))]){c.DauVanBanDuyet=forged;assert.equal(f.run(false).reason,'STAMP_MISMATCH');}
  assert.equal(f.sent.length,0);
@@ -141,6 +151,12 @@ test('malformed or duplicate recipients stop the run before any mail',()=>{
  for(const id of ['CB 2','','CB1']){const f=fixture();f.recipients[1].MaCB=id;assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST',id);assert.equal(f.sent.length,0);}
  const f=fixture();f.recipients.push({MaCB:'CB1',Email:'old@example.test',TrangThai:'TamDung'});assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST');assert.equal(f.sent.length,0);
 });
+test('inactive recipient rows are validated and duplicate counts include all duplicate IDs',()=>{
+ const f=fixture();f.recipients[1].TrangThai='TamDung';f.recipients[1].Email='bad address';
+ assert.equal(f.run(true).status,'INVALID_RECIPIENT_LIST');
+ const g=fixture();g.recipients.push({MaCB:'CB1',Email:'old@example.test',TrangThai:'TamDung'});
+ const r=g.run(true);assert.equal(r.status,'INVALID_RECIPIENT_LIST');assert.equal(r.total,3);assert.equal(r.valid,1);assert.equal(r.invalid,2);assert.equal(r.duplicate,2);
+});
 test('valid recipient IDs that match JavaScript object property names are handled normally',()=>{
  for(const id of ['constructor','toString','__proto__']){const f=fixture();f.recipients[0].MaCB=id;assert.equal(f.run(false).status,'COMPLETE',id);assert.equal(f.sent.length,2,id);}
 });
@@ -152,7 +168,7 @@ test('paused recipients are skipped and may reuse an address; order is determini
 // ---------- Preview ----------
 test('preview reports counts and codes without sending or writing',()=>{
  const f=fixture();f.io.put=()=>{throw Error('preview must not write');};f.io.send=()=>{throw Error('preview must not send');};
- const r=f.run(true);assert.equal(r.status,'PREVIEW');assert.equal(r.pending,2);assert.equal(r.sent,0);assert.equal(r.maLoiDay,'LD-TEST-1');assert.equal(r.quota,10);assert.equal(r.notebookLM,true);
+ const r=f.run(true);assert.equal(r.status,'PREVIEW');assert.equal(r.total,2);assert.equal(r.valid,2);assert.equal(r.invalid,0);assert.equal(r.duplicate,0);assert.equal(r.pending,2);assert.equal(r.alreadySent,0);assert.equal(r.sent,0);assert.equal(r.maLoiDay,'LD-TEST-1');assert.equal(r.quota,10);assert.equal(r.notebookLM,true);
  assert.equal(JSON.stringify(r).includes('@'),false);
 });
 
@@ -275,14 +291,15 @@ test('a leftover test address or misspelled TEST_MODE fails closed before normal
 test('the reserved TEST_MODE recipient ID is invalid in normal recipient mode',()=>{
  const f=fixture();f.recipients[0].MaCB='THU_TUAN_TEST_OVERRIDE';assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST');assert.equal(f.sent.length,0);
 });
-test('header drift is rejected',()=>{
+test('header drift and unexpected extra columns are rejected',()=>{
  const w=world();w.sheets['content-id|LoiDay_NoiDung'].data[0][11]='BoiCanhX';assert.throws(()=>w.ctx.xemTruocThuTuan(),/INVALID_HEADERS/);
+ const extra=world();extra.sheets['content-id|LoiDay_NoiDung'].data[0].push('Unexpected');assert.throws(()=>extra.ctx.xemTruocThuTuan(),/INVALID_HEADERS/);
 });
 
 // ---------- Email rendering ----------
 test('mail: formal responsive layout, all approved sections, escaping, inline hero, optional NotebookLM and one private message per recipient',()=>{
  const w=world({content:[],recipients:[]});const adapter=w.ctx.thuTuanAdapter_({contentId:'content-id',privateId:'private-id',secret:SECRET});
- const content=contentRow({ChuDe:'<script>alert(1)</script>',NoiDungNguyenVan:'Lời Bác & <dạy>\ndòng 2',NguonTrich:'Nguồn & <sách> "chính" và \'nguyên văn\'',GoiYLienHe:'Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'});
+ const content=contentRow({ChuDe:'<script>alert(1)</script>',NoiDungNguyenVan:'Lời Bác & <dạy>\ndòng 2',NguonTrich:'Nguồn & <sách> "chính" và \'nguyên văn\'',GoiYLienHe:'LEGACY_REFLECTION_SENTINEL',LienHeAnNinhDoiNgoai:'LEGACY_ANND_SENTINEL'});
  const digestBefore=w.ctx.thuTuanDigest_(content,SECRET);adapter.send({Email:'one@example.test'},content);
  const m=w.mail[0];assert.deepEqual(Object.keys(m).sort(),['body','htmlBody','inlineImages','subject','to']);assert.equal(m.to,'one@example.test');assert.doesNotMatch(m.subject,/[\r\n]/);
  assert.deepEqual(Object.keys(m.inlineImages),[w.ctx.THU_TUAN_HERO_IMAGE_CID_]);
@@ -291,14 +308,14 @@ test('mail: formal responsive layout, all approved sections, escaping, inline he
  assert.equal(width,1280);assert.equal(height,427);
  const imageTag=(m.htmlBody.match(/<img\b[^>]*>/i)||[])[0]||'';assert.ok(imageTag);assert.match(imageTag,/src="cid:loi-bac-hero"/);assert.match(imageTag,/alt="Minh họa chân dung Chủ tịch Hồ Chí Minh"/);assert.match(imageTag,/width:100%/);assert.match(imageTag,/height:auto/);assert.doesNotMatch(imageTag,/https?:\/\//i);
  assert.match(m.htmlBody,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.htmlBody,/Học tập – Liên hệ – Hành động/);assert.match(m.htmlBody,/Tuần/);assert.match(m.htmlBody,/Chủ đề/);assert.match(m.htmlBody,/Mã lời dạy/);
- const labels=['Lời Bác dạy','Nguồn trích dẫn','Bối cảnh','Hiểu lời Bác dạy','Liên hệ với Công an nhân dân','Liên hệ với công tác An ninh đối ngoại','Hành động tuần này','Gợi ý tự soi, tự liên hệ'];
+ const labels=['Lời Bác dạy','Nguồn trích dẫn','Bối cảnh','Phân tích / ý nghĩa','Liên hệ với Công an nhân dân','Hành động tuần này'];
  let previous=-1;for(const label of labels){const p=m.htmlBody.indexOf(label);assert.ok(p>previous,'missing or out of order: '+label);previous=p;}
  assert.match(m.htmlBody,/name="viewport"/i);assert.match(m.htmlBody,/charset="utf-8"/i);assert.match(m.htmlBody,/max-width:640px/);assert.match(m.htmlBody,/font:15px\/1\.65 Arial,Helvetica,sans-serif/);assert.match(m.htmlBody,/overflow-wrap:anywhere/);
  assert.match(m.htmlBody,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);assert.doesNotMatch(m.htmlBody,/<script>/);assert.match(m.htmlBody,/Lời Bác &amp; &lt;dạy&gt;<br>dòng 2/);
- assert.match(m.htmlBody,/Nguồn &amp; &lt;sách&gt; &quot;chính&quot; và &#39;nguyên văn&#39;/);assert.match(m.htmlBody,/Soi &lt;mình&gt; &amp; nhận xét &quot;thẳng&quot; và &#39;tận tâm&#39;\./);
+ assert.match(m.htmlBody,/Nguồn &amp; &lt;sách&gt; &quot;chính&quot; và &#39;nguyên văn&#39;/);assert.doesNotMatch(m.htmlBody+m.body,/LEGACY_REFLECTION_SENTINEL|LEGACY_ANND_SENTINEL|An ninh đối ngoại|Gợi ý tự soi/);
  assert.match(m.htmlBody,/href="https:\/\/notebooklm\.google\.com\/notebook\/fixture-123"/);assert.match(m.htmlBody,/Tra cứu thêm trên NotebookLM/);assert.ok(m.htmlBody.indexOf('Nguồn trích dẫn')<m.htmlBody.indexOf('Tra cứu thêm trên NotebookLM'));
  assert.match(m.htmlBody,/không phải nguồn chính thức/);assert.match(m.body,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.body,/Học tập – Liên hệ – Hành động/);
- for(const value of ['Lời Bác & <dạy>\ndòng 2','Nguồn & <sách> "chính" và \'nguyên văn\'','Fixture context','Fixture analysis','Fixture CAND link','Fixture external security link','Fixture action','Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'])assert.ok(m.body.includes(value),'plain text missing '+value);
+ for(const value of ['Lời Bác & <dạy>\ndòng 2','Nguồn & <sách> "chính" và \'nguyên văn\'','Fixture context','Fixture analysis','Fixture CAND link','Fixture action'])assert.ok(m.body.includes(value),'plain text missing '+value);assert.doesNotMatch(m.body,/LEGACY_REFLECTION_SENTINEL|LEGACY_ANND_SENTINEL|An ninh đối ngoại|Gợi ý tự soi/);
  assert.match(m.body,/Tra cứu thêm trên NotebookLM/);assert.match(m.body,/đối chiếu nội dung với nguồn gốc trích dẫn/);
  assert.match(m.body,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.body,/Muốn dừng nhận thư/);assert.match(m.htmlBody,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.htmlBody,/Muốn dừng nhận thư/);
  assert.doesNotMatch(m.body+m.htmlBody,/one@example\.test|two@example\.test/);
@@ -392,12 +409,12 @@ const tool=require(path.join(root,'services/thu-tuan/tools/corpus-to-sheet.cjs')
 const MD=`# Fixture corpus\n\n## Tuần 01 — Chủ đề A\n\n**LD-901 · TAG**\n\n> Dòng một\n> dòng hai\n\n**Nguồn:** Tác phẩm giả; Tập 1, tr. 2\n\n**Bối cảnh:** BC\n\n**Phân tích:** PT, có "ngoặc"\n\n**Liên hệ CAND:** CAND\n\n**Liên hệ An ninh đối ngoại — phản gián:** ANĐN\n\n**Hành động tuần này:** HĐ\n\n## Tuần 02 — Chủ đề B\n\n**LD-902 · TAG**\n\n> Trích B\n\n**Nguồn:** Tác phẩm giả; Tập 3, tr. 4\n\n**Bối cảnh:** BC2\n\n**Phân tích:** PT2\n\n**Liên hệ CAND:** C2\n\n**Liên hệ An ninh đối ngoại — phản gián:** A2\n\n**Hành động tuần này:** H2\n`;
 test('corpus tool: parses weeks into the approved structure and exports drafts only',()=>{
  const {weeks,errors}=tool.parseCorpus(MD);assert.deepEqual(errors,[]);assert.equal(weeks.length,2);
- assert.deepEqual({...weeks[0]},{tuan:1,ChuDe:'Chủ đề A',MaLoiDay:'LD-901',NoiDungNguyenVan:'Dòng một\ndòng hai',NguonTrich:'Tác phẩm giả; Tập 1, tr. 2',BoiCanh:'BC',PhanTich:'PT, có "ngoặc"',LienHeCAND:'CAND',LienHeAnNinhDoiNgoai:'ANĐN',HanhDongTuanNay:'HĐ'});
+ assert.deepEqual({...weeks[0]},{tuan:1,ChuDe:'Chủ đề A',MaLoiDay:'LD-901',NoiDungNguyenVan:'Dòng một\ndòng hai',NguonTrich:'Tác phẩm giả; Tập 1, tr. 2',BoiCanh:'BC',PhanTich:'PT, có "ngoặc"',LienHeCAND:'CAND',HanhDongTuanNay:'HĐ'});
  assert.deepEqual(tool.auditWeeks(weeks,2),[]);
  const headers=tool.loadHeaders();assert.deepEqual(headers,[...weekly().THU_TUAN_HEADERS.LoiDay_NoiDung]);
  const rows=tool.buildRows(weeks,'2026-10-05',{headers});const obj=rows.map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]])));
  assert.deepEqual(obj.map(o=>o.Ky),['2026-10-05','2026-10-12']);
- for(const o of obj){assert.equal(o.TrangThai,'Nhap');assert.equal(o.NguoiDuyet,'');assert.equal(o.NgayDuyet,'');assert.equal(o.DauVanBanDuyet,'');assert.equal(o.NotebookLM_URL,'');}
+ for(const o of obj){assert.equal(o.TrangThai,'Nhap');assert.equal(o.NguoiDuyet,'');assert.equal(o.NgayDuyet,'');assert.equal(o.DauVanBanDuyet,'');assert.equal(o.NotebookLM_URL,'');assert.equal(o.GoiYLienHe,'');assert.equal(o.LienHeAnNinhDoiNgoai,'');}
  const csv=tool.toCsv(headers,rows);assert.ok(csv.startsWith('﻿Ky,MaLoiDay'));assert.match(csv,/"Dòng một\ndòng hai"/);assert.match(csv,/"PT, có ""ngoặc"""/);
  assert.throws(()=>tool.toCsv(['a'],[['=HYPERLINK("x")']]),/FORMULA/);
 });

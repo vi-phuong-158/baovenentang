@@ -20,12 +20,15 @@ const LABELS = {
   'Bối cảnh': 'BoiCanh',
   'Phân tích': 'PhanTich',
   'Liên hệ CAND': 'LienHeCAND',
-  'Liên hệ An ninh đối ngoại': 'LienHeAnNinhDoiNgoai',
-  'Liên hệ An ninh đối ngoại — phản gián': 'LienHeAnNinhDoiNgoai',
   'Hành động tuần này': 'HanhDongTuanNay'
 };
+// LEGACY INPUT ONLY — DO NOT RENDER. Old corpus labels are accepted and discarded.
+const LEGACY_LABELS = new Set([
+  'Liên hệ An ninh đối ngoại',
+  'Liên hệ An ninh đối ngoại — phản gián'
+]);
 const REQUIRED = ['ChuDe', 'MaLoiDay', 'NoiDungNguyenVan', 'NguonTrich', 'BoiCanh', 'PhanTich',
-  'LienHeCAND', 'LienHeAnNinhDoiNgoai', 'HanhDongTuanNay'];
+  'LienHeCAND', 'HanhDongTuanNay'];
 
 function loadHeaders() {
   const ctx = vm.createContext({});
@@ -50,7 +53,9 @@ function parseCorpus(markdown) {
       if (/^>\s?/.test(line)) { quote.push(line.replace(/^>\s?/, '')); continue; }
       const field = /^\*\*(.+?):\*\*\s*(.*)$/.exec(line.trim());
       if (field) {
-        const key = LABELS[field[1].trim()];
+        const label = field[1].trim();
+        if (LEGACY_LABELS.has(label)) continue;
+        const key = LABELS[label];
         if (!key) { errors.push({ code: 'UNKNOWN_LABEL', tuan: week.tuan, label: field[1].slice(0, 60) }); continue; }
         if (week[key]) errors.push({ code: 'DUPLICATE_FIELD', tuan: week.tuan, field: key });
         week[key] = field[2].trim();
@@ -95,7 +100,7 @@ function buildRows(weeks, start, options = {}) {
   const keys = mondayKeys(start, Math.max(0, ...sorted.map(w => w.tuan)));
   return sorted.map(w => {
     const row = Object.assign({}, w, {
-      Ky: keys[w.tuan - 1], GoiYLienHe: '', TrangThai: 'Nhap', NguoiDuyet: '', NgayDuyet: '',
+      Ky: keys[w.tuan - 1], GoiYLienHe: '', LienHeAnNinhDoiNgoai: '', TrangThai: 'Nhap', NguoiDuyet: '', NgayDuyet: '',
       PhienBan: options.phienBan || '', DauVanBanDuyet: '', NotebookLM_URL: ''
     });
     return headers.map(h => row[h] == null ? '' : String(row[h]));

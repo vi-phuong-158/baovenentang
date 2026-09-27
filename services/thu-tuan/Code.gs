@@ -2,6 +2,7 @@
 var THU_TUAN_TZ = 'Asia/Ho_Chi_Minh';
 var THU_TUAN_TEST_RECIPIENT_ID_ = 'THU_TUAN_TEST_OVERRIDE';
 var THU_TUAN_NOTEBOOK_NOTE = 'NotebookLM chỉ là công cụ tra cứu thêm, không phải nguồn chính thức. Hãy đối chiếu nội dung với nguồn gốc trích dẫn.';
+// Sheet schema retains legacy columns for backward-compatible imports.
 var THU_TUAN_HEADERS = {
   LoiDay_NoiDung: ['Ky','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','TrangThai','NguoiDuyet','NgayDuyet','PhienBan','DauVanBanDuyet',
     'ChuDe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL'],
@@ -18,13 +19,23 @@ function thuTuanWeekKey_(date) {
 
 function thuTuanText_(value) { return value == null ? '' : String(value).trim(); }
 function thuTuanIsDate_(value) { return Object.prototype.toString.call(value) === '[object Date]'; }
-/** Approval stamp = HMAC over all approved fields; the key lives only in Script Properties. */
+// LEGACY INPUT ONLY — DO NOT RENDER. Never add these fields to the canonical payload.
+var THU_TUAN_LEGACY_INPUT_FIELDS_ = ['GoiYLienHe','LienHeAnNinhDoiNgoai'];
+var THU_TUAN_CANONICAL_VERSION_ = 2;
+var THU_TUAN_CANONICAL_FIELDS_ = ['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','BoiCanh','PhanTich',
+  'LienHeCAND','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'];
+function thuTuanCanonicalContent_(content) {
+  var canonical = {};
+  THU_TUAN_CANONICAL_FIELDS_.forEach(function(key) { canonical[key] = content && content[key] != null ? content[key] : ''; });
+  canonical.DauVanBanDuyet = content && content.DauVanBanDuyet != null ? content.DauVanBanDuyet : '';
+  return canonical;
+}
+/** Versioned approval stamp over canonical fields only; the key lives only in Script Properties. */
 function thuTuanDigest_(content, secret) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('MISSING_APPROVAL_SECRET');
-  var keys = ['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','BoiCanh','PhanTich',
-    'LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'];
-  var value = keys.map(function(key) {
-    var raw = content[key];
+  var canonical = thuTuanCanonicalContent_(content);
+  var value = [THU_TUAN_CANONICAL_VERSION_].concat(THU_TUAN_CANONICAL_FIELDS_.map(function(key) {
+    var raw = canonical[key];
     if (key === 'NgayDuyet') {
       if (raw == null || raw === '') return '';
       var date = new Date(raw);
@@ -32,7 +43,7 @@ function thuTuanDigest_(content, secret) {
       return Number.isFinite(date.getTime()) ? new Date(Math.floor(date.getTime() / 1000) * 1000).toISOString() : 'INVALID:' + String(raw);
     }
     return raw == null ? '' : String(raw);
-  });
+  }));
   return Utilities.computeHmacSha256Signature(JSON.stringify(value), secret, Utilities.Charset.UTF_8)
     .map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
 }
@@ -45,7 +56,7 @@ function thuTuanNotebookUrl_(value) {
 function thuTuanNotebookOk_(value) { return !thuTuanText_(value) || !!thuTuanNotebookUrl_(value); }
 
 var THU_TUAN_REQUIRED = ['ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','BoiCanh','PhanTich',
-  'LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','PhienBan'];
+  'LienHeCAND','HanhDongTuanNay','PhienBan'];
 
 /** '' when approved, complete, reviewer allow-listed and stamp matches; otherwise a reason code. */
 function thuTuanApprovalProblem_(row, digest, approvers) {
@@ -73,18 +84,17 @@ function thuTuanHtmlText_(value) {
 function thuTuanEmailText_(value) { return value == null ? '' : String(value); }
 
 function thuTuanEmailSections_(content) {
-  var sections = [
+  content = thuTuanCanonicalContent_(content);
+  return [
     ['Bối cảnh', content.BoiCanh, 'context'],
-    ['Hiểu lời Bác dạy', content.PhanTich, 'standard'],
+    ['Phân tích / ý nghĩa', content.PhanTich, 'standard'],
     ['Liên hệ với Công an nhân dân', content.LienHeCAND, 'standard'],
-    ['Liên hệ với công tác An ninh đối ngoại', content.LienHeAnNinhDoiNgoai, 'external'],
     ['Hành động tuần này', content.HanhDongTuanNay, 'action']
   ];
-  if (thuTuanText_(content.GoiYLienHe)) sections.push(['Gợi ý tự soi, tự liên hệ', content.GoiYLienHe, 'suggestion']);
-  return sections;
 }
 
 function thuTuanRenderText_(content) {
+  content = thuTuanCanonicalContent_(content);
   var sections = [
     'THƯ TUẦN – LỜI BÁC DẠY',
     'Học tập – Liên hệ – Hành động',
@@ -142,14 +152,10 @@ function thuTuanRenderQuote_(content) {
 }
 
 function thuTuanRenderHtmlSection_(title, value, kind) {
-  var highlight = kind === 'action';
-  var reflection = kind === 'suggestion';
-  var cellStyle = highlight
+  var cellStyle = kind === 'action'
     ? 'padding:14px 14px;background:#fbf4df;border-left:3px solid #c6a35d'
-    : reflection
-      ? 'padding:14px 14px;background:#fbf9f3;border-left:3px solid #d6c494'
-      : 'padding:14px 0;background:#fffdf8;border-bottom:1px solid #e8dfd1';
-  var headingColor = reflection ? '#796442' : '#702732';
+    : 'padding:14px 0;background:#fffdf8;border-bottom:1px solid #e8dfd1';
+  var headingColor = '#702732';
   return '<tr><td style="padding:0 18px">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td style="' + cellStyle + '">' +
     '<h2 style="margin:0 0 6px;font:600 16px/1.4 Arial,Helvetica,sans-serif;color:' + headingColor + '">' + thuTuanEscapeHtml_(title) + '</h2>' +
@@ -175,6 +181,7 @@ function thuTuanRenderFooter_() {
 }
 
 function thuTuanRenderHtml_(content, includeHero) {
+  content = thuTuanCanonicalContent_(content);
   var sections = thuTuanEmailSections_(content).map(function(section) {
     return thuTuanRenderHtmlSection_(section[0], section[1], section[2]);
   }).join('');
@@ -205,8 +212,9 @@ function thuTuanSheet_(id, name) {
   var sheet = SpreadsheetApp.openById(id).getSheetByName(name);
   if (!sheet) throw new Error('MISSING_SHEET');
   var expected = THU_TUAN_HEADERS[name];
+  if (sheet.getLastColumn() !== expected.length) throw new Error('INVALID_HEADERS');
   var actual = sheet.getRange(1,1,1,expected.length).getValues()[0];
-  if (expected.some(function(h,i) { return actual[i] !== h; })) throw new Error('INVALID_HEADERS');
+  if (actual.length !== expected.length || expected.some(function(h,i) { return actual[i] !== h; })) throw new Error('INVALID_HEADERS');
   return sheet;
 }
 
@@ -270,6 +278,47 @@ function thuTuanAdapter_(cfg) {
 
 function thuTuanForKey_(rows, key) { return rows.filter(function(row) { return thuTuanText_(row.Ky) === key; }); }
 
+function thuTuanAuditRecipients_(rows, testMode) {
+  var invalidRows = Object.create(null), duplicateRows = Object.create(null);
+  var firstIdRow = Object.create(null), firstActiveEmailRow = Object.create(null);
+  rows = Array.isArray(rows) ? rows : [];
+  function markInvalid(index) { invalidRows[index] = true; }
+  function markDuplicate(first, index) { duplicateRows[first] = true; duplicateRows[index] = true; markInvalid(first); markInvalid(index); }
+  rows.forEach(function(row, index) {
+    if (!row || typeof row !== 'object') { markInvalid(index); return; }
+    var id = thuTuanText_(row.MaCB), email = thuTuanText_(row.Email).toLowerCase();
+    var status = row.TrangThai;
+    var validEmail = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email);
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || (id === THU_TUAN_TEST_RECIPIENT_ID_ && testMode !== true)) markInvalid(index);
+    if (status !== 'DangNhan' && status !== 'TamDung') markInvalid(index);
+    if (!validEmail) markInvalid(index);
+    if (id) {
+      if (Object.prototype.hasOwnProperty.call(firstIdRow, id)) markDuplicate(firstIdRow[id], index);
+      else firstIdRow[id] = index;
+    }
+    if (status === 'DangNhan' && validEmail) {
+      if (Object.prototype.hasOwnProperty.call(firstActiveEmailRow, email)) markDuplicate(firstActiveEmailRow[email], index);
+      else firstActiveEmailRow[email] = index;
+    }
+  });
+  var testModeValid = testMode !== true ||
+    (rows.length === 1 && rows[0] && thuTuanText_(rows[0].MaCB) === THU_TUAN_TEST_RECIPIENT_ID_);
+  if (testMode === true && !testModeValid) rows.forEach(function(_, index) { markInvalid(index); });
+  var invalid = Object.keys(invalidRows).length;
+  if (testMode === true && !testModeValid && rows.length === 0) invalid = 1;
+  var recipients = rows.filter(function(row, index) {
+    return !invalidRows[index] && row.TrangThai === 'DangNhan';
+  }).map(function(row) {
+    return { MaCB:thuTuanText_(row.MaCB), Email:thuTuanText_(row.Email).toLowerCase(), TrangThai:row.TrangThai };
+  });
+  return {
+    ok: invalid === 0 && testModeValid,
+    recipients: recipients,
+    counts: { total:rows.length, valid:Math.max(0, rows.length - invalid), invalid:invalid,
+      duplicate:Object.keys(duplicateRows).length }
+  };
+}
+
 function thuTuanMerge_() {
   var out = {};
   for (var i=0;i<arguments.length;i++) for (var k in arguments[i]) if (!(k in out)) out[k] = arguments[i][k];
@@ -283,26 +332,14 @@ function thuTuanRun_(io, key, dryRun) {
   if (allContent.some(function(row) { return thuTuanIsDate_(row.Ky); })) return { status: 'KY_NOT_PLAIN_TEXT', sent: 0 };
   var contents = thuTuanForKey_(allContent, key);
   if (contents.length !== 1) return { status: 'CONTENT_MISSING_OR_DUPLICATE', key: key, found: contents.length, sent: 0 };
-  var content = contents[0];
+  var content = thuTuanCanonicalContent_(contents[0]);
   var digest = io.digest(content);
   var problem = thuTuanApprovalProblem_(content, digest, io.approvers);
   if (problem) return { status: 'CONTENT_NOT_APPROVED', reason: problem, key: key, sent: 0 };
   var summary = { key: key, maLoiDay: thuTuanText_(content.MaLoiDay), phienBan: thuTuanText_(content.PhienBan) };
-  var allRecipients = io.recipients(), seenIds = Object.create(null), emails = Object.create(null);
-  var invalid = allRecipients.some(function(row) {
-    var id = thuTuanText_(row.MaCB);
-    if (id === THU_TUAN_TEST_RECIPIENT_ID_ && io.testMode !== true) return true;
-    if (!id) return row.TrangThai === 'DangNhan';
-    if (seenIds[id]) return true; // MaCB must be unique across every row, whatever its status.
-    seenIds[id] = true; return false;
-  });
-  var recipients = allRecipients.filter(function(row) { return row.TrangThai === 'DangNhan'; });
-  invalid = invalid || recipients.some(function(row) {
-    row.MaCB = thuTuanText_(row.MaCB); row.Email = thuTuanText_(row.Email).toLowerCase();
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(row.MaCB) || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(row.Email) || emails[row.Email]) return true;
-    emails[row.Email] = true; return false;
-  });
-  if (invalid) return { status: 'INVALID_RECIPIENT_LIST', sent: 0 };
+  var recipientAudit = thuTuanAuditRecipients_(io.recipients(), io.testMode === true);
+  if (!recipientAudit.ok) return thuTuanMerge_({ status:'INVALID_RECIPIENT_LIST', sent:0 }, recipientAudit.counts);
+  var recipients = recipientAudit.recipients;
   var activeIds = Object.create(null);
   recipients.forEach(function(recipient) { activeIds[recipient.MaCB] = true; });
   // Match by Khoa as well as Ky, so a Ky cell coerced to a date can never hide an earlier send.
@@ -336,7 +373,8 @@ function thuTuanRun_(io, key, dryRun) {
     var state = byKey[khoa].TrangThai;
     if (state !== 'SENT' && state !== 'PENDING' && state !== 'FAILED') unknown++;
   });
-  var counts = { pending: pending.length, unknown: unknown, alreadySent: alreadySent };
+  var counts = thuTuanMerge_({ pending:pending.length, unknown:unknown, alreadySent:alreadySent },
+    recipientAudit.counts);
   if (dryRun) return thuTuanMerge_({ status: 'PREVIEW', sent: 0, quota: io.quota(),
     notebookLM: !!thuTuanNotebookUrl_(content.NotebookLM_URL) }, summary, counts);
   if (io.quota() < pending.length) return thuTuanMerge_({ status: 'QUOTA_DEFERRED', sent: 0 }, summary, counts);
@@ -349,8 +387,10 @@ function thuTuanRun_(io, key, dryRun) {
     if (fresh.length !== 1 || io.digest(fresh[0]) !== digest || thuTuanApprovalProblem_(fresh[0], digest, io.approvers))
       return thuTuanMerge_({ status: 'CONTENT_CHANGED_DURING_WEEK', sent: sent }, summary, counts);
     var recipient = pending[j].recipient;
-    var current = io.recipients().filter(function(row) { return thuTuanText_(row.MaCB) === recipient.MaCB; });
-    if (current.length !== 1 || current[0].TrangThai !== 'DangNhan' || thuTuanText_(current[0].Email).toLowerCase() !== recipient.Email) continue;
+    var currentAudit = thuTuanAuditRecipients_(io.recipients(), io.testMode === true);
+    if (!currentAudit.ok) return thuTuanMerge_({ status:'INVALID_RECIPIENT_LIST', sent:sent }, currentAudit.counts, summary, counts);
+    var current = currentAudit.recipients.filter(function(row) { return row.MaCB === recipient.MaCB; });
+    if (current.length !== 1 || current[0].Email !== recipient.Email) continue;
     var entry = pending[j].entry || { Khoa:key+'|'+recipient.MaCB, Ky:key, MaCB:recipient.MaCB,
       MaLoiDay:content.MaLoiDay, PhienBan:content.PhienBan, DauVanBanDuyet:digest };
     entry.TrangThai='SENDING'; entry.CapNhatLuc=new Date(io.now()); entry.MaLoi='';

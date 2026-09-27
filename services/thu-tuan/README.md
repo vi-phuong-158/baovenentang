@@ -8,7 +8,7 @@ Module Apps Script **độc lập**, gửi mỗi sáng thứ Hai một thư đi�
 
 - **Không có AI khi gửi.** Thư chỉ ghép các ô đã duyệt, không tạo, tóm tắt hay sửa câu chữ.
 - **Chỉ gửi nội dung đã duyệt:** `NHÁP → kiểm tra nguồn → DUYỆT (khóa phiên bản) → được phép gửi`. Thiếu gì hoặc bị sửa sau duyệt thì **dừng, không gửi**.
-- **Cấu trúc thư (giữ nguyên thứ tự):** tiêu đề · ảnh banner cố định (nếu khả dụng) · Tuần/Chủ đề/Mã lời dạy · thẻ trích dẫn Lời Bác dạy kèm nguồn · Bối cảnh · Hiểu lời Bác dạy · Liên hệ với Công an nhân dân · Liên hệ với công tác An ninh đối ngoại · Hành động tuần này · Gợi ý tự soi, tự liên hệ (nếu có). Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài.
+- **Cấu trúc thư canonical (giữ nguyên thứ tự):** tiêu đề · ảnh banner cố định (nếu khả dụng) · Tuần/Chủ đề/Mã lời dạy · trích dẫn Lời Bác dạy và nguồn · Bối cảnh · Phân tích / ý nghĩa · Liên hệ với Công an nhân dân · Hành động tuần này · phần kỹ thuật tùy chọn. Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài. Không có mục Liên hệ An ninh đối ngoại hoặc Gợi ý tự soi, tự liên hệ trong email.
 - **Ảnh banner cố định:** `EmailAssets.gs` giữ một JPEG nội tuyến dạng Base64. Khi gửi, Apps Script tạo Blob và ghép `inlineImages` với `cid:loi-bac-hero`; email không tải ảnh từ Drive, Sheet, URL công khai hoặc mạng, và không cần OAuth scope mới. Có thể tắt bằng `THU_TUAN_HERO_IMAGE_ENABLED_ = false`; nếu tắt hoặc không tạo được Blob, ảnh được bỏ qua còn HTML và plain-text vẫn gửi. Ảnh có `alt`; hiển thị trên mobile là best-effort và phụ thuộc email client.
 - **Mỗi người nhận một thư riêng**, không CC/BCC, không lộ địa chỉ người khác. Không có đường dẫn theo dõi cá nhân.
 - **Không public:** không deploy Web App, không `doGet/doPost`, không copy vào `backend/`.
@@ -31,7 +31,7 @@ Tài khoản sở hữu project là tài khoản gửi thư. Chọn tài khoản
 | **B – Hạn chế** | `ThuTuan_NguoiNhan` | `MaCB, Email, TrangThai, NgayDangKy` | Chỉ người vận hành |
 | **B – Hạn chế** | `ThuTuan_NhatKyGui` | `Khoa, Ky, MaCB, MaLoiDay, PhienBan, DauVanBanDuyet, TrangThai, CapNhatLuc, MaLoi` | Chỉ script + người vận hành (khi đối soát) |
 
-- 10 cột đầu của `LoiDay_NoiDung` là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột sau được nối thêm. `GoiYLienHe` là cột cũ, được hiển thị thành phần riêng khi có nội dung và vẫn nằm trong dấu duyệt. Sai/thiếu tiêu đề → script báo `INVALID_HEADERS` và không làm gì.
+- 10 cột đầu của LoiDay_NoiDung là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột sau được nối thêm. GoiYLienHe và LienHeAnNinhDoiNgoai được giữ lại chỉ để tương thích dữ liệu/cột cũ: **LEGACY INPUT ONLY — DO NOT RENDER**. Chúng không bắt buộc, không được xuất ra thư và không nằm trong HMAC canonical v2. Importer chấp nhận nhãn An ninh đối ngoại từ Markdown cũ nhưng bỏ giá trị đó; các cột legacy trong CSV nháp luôn để trống. Dấu duyệt phiên bản cũ không còn hợp lệ sau khi nâng lên v2; nội dung cần được duyệt lại qua hàm duyệt. Sai/thiếu/thừa tiêu đề → script báo INVALID_HEADERS và không làm gì.
 - **Trước khi nhập dữ liệu**, chọn cột `Ky` (bảng A) và cột `MaCB` (bảng B) → *Định dạng → Số → Văn bản thuần túy*. Nếu Sheets tự đổi `2026-10-05` thành ngày, script báo `KY_NOT_PLAIN_TEXT` và dừng. Nhật ký do script tự định dạng.
 - `Ky` = **ngày thứ Hai** mở đầu tuần, dạng `YYYY-MM-DD` (giờ Việt Nam).
 - Người nhận: `TrangThai` = `DangNhan` (đang nhận) hoặc `TamDung` (dừng nhận). `MaCB` là mã nội bộ, chỉ gồm chữ/số/`-`/`_`, **không trùng** trên toàn trang (kể cả dòng TamDung).
@@ -55,7 +55,7 @@ Khóa duyệt dùng để ký “dấu duyệt” (`DauVanBanDuyet`). Người c
 
 - Chỉ dùng trong Apps Script project và Sheets TEST riêng. Đặt `THU_TUAN_TEST_MODE=true` cùng đúng một `THU_TUAN_TEST_RECIPIENT_EMAIL`; `guiThuTuan` gửi tới địa chỉ này thay cho toàn bộ bảng recipient và log bằng mã `THU_TUAN_TEST_OVERRIDE`.
 - Vẫn cần `THU_TUAN_ENABLED=true`, kỳ được duyệt hợp lệ, người duyệt nằm trong allowlist và HMAC hợp lệ. `caiLichThuTuan` từ chối khi TEST_MODE bật; lời gọi có event trigger cũng dừng, nên phải chạy thủ công.
-- Chạy `xemTruocThuTuan` và xác nhận `pending:1`, `unknown:0` trước khi gửi. Chạy lại để xác nhận `alreadySent:1`, `pending:0`. Không dùng cơ chế này để thử lên cấu hình hoặc dữ liệu Production.
+- Chạy xemTruocThuTuan và xác nhận total:1, valid:1, invalid:0, duplicate:0, pending:1, unknown:0 trước khi gửi. Chạy lại để xác nhận alreadySent:1, pending:0. Không dùng cơ chế này để thử lên cấu hình hoặc dữ liệu Production.
 - Sau thử nghiệm: đặt `THU_TUAN_ENABLED=false`, `THU_TUAN_TEST_MODE=false`, xóa `THU_TUAN_TEST_RECIPIENT_EMAIL`, xác nhận không có trigger và kiểm tra log không còn `SENDING/UNKNOWN`.
 
 ### 1.4. Quyền và danh tính người duyệt
@@ -75,7 +75,7 @@ node services/thu-tuan/tools/corpus-to-sheet.cjs --input <đường dẫn .md> -
 ```
 
 - `--start` là thứ Hai của Tuần 01; mỗi tuần sau cộng 7 ngày. Công cụ từ chối ghi file vào trong repo (repo công khai).
-- Công cụ kiểm tra đủ 52 tuần, không trùng tuần/mã, đủ 9 trường, nguồn có tập/trang; có lỗi thì **không** xuất file.
+- Công cụ kiểm tra đủ 52 tuần, không trùng tuần/mã, đủ 8 trường canonical, nguồn có tập/trang; có lỗi thì **không** xuất file. Nhãn legacy nếu xuất hiện trong nguồn cũ sẽ bị bỏ qua, không được đưa vào CSV.
 - Mọi dòng xuất ra ở trạng thái `Nhap`; `NguoiDuyet`, `NgayDuyet`, `DauVanBanDuyet`, `PhienBan`, `NotebookLM_URL` để trống. Công cụ **không bao giờ** đánh dấu `DaDuyet`.
 - Nhập vào bảng tính A: *Tệp → Nhập → Tải lên*, chọn *Chèn (các) trang tính mới* và **bỏ chọn** “Chuyển đổi văn bản thành số, ngày tháng và công thức”. CSV đã có đúng hàng tiêu đề. Kiểm tra lại rồi đổi tên trang mới thành `LoiDay_NoiDung` (trang cùng tên cũ, nếu còn, phải đổi tên/xóa trước). Đặt cột `Ky` là văn bản thuần túy.
 
@@ -87,13 +87,13 @@ Mỗi kỳ một dòng, `TrangThai` = `Nhap`. Không dán nội dung từ kết 
 
 | Bước | Ai | Làm gì | Kết quả mong đợi |
 |---|---|---|---|
-| 1. Kiểm nguồn | Người biên soạn/duyệt | Đối chiếu nguyên văn, tập, trang với Hồ Chí Minh Toàn tập; điền `PhienBan` (ví dụ `1`) | Dòng đủ 9 trường + phiên bản |
+| 1. Kiểm nguồn | Người biên soạn/duyệt | Đối chiếu nguyên văn, tập, trang với Hồ Chí Minh Toàn tập; điền PhienBan (ví dụ 1) | Dòng đủ 8 trường canonical + phiên bản |
 | 2. Duyệt | Người duyệt | Trong editor, sửa ngày trong hàm `duyetKyThuTuan` thành thứ Hai của kỳ, lưu, chọn hàm đó → *Chạy* | Nhật ký: `{"status":"APPROVED",...}`; dòng có `DaDuyet`, người duyệt, ngày duyệt, dấu duyệt |
-| 3. Xem trước | Người vận hành | Chạy `xemTruocThuTuan` (không gửi, không ghi) | `PREVIEW`, đúng `key` (thứ Hai tuần này), đúng `maLoiDay`, `pending` = số người sẽ nhận, `quota` ≥ `pending` |
+| 3. Xem trước | Người vận hành | Chạy xemTruocThuTuan (không gửi, không ghi) | PREVIEW, đúng key (thứ Hai tuần này), đúng maLoiDay; kiểm tra total/valid/invalid/duplicate của danh sách, cùng pending/alreadySent/unknown, và quota ≥ pending |
 | 4. Gửi | Lịch tự động hoặc chạy `guiThuTuan` | Chỉ gửi khi `THU_TUAN_ENABLED=true` | `COMPLETE`, `sent` = số thư gửi lần này |
 | 5. Đối soát | Người vận hành | *Executions* của project; trang `ThuTuan_NhatKyGui` | Không còn `SENDING/UNKNOWN`; xử lý mục 5 nếu có |
 
-Sửa bất kỳ ô nào đã duyệt (kể cả NotebookLM, phiên bản, người/ngày duyệt) → dấu duyệt không khớp → không gửi. Muốn sửa: sửa nội dung, tăng `PhienBan`, duyệt lại. **Không sửa hoặc duyệt lại kỳ đã bắt đầu gửi** – script sẽ dừng cả kỳ (`CONTENT_CHANGED_DURING_WEEK`) để không trộn hai phiên bản.
+Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, phiên bản, người/ngày duyệt) → dấu duyệt không khớp → không gửi được kỳ này; sửa nội dung, tăng phiên bản và duyệt lại. Hai trường legacy có thể thay đổi mà không ảnh hưởng thư hoặc dấu v2. **Không sửa hoặc duyệt lại kỳ đã bắt đầu gửi** – script sẽ dừng cả kỳ (CONTENT_CHANGED_DURING_WEEK) để không trộn hai phiên bản.
 
 ### Lỗi khi duyệt
 
@@ -101,7 +101,7 @@ Sửa bất kỳ ô nào đã duyệt (kể cả NotebookLM, phiên bản, ngư�
 |---|---|---|
 | `APPROVER_REQUIRED` | Người chạy không có trong danh sách hoặc Google không trả email | Kiểm tra `THU_TUAN_APPROVER_EMAILS`, tài khoản chạy (mục 1.4) |
 | `INVALID_WEEK` | Ngày không phải thứ Hai dạng `YYYY-MM-DD`, chưa sửa `YYYY-MM-DD` mẫu, hoặc không có/đúp dòng kỳ đó | Sửa ngày; kiểm tra cột `Ky` |
-| `INCOMPLETE_CONTENT` | Thiếu một trong 9 trường hoặc `PhienBan` | Điền đủ |
+| `INCOMPLETE_CONTENT` | Thiếu một trong 8 trường canonical hoặc `PhienBan` | Điền đủ |
 | `INVALID_NOTEBOOKLM_URL` | Ô NotebookLM có giá trị nhưng không phải `https://notebooklm.google.com/notebook/...` | Sửa hoặc để trống |
 | `MISSING_APPROVAL_SECRET` | Chưa tạo khóa duyệt | Chạy `taoKhoaDuyetThuTuan` |
 | `APPROVAL_NOT_VERIFIED:...` | Đọc lại sau khi ghi không khớp | Không gửi được kỳ này; báo kỹ thuật |
@@ -175,18 +175,18 @@ Không có trigger tự thử lại. Lỗi/`DEFERRED` do người vận hành x�
 
 ## 9. Nghiệm thu runtime trên môi trường TEST (`THU_TUAN_RUNTIME_ACCEPTANCE`)
 
-Dùng project + 2 bảng tính **TEST** riêng, 1 dòng nội dung giả có chữ `TEST`, 2–3 địa chỉ thử được phép. Ghi lại bằng chứng (ảnh *Executions*, ảnh nhật ký, thư nhận được) cho từng bước:
+Dùng project + 2 bảng tính **TEST** riêng, một dòng nội dung giả có chữ TEST và đúng một mailbox thử được phép cấu hình qua TEST_MODE. Ghi bằng chứng không chứa email, ID sheet, khóa hoặc nội dung nhạy cảm:
 
 1. `THU_TUAN_ENABLED=false`, chạy `taoKhoaDuyetThuTuan` → `CREATED`.
 2. `xemTruocThuTuan` khi chưa duyệt → `CONTENT_NOT_APPROVED`, `reason: NOT_APPROVED`; nhật ký trống.
 3. Người duyệt chạy `duyetKyThuTuan` → `APPROVED`. Thử bằng tài khoản ngoài danh sách → `APPROVER_REQUIRED`.
-4. `xemTruocThuTuan` → `PREVIEW`, đúng số người; **không có thư, nhật ký trống**.
+4. xemTruocThuTuan → PREVIEW, total:1/valid:1/invalid:0/duplicate:0/pending:1; **không có thư, nhật ký trống**.
 5. `guiThuTuan` khi còn `false` → `DISABLED`, không thư.
-6. Đặt `true`, `guiThuTuan` → `COMPLETE`. Kiểm tra mỗi hộp thư: tiêu đề, thứ tự các mục nội dung, tiếng Việt, nguồn, phần `GoiYLienHe` nếu có, liên kết NotebookLM (nếu có) và lời nhắc, bản xem trên điện thoại, *chỉ thấy địa chỉ của chính mình*.
-7. Chạy lại `guiThuTuan` → `alreadySent` = số người, không thư mới.
-8. Sửa một chữ trong nội dung → `xemTruocThuTuan` → `STAMP_MISMATCH`. Hoàn tác.
+6. Chỉ trong Apps Script project TEST, bật THU_TUAN_TEST_MODE=true và đặt đúng một mailbox ở THU_TUAN_TEST_RECIPIENT_EMAIL. Sau khi xác nhận preview chỉ có một người nhận, đặt THU_TUAN_ENABLED=true, chạy thủ công guiThuTuan → COMPLETE, sent:1. Kiểm tra thư đó: tiêu đề, thứ tự nội dung canonical, tiếng Việt, nguồn, NotebookLM (nếu có) và lời nhắc, bản xem trên điện thoại; bảo đảm không có phần An ninh đối ngoại/Gợi ý tự soi và chỉ có mailbox thử được chỉ định.
+7. Chạy lại guiThuTuan → alreadySent:1, pending:0, không có thư mới.
+8. Trong một bản thử độc lập, sửa một trường canonical sau duyệt → STAMP_MISMATCH; thay đổi hai trường legacy không được làm đổi thư/HMAC. Không sửa nội dung của tuần đã gửi. Thử chữ ký v1 cũ phải fail closed; duyệt lại test fixture bằng hàm duyệt.
 9. Sửa một dòng nhật ký thành `UNKNOWN` → chạy lại → `RECONCILIATION_REQUIRED`, không thư mới.
-10. `caiLichThuTuan` → `CREATED`, chạy lại → `EXISTS`; `kiemTraLichThuTuan`; `goLichThuTuan`. Đặt lại `false`.
+10. Xác nhận TEST_MODE chặn cài trigger. Đặt THU_TUAN_ENABLED=false, THU_TUAN_TEST_MODE=false, xóa mailbox override và xác nhận không có trigger hoặc mục SENDING/UNKNOWN.
 
 Chỉ khi đủ 10 bước mới ghi `THU_TUAN_TEST_RUNTIME_ACCEPTANCE_PASS`.
 

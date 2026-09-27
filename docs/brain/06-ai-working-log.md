@@ -1,4 +1,17 @@
 # [2026-09-19] Nhánh Trợ lý 35 học tập theo lời Bác
+## [2026-09-28] Thư tuần: canonical email v2 và kiểm toán recipient
+
+Owner xác nhận bỏ các mục Liên hệ An ninh đối ngoại và Gợi ý tự soi, tự liên hệ khỏi thư mới. Code giữ hai cột vật lý cũ chỉ để tương thích; parser nhận dạng nhãn Markdown cũ rồi bỏ giá trị. HTML và plain text lấy từ cùng payload canonical: trích dẫn/nguồn → Bối cảnh → Phân tích/ý nghĩa → Liên hệ CAND → Hành động tuần này → NotebookLM tùy chọn.
+
+Đổi HMAC sang canonical version 2 và loại cả hai trường legacy khỏi danh sách canonical/required. Dấu v1 không còn khớp nên bản nội dung đã có phải được duyệt lại bằng hàm duyệt; không sửa dấu hoặc dữ liệu thật thủ công. Kiểm tra header sheet cả số cột để từ chối cột thừa. Preview nay trả total/valid/invalid/duplicate cùng pending/alreadySent/unknown, không có PII; kiểm tra từng dòng active và paused, và lặp audit ngay trước mỗi lần gửi.
+
+Files: services/thu-tuan/Code.gs; services/thu-tuan/tools/corpus-to-sheet.cjs; tests/thu-tuan.test.cjs; services/thu-tuan/README.md; docs/brain/01-architecture.md; docs/brain/03-decisions.md; docs/TROLY35_HOC_TAP_V6_1.md; docs/brain/06-ai-working-log.md.
+
+Validation: node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs → 60/60 PASS, gồm regression cho chữ ký cũ, trường legacy, HTML/plain text, CSV import legacy, header thừa và audit recipient. npm run build trong web bị chặn vì thiếu dependency vite; không cài dependency. Runtime TEST thành công trên dữ liệu giả: duyệt và đọc lại dấu v2 của TEST-002 (tuần 2026-09-28); preview total=1, valid=1, invalid=0, duplicate=0; gửi đúng một thư tới TEST override, Gmail xác nhận một người nhận; kiểm tra MIME plain text/HTML, thứ tự section canonical và không có trường legacy. Sau gửi: enabled=false, TEST_MODE=false, override đã xóa, triggersOfThisAccount=0. Production không bị chạm.
+
+Rủi ro: approval stamp v1 không còn hợp lệ và cần duyệt lại. Approval secret của project TEST đã được xoay sau khi lộ trong tool output; dấu duyệt TEST cũ mất hiệu lực, còn dữ liệu cũ được giữ nguyên và TEST-002 đã được duyệt lại. Không thay đổi Production. Mặc định không bật THU_TUAN_ENABLED và không tạo trigger trong TEST_MODE.
+
+Cách test: node --test tests/thu-tuan.test.cjs; node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs; nghiệm thu Apps Script trên TEST theo services/thu-tuan/README.md mục 9, với đúng một TEST_RECIPIENT và không dùng Production.
 
 ## [2026-09-26] Thư tuần: audit độc lập, vá an toàn, công cụ nhập 52 tuần
 
