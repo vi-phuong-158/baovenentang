@@ -229,19 +229,25 @@ test('header drift is rejected',()=>{
 });
 
 // ---------- Email rendering ----------
-test('mail: one recipient per message, no cc/bcc, ordered sections, escaped values, NotebookLM only as reference',()=>{
+test('mail: formal responsive layout, all approved sections, escaping, optional NotebookLM and one private message per recipient',()=>{
  const w=world({content:[],recipients:[]});const adapter=w.ctx.thuTuanAdapter_({contentId:'content-id',privateId:'private-id',secret:SECRET});
- adapter.send({Email:'one@example.test'},contentRow({ChuDe:'<script>alert(1)</script>',NoiDungNguyenVan:'Lời Bác & <dạy>\ndòng 2'}));
+ const content=contentRow({ChuDe:'<script>alert(1)</script>',NoiDungNguyenVan:'Lời Bác & <dạy>\ndòng 2',NguonTrich:'Nguồn & <sách> "chính" và \'nguyên văn\'',GoiYLienHe:'Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'});
+ const digestBefore=w.ctx.thuTuanDigest_(content,SECRET);adapter.send({Email:'one@example.test'},content);
  const m=w.mail[0];assert.deepEqual(Object.keys(m).sort(),['body','htmlBody','subject','to']);assert.equal(m.to,'one@example.test');assert.doesNotMatch(m.subject,/[\r\n]/);
- const labels=['Tuần/Chủ đề','Mã lời dạy','Lời Bác dạy','Nguồn','Bối cảnh','Phân tích','Liên hệ với Công an nhân dân','Liên hệ với công tác An ninh đối ngoại','Hành động tuần này'];
- const pos=labels.map(l=>m.htmlBody.indexOf('>'+l+'</h2>'));assert.ok(pos.every((p,i)=>p>=0&&(i===0||p>pos[i-1])),JSON.stringify(pos));
- const tpos=labels.map(l=>m.body.indexOf(l+':\n'));assert.ok(tpos.every((p,i)=>p>=0&&(i===0||p>tpos[i-1])));
- assert.match(m.htmlBody,/name="viewport"/i);assert.match(m.htmlBody,/charset="utf-8"/i);assert.match(m.htmlBody,/&lt;script&gt;/);assert.doesNotMatch(m.htmlBody,/<script>/);assert.match(m.htmlBody,/Lời Bác &amp; &lt;dạy&gt;<br>dòng 2/);
- assert.match(m.htmlBody,/href="https:\/\/notebooklm\.google\.com\/notebook\/fixture-123"/);assert.ok(m.htmlBody.indexOf('NotebookLM')>pos[8]);
- assert.match(m.htmlBody,/không phải nguồn chính thức/);assert.match(m.body,/Lời Bác & <dạy>/);assert.match(m.body,/Tra cứu thêm trên NotebookLM/);assert.match(m.body,/đối chiếu nội dung với nguồn gốc trích dẫn/);
- assert.match(m.body,/Muốn dừng nhận thư/);assert.match(m.htmlBody,/Muốn dừng nhận thư/);
+ assert.match(m.htmlBody,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.htmlBody,/Học tập – Liên hệ – Hành động/);assert.match(m.htmlBody,/Tuần/);assert.match(m.htmlBody,/Chủ đề/);assert.match(m.htmlBody,/Mã lời dạy/);
+ const labels=['Lời Bác dạy','Nguồn trích dẫn','Bối cảnh','Hiểu lời Bác dạy','Liên hệ với Công an nhân dân','Liên hệ với công tác An ninh đối ngoại','Hành động tuần này','Gợi ý tự soi, tự liên hệ'];
+ let previous=-1;for(const label of labels){const p=m.htmlBody.indexOf(label);assert.ok(p>previous,`missing or out of order: ${label}`);previous=p;}
+ assert.match(m.htmlBody,/name="viewport"/i);assert.match(m.htmlBody,/charset="utf-8"/i);assert.match(m.htmlBody,/max-width:640px/);assert.match(m.htmlBody,/font:15px\/1\.65 Arial,Helvetica,sans-serif/);assert.match(m.htmlBody,/overflow-wrap:anywhere/);
+ assert.match(m.htmlBody,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);assert.doesNotMatch(m.htmlBody,/<script>/);assert.match(m.htmlBody,/Lời Bác &amp; &lt;dạy&gt;<br>dòng 2/);
+ assert.match(m.htmlBody,/Nguồn &amp; &lt;sách&gt; &quot;chính&quot; và &#39;nguyên văn&#39;/);assert.match(m.htmlBody,/Soi &lt;mình&gt; &amp; nhận xét &quot;thẳng&quot; và &#39;tận tâm&#39;\./);
+ assert.match(m.htmlBody,/href="https:\/\/notebooklm\.google\.com\/notebook\/fixture-123"/);assert.match(m.htmlBody,/Tra cứu thêm trên NotebookLM/);assert.ok(m.htmlBody.indexOf('Nguồn trích dẫn')<m.htmlBody.indexOf('Tra cứu thêm trên NotebookLM'));
+ assert.match(m.htmlBody,/không phải nguồn chính thức/);assert.match(m.body,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.body,/Học tập – Liên hệ – Hành động/);
+ for(const value of ['Lời Bác & <dạy>\ndòng 2','Nguồn & <sách> "chính" và \'nguyên văn\'','Fixture context','Fixture analysis','Fixture CAND link','Fixture external security link','Fixture action','Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'])assert.ok(m.body.includes(value),`plain text missing ${value}`);
+ assert.match(m.body,/Tra cứu thêm trên NotebookLM/);assert.match(m.body,/đối chiếu nội dung với nguồn gốc trích dẫn/);
+ assert.match(m.body,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.body,/Muốn dừng nhận thư/);assert.match(m.htmlBody,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.htmlBody,/Muốn dừng nhận thư/);
+ assert.equal(w.ctx.thuTuanDigest_(content,SECRET),digestBefore,'rendering must not change the approved HMAC payload');
  adapter.send({Email:'two@example.test'},contentRow({NotebookLM_URL:''}));
- assert.doesNotMatch(w.mail[1].htmlBody,/NotebookLM|href=/);assert.doesNotMatch(w.mail[1].body,/NotebookLM/);
+ assert.equal(w.mail.length,2);assert.equal(w.mail[1].to,'two@example.test');assert.doesNotMatch(w.mail[1].htmlBody,/NotebookLM|href=/);assert.doesNotMatch(w.mail[1].body,/NotebookLM/);
 });
 test('runtime never calls AI or network services and exposes no web endpoint',()=>{
  for(const banned of [/UrlFetchApp/,/generativelanguage|gemini|openai/i,/function\s+doGet|function\s+doPost/,/\bbcc\s*:|\bcc\s*:/i])assert.doesNotMatch(CODE,banned);

@@ -1100,3 +1100,17 @@ Review toàn bộ 22 file trong diff `main...HEAD` (base `a5b8bf8`, head `5ead41
 
 - Kiểm tra lại: `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 52/52 pass; `git diff --check` chạy sau thay đổi.
 - Không sửa PR state; không merge. Runtime acceptance TEST ghi ở mục trước là kết quả kế thừa, không chạy lại trong phiên review này.
+
+---
+
+## [2026-09-27] THU_TUAN_EMAIL_POLISH_AND_OWNER_ONLY_TEST
+
+- Cập nhật `services/thu-tuan/Code.gs` để email HTML/plain-text có thứ tự rõ ràng, thẻ lời trích dẫn và nguồn, các section dễ đọc, phần `GoiYLienHe` tùy chọn, NotebookLM ở cuối nội dung và footer kiểm duyệt. Không đổi `thuTuanDigest_`, danh sách field HMAC, adapter gửi, CC/BCC hay các cổng fail-closed.
+- Cập nhật `tests/thu-tuan.test.cjs` kiểm tra escaping đủ 5 ký tự HTML, section/`GoiYLienHe`, NotebookLM hợp lệ và trống, plain text, gửi từng người, không CC/BCC và digest không đổi. Cập nhật `services/thu-tuan/README.md` cho thứ tự nội dung mới.
+- Regression: `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 52/52 PASS; `git diff --check` — PASS.
+- Runtime TEST: tài khoản Gmail/Drive/Apps Script hiện hành trùng nhau; Script Properties TEST ban đầu để `THU_TUAN_ENABLED=false`, secret chỉ được xác nhận có mặt, allow-list có cấu hình, không có TEST trigger. Preview trả `PREVIEW`, `pending:1`, `quota:100`, `unknown:0`, `alreadySent:0`.
+- Gửi đúng một email TEST cho owner: `COMPLETE`, `sent:1`; Gmail xác nhận cùng subject, một người nhận đúng owner, không Cc/Bcc, `multipart/alternative` có HTML/plain text, tiếng Việt, nguồn, NotebookLM hợp lệ và footer. Dedupe tiếp theo: `sent:0`, `alreadySent:1`. Sửa trường đã duyệt trong Sheet TEST: `CONTENT_NOT_APPROVED`, `reason: STAMP_MISMATCH`, `sent:0`.
+- Đã phục hồi trường nội dung TEST và hai recipient TEST cũ; xóa recipient owner tạm thời khỏi danh sách nhưng giữ log `SENT` theo mã TEST để lưu bằng chứng dedupe. Sau kiểm tra: `THU_TUAN_ENABLED=false`, không có trigger hoặc `SENDING/UNKNOWN`; không sửa Production. Trạng thái Production vẫn `BLOCKED — PRODUCTION READ-ONLY ACCESS NOT AVAILABLE` như mục checklist trước.
+- Gmail web hiển thị đúng thư trong mailbox. Không xác nhận mobile visual: Gmail web shell ở viewport hẹp không cho xem trọn chiều ngang và Browser chặn preview `data:` URL; không thử cách vòng qua chính sách.
+- Files: `services/thu-tuan/Code.gs`, `services/thu-tuan/README.md`, `tests/thu-tuan.test.cjs`, `docs/brain/06-ai-working-log.md`. Test lại bằng regression command ở trên; rủi ro còn lại là Production rollout chưa được xác minh/cho phép.
+- Out of scope / follow-up: `QUIZ_TUSACH_POST_APPROVAL_INTEGRITY_DECISION_PENDING`; đây là việc riêng, không block Thư tuần.

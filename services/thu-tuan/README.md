@@ -2,13 +2,13 @@
 
 Module Apps Script **độc lập**, gửi mỗi sáng thứ Hai một thư điện tử lấy **nguyên văn** nội dung đã được con người duyệt trong Google Sheets.
 
-> **Trạng thái 26/9/2026:** mã nguồn đã hoàn thiện và qua kiểm thử cục bộ (Google được giả lập). **Chưa chạy trên tài khoản Google thật, chưa bật gửi, chưa cài lịch.** Không coi tài liệu này là bằng chứng đã vận hành.
+> **Trạng thái 27/9/2026:** regression cục bộ đạt 52/52; email đã được gửi và đối soát một lần trong TEST tới owner; cấu hình đã trả về `THU_TUAN_ENABLED=false` và không có trigger TEST. Production chưa được kiểm tra read-only nên chưa sẵn sàng bật. Xem `docs/brain/06-ai-working-log.md` để biết bằng chứng và giới hạn.
 
 ## 0. Nguyên tắc không đổi
 
 - **Không có AI khi gửi.** Thư chỉ ghép các ô đã duyệt, không tạo, tóm tắt hay sửa câu chữ.
 - **Chỉ gửi nội dung đã duyệt:** `NHÁP → kiểm tra nguồn → DUYỆT (khóa phiên bản) → được phép gửi`. Thiếu gì hoặc bị sửa sau duyệt thì **dừng, không gửi**.
-- **Cấu trúc thư (giữ nguyên thứ tự):** Tuần/Chủ đề · Mã lời dạy · Lời Bác dạy · Nguồn · Bối cảnh · Phân tích · Liên hệ với Công an nhân dân · Liên hệ với công tác An ninh đối ngoại · Hành động tuần này. Cuối thư **có thể** có liên kết NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này.
+- **Cấu trúc thư (giữ nguyên thứ tự):** tiêu đề và Tuần/Chủ đề/Mã lời dạy · thẻ trích dẫn Lời Bác dạy kèm nguồn · Bối cảnh · Hiểu lời Bác dạy · Liên hệ với Công an nhân dân · Liên hệ với công tác An ninh đối ngoại · Hành động tuần này · Gợi ý tự soi, tự liên hệ (nếu có). Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài.
 - **Mỗi người nhận một thư riêng**, không CC/BCC, không lộ địa chỉ người khác. Không có đường dẫn theo dõi cá nhân.
 - **Không public:** không deploy Web App, không `doGet/doPost`, không copy vào `backend/`.
 
@@ -30,7 +30,7 @@ Tài khoản sở hữu project là tài khoản gửi thư. Chọn tài khoản
 | **B – Hạn chế** | `ThuTuan_NguoiNhan` | `MaCB, Email, TrangThai, NgayDangKy` | Chỉ người vận hành |
 | **B – Hạn chế** | `ThuTuan_NhatKyGui` | `Khoa, Ky, MaCB, MaLoiDay, PhienBan, DauVanBanDuyet, TrangThai, CapNhatLuc, MaLoi` | Chỉ script + người vận hành (khi đối soát) |
 
-- 10 cột đầu của `LoiDay_NoiDung` là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột sau được nối thêm. `GoiYLienHe` là cột cũ, không in ra thư nhưng vẫn nằm trong dấu duyệt. Sai/thiếu tiêu đề → script báo `INVALID_HEADERS` và không làm gì.
+- 10 cột đầu của `LoiDay_NoiDung` là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột sau được nối thêm. `GoiYLienHe` là cột cũ, được hiển thị thành phần riêng khi có nội dung và vẫn nằm trong dấu duyệt. Sai/thiếu tiêu đề → script báo `INVALID_HEADERS` và không làm gì.
 - **Trước khi nhập dữ liệu**, chọn cột `Ky` (bảng A) và cột `MaCB` (bảng B) → *Định dạng → Số → Văn bản thuần túy*. Nếu Sheets tự đổi `2026-10-05` thành ngày, script báo `KY_NOT_PLAIN_TEXT` và dừng. Nhật ký do script tự định dạng.
 - `Ky` = **ngày thứ Hai** mở đầu tuần, dạng `YYYY-MM-DD` (giờ Việt Nam).
 - Người nhận: `TrangThai` = `DangNhan` (đang nhận) hoặc `TamDung` (dừng nhận). `MaCB` là mã nội bộ, chỉ gồm chữ/số/`-`/`_`, **không trùng** trên toàn trang (kể cả dòng TamDung).
@@ -171,7 +171,7 @@ Dùng project + 2 bảng tính **TEST** riêng, 1 dòng nội dung giả có ch�
 3. Người duyệt chạy `duyetKyThuTuan` → `APPROVED`. Thử bằng tài khoản ngoài danh sách → `APPROVER_REQUIRED`.
 4. `xemTruocThuTuan` → `PREVIEW`, đúng số người; **không có thư, nhật ký trống**.
 5. `guiThuTuan` khi còn `false` → `DISABLED`, không thư.
-6. Đặt `true`, `guiThuTuan` → `COMPLETE`. Kiểm tra mỗi hộp thư: tiêu đề, thứ tự 9 mục, tiếng Việt, nguồn, liên kết NotebookLM (nếu có) và lời nhắc, bản xem trên điện thoại, *chỉ thấy địa chỉ của chính mình*.
+6. Đặt `true`, `guiThuTuan` → `COMPLETE`. Kiểm tra mỗi hộp thư: tiêu đề, thứ tự các mục nội dung, tiếng Việt, nguồn, phần `GoiYLienHe` nếu có, liên kết NotebookLM (nếu có) và lời nhắc, bản xem trên điện thoại, *chỉ thấy địa chỉ của chính mình*.
 7. Chạy lại `guiThuTuan` → `alreadySent` = số người, không thư mới.
 8. Sửa một chữ trong nội dung → `xemTruocThuTuan` → `STAMP_MISMATCH`. Hoàn tác.
 9. Sửa một dòng nhật ký thành `UNKNOWN` → chạy lại → `RECONCILIATION_REQUIRED`, không thư mới.

@@ -69,50 +69,94 @@ function thuTuanHtmlText_(value) {
   return thuTuanEscapeHtml_(value).replace(/\r\n|\r|\n/g, '<br>');
 }
 
-function thuTuanEmailFields_(content) {
-  return [
-    ['Tuần/Chủ đề', thuTuanText_(content.Ky) + ' — ' + thuTuanText_(content.ChuDe)],
-    ['Mã lời dạy', content.MaLoiDay],
-    ['Lời Bác dạy', content.NoiDungNguyenVan],
-    ['Nguồn', content.NguonTrich],
-    ['Bối cảnh', content.BoiCanh],
-    ['Phân tích', content.PhanTich],
-    ['Liên hệ với Công an nhân dân', content.LienHeCAND],
-    ['Liên hệ với công tác An ninh đối ngoại', content.LienHeAnNinhDoiNgoai],
-    ['Hành động tuần này', content.HanhDongTuanNay]
+function thuTuanEmailText_(value) { return value == null ? '' : String(value); }
+
+function thuTuanEmailSections_(content) {
+  var sections = [
+    ['Bối cảnh', content.BoiCanh, 'context'],
+    ['Hiểu lời Bác dạy', content.PhanTich, 'standard'],
+    ['Liên hệ với Công an nhân dân', content.LienHeCAND, 'standard'],
+    ['Liên hệ với công tác An ninh đối ngoại', content.LienHeAnNinhDoiNgoai, 'external'],
+    ['Hành động tuần này', content.HanhDongTuanNay, 'action']
   ];
+  if (thuTuanText_(content.GoiYLienHe)) sections.push(['Gợi ý tự soi, tự liên hệ', content.GoiYLienHe, 'suggestion']);
+  return sections;
 }
 
 function thuTuanRenderText_(content) {
-  var sections = thuTuanEmailFields_(content).map(function(field) {
-    return field[0] + ':\n' + thuTuanText_(field[1]);
+  var sections = [
+    'THƯ TUẦN – LỜI BÁC DẠY',
+    'Học tập – Liên hệ – Hành động',
+    'Tuần: ' + thuTuanEmailText_(content.Ky),
+    'Chủ đề: ' + thuTuanEmailText_(content.ChuDe),
+    'Mã lời dạy: ' + thuTuanEmailText_(content.MaLoiDay),
+    'LỜI BÁC DẠY\n' + thuTuanEmailText_(content.NoiDungNguyenVan),
+    'Nguồn trích dẫn:\n' + thuTuanEmailText_(content.NguonTrich)
+  ];
+  thuTuanEmailSections_(content).forEach(function(section) {
+    sections.push(section[0].toUpperCase() + '\n' + thuTuanEmailText_(section[1]));
   });
-  sections.push('Muốn dừng nhận thư, vui lòng báo người phụ trách.');
+
   var url = thuTuanNotebookUrl_(content.NotebookLM_URL);
   if (url) {
-    sections.push('Tra cứu thêm trên NotebookLM:\n' + url);
+    sections.push('Tra cứu thêm trên NotebookLM\n' + url);
     sections.push(THU_TUAN_NOTEBOOK_NOTE);
   }
+  sections.push('Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi.');
+  sections.push('Muốn dừng nhận thư, vui lòng báo người phụ trách.');
   return sections.join('\n\n');
 }
 
+function thuTuanRenderHtmlSection_(title, value, kind) {
+  var style = {
+    context: { background: '#f7f8fa', border: '#b7c2ce' },
+    standard: { background: '#ffffff', border: '#d7dee5' },
+    external: { background: '#f1f6f9', border: '#6e9bb0' },
+    action: { background: '#fbf7e9', border: '#c8a64b' },
+    suggestion: { background: '#f6f2f8', border: '#9a83a8' }
+  }[kind] || { background: '#ffffff', border: '#d7dee5' };
+  return '<tr><td style="padding:0 18px 14px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;background:' + style.background + ';border-left:4px solid ' + style.border + '">' +
+    '<tr><td style="padding:14px 15px">' +
+    '<h2 style="margin:0 0 7px;font:600 16px/1.4 Arial,Helvetica,sans-serif;color:#17324d">' + thuTuanEscapeHtml_(title) + '</h2>' +
+    '<div style="font:15px/1.65 Arial,Helvetica,sans-serif;color:#263746;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(value) + '</div>' +
+    '</td></tr></table></td></tr>';
+}
+
 function thuTuanRenderHtml_(content) {
-  var sections = thuTuanEmailFields_(content).map(function(field) {
-    return '<tr><td style="padding:14px 0;border-bottom:1px solid #e5e7eb">' +
-      '<h2 style="margin:0 0 8px;font:600 16px/1.4 Arial,sans-serif;color:#17324d">' + thuTuanEscapeHtml_(field[0]) + '</h2>' +
-      '<div style="font:16px/1.65 Arial,sans-serif;color:#243447;overflow-wrap:anywhere">' + thuTuanHtmlText_(field[1]) + '</div></td></tr>';
+  var metadata = '<tr><td style="padding:17px 18px 15px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+    '<tr><td style="padding:0 0 7px;font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Tuần</td><td style="padding:0 0 7px;font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.Ky) + '</td></tr>' +
+    '<tr><td style="padding:0 0 7px;font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Chủ đề</td><td style="padding:0 0 7px;font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.ChuDe) + '</td></tr>' +
+    '<tr><td style="font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Mã lời dạy</td><td style="font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.MaLoiDay) + '</td></tr>' +
+    '</table></td></tr>';
+  var quote = '<tr><td style="padding:0 18px 16px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;background:#fbf7e9;border-left:5px solid #c8a64b">' +
+    '<tr><td style="padding:17px 16px">' +
+    '<h2 style="margin:0 0 10px;font:700 17px/1.4 Arial,Helvetica,sans-serif;color:#5f2630">Lời Bác dạy</h2>' +
+    '<div style="font:600 17px/1.65 Arial,Helvetica,sans-serif;color:#273746;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(content.NoiDungNguyenVan) + '</div>' +
+    '<p style="margin:13px 0 0;font:14px/1.6 Arial,Helvetica,sans-serif;color:#526579"><strong>Nguồn trích dẫn:</strong><br>' + thuTuanHtmlText_(content.NguonTrich) + '</p>' +
+    '</td></tr></table></td></tr>';
+  var sections = thuTuanEmailSections_(content).map(function(section) {
+    return thuTuanRenderHtmlSection_(section[0], section[1], section[2]);
   }).join('');
   var url = thuTuanNotebookUrl_(content.NotebookLM_URL);
-  var notebook = url ? '<p style="margin:0 0 12px"><a href="' + thuTuanEscapeHtml_(url) + '" target="_blank" rel="noopener noreferrer" ' +
-    'style="display:inline-block;background:#17324d;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">Mở NotebookLM để tra cứu thêm</a></p>' +
-    '<p style="margin:0">' + thuTuanEscapeHtml_(THU_TUAN_NOTEBOOK_NOTE) + '</p>' : '';
+  var notebook = url ? '<tr><td style="padding:2px 18px 16px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:#f5f7f9"><tr><td style="padding:15px">' +
+    '<p style="margin:0 0 12px"><a href="' + thuTuanEscapeHtml_(url) + '" target="_blank" style="display:inline-block;background:#17324d;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:4px;font:600 15px/1.3 Arial,Helvetica,sans-serif">Tra cứu thêm trên NotebookLM</a></p>' +
+    '<p style="margin:0;font:13px/1.6 Arial,Helvetica,sans-serif;color:#526579">' + thuTuanEscapeHtml_(THU_TUAN_NOTEBOOK_NOTE) + '</p>' +
+    '</td></tr></table></td></tr>' : '';
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
-    '<body style="margin:0;background:#f3f6f8;padding:16px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td align="center">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:20px">' +
-    '<tr><td style="font:14px/1.5 Arial,sans-serif;color:#526579;padding-bottom:8px">THƯ TUẦN “LỜI BÁC DẠY”</td></tr>' + sections +
-    '<tr><td style="padding-top:20px;font:14px/1.6 Arial,sans-serif;color:#526579">' +
-    '<p style="margin:0 0 12px">Muốn dừng nhận thư, vui lòng báo người phụ trách.</p>' + notebook +
+    '<body style="margin:0;padding:12px;background:#f1f3f5;font-family:Arial,Helvetica,sans-serif">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr><td align="center" style="padding:0">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;border-collapse:collapse;table-layout:fixed;background:#ffffff;border:1px solid #dbe1e6">' +
+    '<tr><td style="padding:20px 18px 17px;background:#702732;border-bottom:4px solid #d8bd73">' +
+    '<h1 style="margin:0 0 5px;font:700 20px/1.35 Arial,Helvetica,sans-serif;color:#ffffff">THƯ TUẦN – LỜI BÁC DẠY</h1>' +
+    '<p style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:#f4e8c8">Học tập – Liên hệ – Hành động</p>' +
+    '</td></tr>' + metadata + quote + sections + notebook +
+    '<tr><td style="padding:15px 18px 17px;border-top:1px solid #dbe1e6;font:13px/1.6 Arial,Helvetica,sans-serif;color:#526579">' +
+    '<p style="margin:0 0 7px">Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi.</p>' +
+    '<p style="margin:0">Muốn dừng nhận thư, vui lòng báo người phụ trách.</p>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
