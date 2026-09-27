@@ -89,6 +89,16 @@ function getSheet_(name) {
   return createSheetIfNotExists(ss, name, SHEET_HEADERS[name] || []);
 }
 
+/** Read a known sheet without creating it or repairing its schema as a side effect. */
+function getReadOnlySheet_(name) {
+  const headers = SHEET_HEADERS[name];
+  if (!headers || headers.length === 0) return null;
+  const sheet = getSpreadsheet_().getSheetByName(name);
+  if (!sheet || sheet.getLastColumn() < headers.length) return null;
+  const actual = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  return headers.every((header, index) => actual[index] === header) ? sheet : null;
+}
+
 /**
  * Tạo sheet nếu chưa tồn tại, đồng thời đảm bảo header đúng.
  */
@@ -432,8 +442,8 @@ function getArticles(days, page, limit) {
  * Lấy câu hỏi quiz ngẫu nhiên.
  */
 function getApprovedQuizRows_() {
-  const sheet = getSheet_('QUIZ');
-  if (sheet.getLastRow() <= 1 || sheet.getLastColumn() < 14) return [];
+  const sheet = getReadOnlySheet_('QUIZ');
+  if (!sheet || sheet.getLastRow() <= 1) return [];
   return sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues()
     .filter(row => cleanValue_(row[10]) === 'DaDuyet' && cleanValue_(row[11]) && row[12] &&
       Number.isFinite(new Date(row[12]).getTime()) && cleanValue_(row[13]) && cleanValue_(row[9]) &&

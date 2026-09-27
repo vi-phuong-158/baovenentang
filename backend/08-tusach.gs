@@ -198,8 +198,8 @@ function replaceTuSachWithSampleBooks() {
 }
 
 function tuSachGetRows_() {
-  const sheet = getSheet_('TU_SACH');
-  if (sheet.getLastRow() <= 1) return [];
+  const sheet = getReadOnlySheet_('TU_SACH');
+  if (!sheet || sheet.getLastRow() <= 1) return [];
 
   return sheet
     .getRange(2, 1, sheet.getLastRow() - 1, SHEET_HEADERS.TU_SACH.length)

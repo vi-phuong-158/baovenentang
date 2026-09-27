@@ -31,9 +31,38 @@ test('quiz filters approval and topic before sampling; legacy rows stay closed',
  const row=['q','question','a','b','c','d','A','explanation','topic-a','source','DaDuyet','reviewer','2026-09-19','1'];
  const rows=[row,[...row.slice(0,8),'topic-b',...row.slice(9)],[...row.slice(0,10),'Nhap',...row.slice(11)],row.slice(0,9)];
  const ctx=load('backend/04-sheets-db.gs',{cleanValue_:v=>v==null?'':String(v).trim(),shuffleRows_:v=>v});
- ctx.getSheet_=()=>({getLastRow:()=>rows.length+1,getLastColumn:()=>14,getRange:()=>({getValues:()=>rows})});
+ const headers=vm.runInContext('SHEET_HEADERS.QUIZ.slice()',ctx);
+ ctx.getSpreadsheet_=()=>({getSheetByName:()=>({getLastRow:()=>rows.length+1,getLastColumn:()=>14,getRange:r=>({getValues:()=>r===1?[headers]:rows})})});
  const result=ctx.getRandomQuiz(10,'topic-a');assert.equal(result.length,1);assert.equal(result[0].source,'source');assert.equal(result[0].explanation,'explanation');
  assert.equal(ctx.getQuizTopics().length,2);assert.throws(()=>ctx.saveQuizResult({}),/tự học/);
+});
+test('public quiz reads fail closed on missing or mismatched schema without creating or rewriting a sheet',()=>{
+ const source=fs.readFileSync(path.join(root,'backend/04-sheets-db.gs'),'utf8');
+ for(const kind of ['missing','mismatched']){
+  const ctx=load('backend/04-sheets-db.gs',{cleanValue_:v=>v==null?'':String(v).trim()});let writes=0,inserts=0;
+  const headers=vm.runInContext('SHEET_HEADERS.QUIZ.slice()',ctx);
+  if(kind==='mismatched')headers[0]='Legacy ID';
+  const sheet=kind==='missing'?null:{getLastColumn:()=>14,getLastRow:()=>1,getRange:()=>({getValues:()=>[headers],setValues(){writes++;}})};
+  ctx.getSpreadsheet_=()=>({getSheetByName:()=>sheet,insertSheet(){inserts++;throw Error('public GET must not create a sheet');}});
+  assert.equal(ctx.getQuizTopics().length,0,kind);
+  assert.equal(ctx.getRandomQuiz(10).length,0,kind);
+  assert.equal(writes,0,kind);assert.equal(inserts,0,kind);
+ }
+ assert.ok(source.includes('function getReadOnlySheet_'));
+});
+test('public book reads fail closed on missing or legacy schema without creating or rewriting a sheet',()=>{
+ const ctx=load('backend/04-sheets-db.gs',{cleanValue_:v=>v==null?'':String(v).trim()});
+ vm.runInContext(fs.readFileSync(path.join(root,'backend/08-tusach.gs'),'utf8'),ctx);
+ for(const kind of ['missing','mismatched']){
+  let writes=0,inserts=0;
+  const headers=vm.runInContext('SHEET_HEADERS.TU_SACH.slice()',ctx);
+  if(kind==='mismatched')headers[14]='Legacy version';
+  const sheet=kind==='missing'?null:{getLastColumn:()=>15,getLastRow:()=>1,getRange:()=>({getValues:()=>[headers],setValues(){writes++;}})};
+  ctx.getSpreadsheet_=()=>({getSheetByName:()=>sheet,insertSheet(){inserts++;throw Error('public GET must not create a sheet');}});
+  assert.equal(ctx.getBooks().length,0,kind);
+  assert.throws(()=>ctx.getBookById('legacy-book'),/Không tìm/);
+  assert.equal(writes,0,kind);assert.equal(inserts,0,kind);
+ }
 });
 
 // Weekly-letter ("Thư tuần") tests live in tests/thu-tuan.test.cjs.

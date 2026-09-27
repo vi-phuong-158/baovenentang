@@ -197,7 +197,7 @@ function thuTuanRun_(io, key, dryRun) {
   var problem = thuTuanApprovalProblem_(content, digest, io.approvers);
   if (problem) return { status: 'CONTENT_NOT_APPROVED', reason: problem, key: key, sent: 0 };
   var summary = { key: key, maLoiDay: thuTuanText_(content.MaLoiDay), phienBan: thuTuanText_(content.PhienBan) };
-  var allRecipients = io.recipients(), seenIds = {}, emails = {};
+  var allRecipients = io.recipients(), seenIds = Object.create(null), emails = Object.create(null);
   var invalid = allRecipients.some(function(row) {
     var id = thuTuanText_(row.MaCB);
     if (!id) return row.TrangThai === 'DangNhan';
@@ -211,6 +211,8 @@ function thuTuanRun_(io, key, dryRun) {
     emails[row.Email] = true; return false;
   });
   if (invalid) return { status: 'INVALID_RECIPIENT_LIST', sent: 0 };
+  var activeIds = Object.create(null);
+  recipients.forEach(function(recipient) { activeIds[recipient.MaCB] = true; });
   // Match by Khoa as well as Ky, so a Ky cell coerced to a date can never hide an earlier send.
   var logs = io.logs().filter(function(row) {
     return thuTuanText_(row.Ky) === key || thuTuanText_(row.Khoa).indexOf(key + '|') === 0;
@@ -219,6 +221,11 @@ function thuTuanRun_(io, key, dryRun) {
   for (var i=0;i<logs.length;i++) {
     var khoa = thuTuanText_(logs[i].Khoa);
     if (khoa.indexOf(key + '|') !== 0 || byKey[khoa]) return { status: 'DUPLICATE_OR_INVALID_LOG', sent: 0 };
+    var logId = khoa.substring((key + '|').length);
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(logId) || thuTuanText_(logs[i].MaCB) !== logId ||
+        (!thuTuanIsDate_(logs[i].Ky) && thuTuanText_(logs[i].Ky) !== key)) {
+      return { status: 'DUPLICATE_OR_INVALID_LOG', sent: 0 };
+    }
     if (logs[i].DauVanBanDuyet !== digest) return { status: 'CONTENT_CHANGED_DURING_WEEK', sent: 0 };
     byKey[khoa] = logs[i];
   }
@@ -229,6 +236,13 @@ function thuTuanRun_(io, key, dryRun) {
     // PENDING/FAILED = operator confirmed not sent. Anything else (SENDING, UNKNOWN, typos) is held.
     if (entry && entry.TrangThai !== 'PENDING' && entry.TrangThai !== 'FAILED') { unknown++; return; }
     pending.push({ recipient: recipient, entry: entry });
+  });
+  // An unresolved row still needs reconciliation if its recipient was paused or removed.
+  Object.keys(byKey).forEach(function(khoa) {
+    var recipientId = khoa.substring((key + '|').length);
+    if (activeIds[recipientId]) return;
+    var state = byKey[khoa].TrangThai;
+    if (state !== 'SENT' && state !== 'PENDING' && state !== 'FAILED') unknown++;
   });
   var counts = { pending: pending.length, unknown: unknown, alreadySent: alreadySent };
   if (dryRun) return thuTuanMerge_({ status: 'PREVIEW', sent: 0, quota: io.quota(),

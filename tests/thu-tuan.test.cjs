@@ -129,6 +129,9 @@ test('malformed or duplicate recipients stop the run before any mail',()=>{
  for(const id of ['CB 2','','CB1']){const f=fixture();f.recipients[1].MaCB=id;assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST',id);assert.equal(f.sent.length,0);}
  const f=fixture();f.recipients.push({MaCB:'CB1',Email:'old@example.test',TrangThai:'TamDung'});assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST');assert.equal(f.sent.length,0);
 });
+test('valid recipient IDs that match JavaScript object property names are handled normally',()=>{
+ for(const id of ['constructor','toString','__proto__']){const f=fixture();f.recipients[0].MaCB=id;assert.equal(f.run(false).status,'COMPLETE',id);assert.equal(f.sent.length,2,id);}
+});
 test('paused recipients are skipped and may reuse an address; order is deterministic',()=>{
  const f=fixture();f.recipients.push({MaCB:'CB3',Email:'one@example.test',TrangThai:'TamDung'},{MaCB:'CB4',Email:'four@example.test',TrangThai:'TamDung'});
  assert.equal(f.run(false).status,'COMPLETE');assert.deepEqual(f.sent.map(s=>s.email),['one@example.test','two@example.test']);
@@ -165,7 +168,9 @@ test('SENDING, UNKNOWN, blank or unrecognised states are held; only operator-set
 test('duplicate log rows or rows whose key does not match stop the run',()=>{
  const f=fixture();f.run(false);f.logs.push({...f.logs[0]});assert.equal(f.run(false).status,'DUPLICATE_OR_INVALID_LOG');
  const g=fixture();g.run(false);g.logs[0].Khoa='garbled';assert.equal(g.run(false).status,'DUPLICATE_OR_INVALID_LOG');
- assert.equal(f.sent.length+g.sent.length,4);
+ const h=fixture();h.run(false);h.logs[0].MaCB='CB9';assert.equal(h.run(false).status,'DUPLICATE_OR_INVALID_LOG');
+ const i=fixture();i.run(false);i.logs[0].Ky='2026-09-28';assert.equal(i.run(false).status,'DUPLICATE_OR_INVALID_LOG');
+ assert.equal(f.sent.length+g.sent.length+h.sent.length+i.sent.length,8);
 });
 test('REGRESSION: log Ky turned into a date by Sheets still prevents a resend (matched by Khoa)',()=>{
  const f=fixture();f.run(false);f.logs.forEach(l=>{l.Ky=new Date('2026-09-21T00:00:00+07:00');});
@@ -194,6 +199,12 @@ test('approval withdrawn or content edited mid-run stops the next recipient',()=
  const f=fixture();const send=f.io.send;f.io.send=(r,c)=>{send(r,c);f.content.NguoiDuyet='';};assert.equal(f.run(false).status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(f.sent.length,1);
  const g=fixture();const s2=g.io.send;g.io.send=(r,c)=>{s2(r,c);g.content.NoiDungNguyenVan='Sửa giữa chừng';};assert.equal(g.run(false).status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(g.sent.length,1);
  const h=fixture();const s3=h.io.send;h.io.send=(r,c)=>{s3(r,c);h.io.approvers=[];};assert.equal(h.run(false).status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(h.sent.length,1);
+});
+test('UNKNOWN for a paused or removed recipient remains visible for reconciliation',()=>{
+ const f=fixture();assert.equal(f.run(false).sent,2);f.logs[0].TrangThai='UNKNOWN';f.recipients[0].TrangThai='TamDung';
+ const r=f.run(false);assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.unknown,1);assert.equal(r.alreadySent,1);assert.equal(r.sent,0);assert.equal(f.sent.length,2);
+ const g=fixture();assert.equal(g.run(false).sent,2);g.logs[0].TrangThai='SENDING';g.recipients.splice(0,1);
+ const r2=g.run(false);assert.equal(r2.status,'RECONCILIATION_REQUIRED');assert.equal(r2.unknown,1);assert.equal(r2.alreadySent,1);assert.equal(r2.sent,0);assert.equal(g.sent.length,2);
 });
 
 // ---------- Runner guards ----------
