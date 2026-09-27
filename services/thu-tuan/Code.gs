@@ -1,5 +1,6 @@
 /** Standalone project. Never deploy as a public Web App or copy into backend/. */
 var THU_TUAN_TZ = 'Asia/Ho_Chi_Minh';
+var THU_TUAN_TEST_RECIPIENT_ID_ = 'THU_TUAN_TEST_OVERRIDE';
 var THU_TUAN_NOTEBOOK_NOTE = 'NotebookLM chỉ là công cụ tra cứu thêm, không phải nguồn chính thức. Hãy đối chiếu nội dung với nguồn gốc trích dẫn.';
 var THU_TUAN_HEADERS = {
   LoiDay_NoiDung: ['Ky','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','TrangThai','NguoiDuyet','NgayDuyet','PhienBan','DauVanBanDuyet',
@@ -107,63 +108,91 @@ function thuTuanRenderText_(content) {
   return sections.join('\n\n');
 }
 
+function thuTuanRenderHeader_() {
+  return '<tr><td style="padding:22px 22px 19px;background:#702732;border-bottom:4px solid #d4b76a">' +
+    '<h1 style="margin:0 0 5px;font:700 21px/1.35 Arial,Helvetica,sans-serif;color:#ffffff">THƯ TUẦN – LỜI BÁC DẠY</h1>' +
+    '<p style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:#f4e8c8">Học tập – Liên hệ – Hành động</p>' +
+    '</td></tr>';
+}
+
+function thuTuanRenderHero_(available) {
+  if (available !== true) return '';
+  return '<tr><td style="padding:0;background:#f7f0e2">' +
+    '<img src="cid:' + THU_TUAN_HERO_IMAGE_CID_ + '" alt="Minh họa chân dung Chủ tịch Hồ Chí Minh" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;outline:none;text-decoration:none">' +
+    '</td></tr>';
+}
+
+function thuTuanRenderMetadata_(content) {
+  return '<tr><td style="padding:14px 22px 15px;background:#fffdf8;border-bottom:1px solid #e8dfd1">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+    '<tr>' +
+    '<td width="28%" valign="top" style="padding:0 10px 9px 0;font:11px/1.35 Arial,Helvetica,sans-serif;color:#8a7158;text-transform:uppercase;letter-spacing:.5px">Tuần<br><strong style="display:inline-block;padding-top:3px;font:600 14px/1.45 Arial,Helvetica,sans-serif;color:#332923;text-transform:none;letter-spacing:0">' + thuTuanHtmlText_(content.Ky) + '</strong></td>' +
+    '<td width="72%" valign="top" style="padding:0 0 9px;font:11px/1.35 Arial,Helvetica,sans-serif;color:#8a7158;text-transform:uppercase;letter-spacing:.5px">Chủ đề<br><strong style="display:inline-block;padding-top:3px;font:600 14px/1.45 Arial,Helvetica,sans-serif;color:#332923;text-transform:none;letter-spacing:0;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(content.ChuDe) + '</strong></td>' +
+    '</tr><tr>' +
+    '<td colspan="2" style="padding:0;font:11px/1.35 Arial,Helvetica,sans-serif;color:#8a7158;text-transform:uppercase;letter-spacing:.5px">Mã lời dạy<br><strong style="display:inline-block;padding-top:3px;font:600 14px/1.45 Arial,Helvetica,sans-serif;color:#332923;text-transform:none;letter-spacing:0;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(content.MaLoiDay) + '</strong></td>' +
+    '</tr></table></td></tr>';
+}
+
+function thuTuanRenderQuote_(content) {
+  return '<tr><td style="padding:16px 18px 17px;background:#faf5e8;border-left:4px solid #c6a35d">' +
+    '<h2 style="margin:0 0 9px;font:700 16px/1.4 Arial,Helvetica,sans-serif;color:#702732">Lời Bác dạy</h2>' +
+    '<div style="font:600 17px/1.65 Arial,Helvetica,sans-serif;color:#302923;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(content.NoiDungNguyenVan) + '</div>' +
+    '<p style="margin:12px 0 0;font:13px/1.6 Arial,Helvetica,sans-serif;color:#665745"><strong>Nguồn trích dẫn:</strong><br>' + thuTuanHtmlText_(content.NguonTrich) + '</p>' +
+    '</td></tr>';
+}
+
 function thuTuanRenderHtmlSection_(title, value, kind) {
-  var style = {
-    context: { background: '#f7f8fa', border: '#b7c2ce' },
-    standard: { background: '#ffffff', border: '#d7dee5' },
-    external: { background: '#f1f6f9', border: '#6e9bb0' },
-    action: { background: '#fbf7e9', border: '#c8a64b' },
-    suggestion: { background: '#f6f2f8', border: '#9a83a8' }
-  }[kind] || { background: '#ffffff', border: '#d7dee5' };
-  return '<tr><td style="padding:0 18px 14px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;background:' + style.background + ';border-left:4px solid ' + style.border + '">' +
-    '<tr><td style="padding:14px 15px">' +
-    '<h2 style="margin:0 0 7px;font:600 16px/1.4 Arial,Helvetica,sans-serif;color:#17324d">' + thuTuanEscapeHtml_(title) + '</h2>' +
-    '<div style="font:15px/1.65 Arial,Helvetica,sans-serif;color:#263746;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(value) + '</div>' +
+  var highlight = kind === 'action';
+  var reflection = kind === 'suggestion';
+  var cellStyle = highlight
+    ? 'padding:14px 14px;background:#fbf4df;border-left:3px solid #c6a35d'
+    : reflection
+      ? 'padding:14px 14px;background:#fbf9f3;border-left:3px solid #d6c494'
+      : 'padding:14px 0;background:#fffdf8;border-bottom:1px solid #e8dfd1';
+  var headingColor = reflection ? '#796442' : '#702732';
+  return '<tr><td style="padding:0 18px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td style="' + cellStyle + '">' +
+    '<h2 style="margin:0 0 6px;font:600 16px/1.4 Arial,Helvetica,sans-serif;color:' + headingColor + '">' + thuTuanEscapeHtml_(title) + '</h2>' +
+    '<div style="font:15px/1.65 Arial,Helvetica,sans-serif;color:#332c25;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(value) + '</div>' +
     '</td></tr></table></td></tr>';
 }
 
-function thuTuanRenderHtml_(content) {
-  var metadata = '<tr><td style="padding:17px 18px 15px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed">' +
-    '<tr><td style="padding:0 0 7px;font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Tuần</td><td style="padding:0 0 7px;font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.Ky) + '</td></tr>' +
-    '<tr><td style="padding:0 0 7px;font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Chủ đề</td><td style="padding:0 0 7px;font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.ChuDe) + '</td></tr>' +
-    '<tr><td style="font:14px/1.5 Arial,Helvetica,sans-serif;color:#526579">Mã lời dạy</td><td style="font:15px/1.5 Arial,Helvetica,sans-serif;color:#263746;overflow-wrap:anywhere;word-break:break-word">' + thuTuanHtmlText_(content.MaLoiDay) + '</td></tr>' +
-    '</table></td></tr>';
-  var quote = '<tr><td style="padding:0 18px 16px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;background:#fbf7e9;border-left:5px solid #c8a64b">' +
-    '<tr><td style="padding:17px 16px">' +
-    '<h2 style="margin:0 0 10px;font:700 17px/1.4 Arial,Helvetica,sans-serif;color:#5f2630">Lời Bác dạy</h2>' +
-    '<div style="font:600 17px/1.65 Arial,Helvetica,sans-serif;color:#273746;white-space:pre-wrap;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word">' + thuTuanHtmlText_(content.NoiDungNguyenVan) + '</div>' +
-    '<p style="margin:13px 0 0;font:14px/1.6 Arial,Helvetica,sans-serif;color:#526579"><strong>Nguồn trích dẫn:</strong><br>' + thuTuanHtmlText_(content.NguonTrich) + '</p>' +
+function thuTuanRenderNotebook_(content) {
+  var url = thuTuanNotebookUrl_(content.NotebookLM_URL);
+  if (!url) return '';
+  return '<tr><td style="padding:13px 18px 16px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:#f7f3ea;border-top:1px solid #e5dccd"><tr><td style="padding:14px">' +
+    '<p style="margin:0 0 10px"><a href="' + thuTuanEscapeHtml_(url) + '" target="_blank" style="display:inline-block;background:#702732;color:#ffffff;text-decoration:none;padding:11px 15px;border-radius:3px;font:600 14px/1.3 Arial,Helvetica,sans-serif">Tra cứu thêm trên NotebookLM</a></p>' +
+    '<p style="margin:0;font:13px/1.6 Arial,Helvetica,sans-serif;color:#665745">' + thuTuanEscapeHtml_(THU_TUAN_NOTEBOOK_NOTE) + '</p>' +
     '</td></tr></table></td></tr>';
+}
+
+function thuTuanRenderFooter_() {
+  return '<tr><td style="padding:15px 20px 17px;border-top:1px solid #e8dfd1;font:13px/1.6 Arial,Helvetica,sans-serif;color:#665f56">' +
+    '<p style="margin:0 0 7px">Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi.</p>' +
+    '<p style="margin:0">Muốn dừng nhận thư, vui lòng báo người phụ trách.</p>' +
+    '</td></tr>';
+}
+
+function thuTuanRenderHtml_(content, includeHero) {
   var sections = thuTuanEmailSections_(content).map(function(section) {
     return thuTuanRenderHtmlSection_(section[0], section[1], section[2]);
   }).join('');
-  var url = thuTuanNotebookUrl_(content.NotebookLM_URL);
-  var notebook = url ? '<tr><td style="padding:2px 18px 16px">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:#f5f7f9"><tr><td style="padding:15px">' +
-    '<p style="margin:0 0 12px"><a href="' + thuTuanEscapeHtml_(url) + '" target="_blank" style="display:inline-block;background:#17324d;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:4px;font:600 15px/1.3 Arial,Helvetica,sans-serif">Tra cứu thêm trên NotebookLM</a></p>' +
-    '<p style="margin:0;font:13px/1.6 Arial,Helvetica,sans-serif;color:#526579">' + thuTuanEscapeHtml_(THU_TUAN_NOTEBOOK_NOTE) + '</p>' +
-    '</td></tr></table></td></tr>' : '';
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
-    '<body style="margin:0;padding:12px;background:#f1f3f5;font-family:Arial,Helvetica,sans-serif">' +
+    '<body style="margin:0;padding:12px;background:#f2ece2;font-family:Arial,Helvetica,sans-serif">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr><td align="center" style="padding:0">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;border-collapse:collapse;table-layout:fixed;background:#ffffff;border:1px solid #dbe1e6">' +
-    '<tr><td style="padding:20px 18px 17px;background:#702732;border-bottom:4px solid #d8bd73">' +
-    '<h1 style="margin:0 0 5px;font:700 20px/1.35 Arial,Helvetica,sans-serif;color:#ffffff">THƯ TUẦN – LỜI BÁC DẠY</h1>' +
-    '<p style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:#f4e8c8">Học tập – Liên hệ – Hành động</p>' +
-    '</td></tr>' + metadata + quote + sections + notebook +
-    '<tr><td style="padding:15px 18px 17px;border-top:1px solid #dbe1e6;font:13px/1.6 Arial,Helvetica,sans-serif;color:#526579">' +
-    '<p style="margin:0 0 7px">Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi.</p>' +
-    '<p style="margin:0">Muốn dừng nhận thư, vui lòng báo người phụ trách.</p>' +
-    '</td></tr></table></td></tr></table></body></html>';
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;border-collapse:collapse;table-layout:fixed;background:#fffdf8;border:1px solid #e4dacb">' +
+    thuTuanRenderHeader_() + thuTuanRenderHero_(includeHero) + thuTuanRenderMetadata_(content) + thuTuanRenderQuote_(content) +
+    sections + thuTuanRenderNotebook_(content) + thuTuanRenderFooter_() +
+    '</table></td></tr></table></body></html>';
 }
-
 function thuTuanConfig_() {
   var p = PropertiesService.getScriptProperties().getProperties();
   return {
     enabled: p.THU_TUAN_ENABLED === 'true',
+    testMode: p.THU_TUAN_TEST_MODE === 'true',
+    testModeValue: thuTuanText_(p.THU_TUAN_TEST_MODE),
+    testRecipientEmail: thuTuanText_(p.THU_TUAN_TEST_RECIPIENT_EMAIL).toLowerCase(),
     contentId: thuTuanText_(p.THU_TUAN_CONTENT_SHEET_ID),
     privateId: thuTuanText_(p.THU_TUAN_PRIVATE_SHEET_ID),
     approvers: thuTuanText_(p.THU_TUAN_APPROVER_EMAILS).toLowerCase().split(',').map(thuTuanText_).filter(Boolean),
@@ -193,13 +222,23 @@ function thuTuanRows_(sheet, name) {
 
 function thuTuanAdapter_(cfg) {
   if (!cfg.contentId || !cfg.privateId || cfg.contentId === cfg.privateId) throw new Error('SEPARATE_SHEETS_REQUIRED');
+  if (cfg.testModeValue && cfg.testModeValue !== 'true' && cfg.testModeValue !== 'false') throw new Error('INVALID_TEST_MODE');
+  var testMode = cfg.testMode === true;
+  var testRecipientEmail = thuTuanText_(cfg.testRecipientEmail).toLowerCase();
+  if (!testMode && testRecipientEmail) throw new Error('TEST_RECIPIENT_WITHOUT_TEST_MODE');
+  if (testMode && !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(testRecipientEmail))
+    throw new Error('INVALID_TEST_RECIPIENT');
   thuTuanDigest_({}, cfg.secret); // Fail before any read when the approval key is missing.
   var logSheet = thuTuanSheet_(cfg.privateId,'ThuTuan_NhatKyGui');
   return {
     now: function() { return Date.now(); },
     approvers: cfg.approvers || [],
     content: function() { return thuTuanRows_(thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung'),'LoiDay_NoiDung'); },
-    recipients: function() { return thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_NguoiNhan'),'ThuTuan_NguoiNhan'); },
+    testMode: testMode,
+    recipients: function() {
+      if (testMode) return [{ MaCB:THU_TUAN_TEST_RECIPIENT_ID_, Email:testRecipientEmail, TrangThai:'DangNhan' }];
+      return thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_NguoiNhan'),'ThuTuan_NguoiNhan');
+    },
     logs: function() { return thuTuanRows_(logSheet,'ThuTuan_NhatKyGui'); },
     quota: function() { return MailApp.getRemainingDailyQuota(); },
     digest: function(content) { return thuTuanDigest_(content, cfg.secret); },
@@ -213,10 +252,18 @@ function thuTuanAdapter_(cfg) {
     },
     send: function(recipient,content) {
       // One message per recipient; no cc/bcc, so no address is disclosed to others.
-      MailApp.sendEmail({ to: recipient.Email, subject: 'Lời Bác dạy — tuần từ ' + content.Ky,
+      var heroImage = thuTuanHeroBlob_();
+      var message = {
+        to: recipient.Email,
+        subject: 'Lời Bác dạy — tuần từ ' + content.Ky,
         body: thuTuanRenderText_(content),
-        htmlBody: thuTuanRenderHtml_(content)
-      });
+        htmlBody: thuTuanRenderHtml_(content, !!heroImage)
+      };
+      if (heroImage) {
+        message.inlineImages = {};
+        message.inlineImages[THU_TUAN_HERO_IMAGE_CID_] = heroImage;
+      }
+      MailApp.sendEmail(message);
     }
   };
 }
@@ -244,6 +291,7 @@ function thuTuanRun_(io, key, dryRun) {
   var allRecipients = io.recipients(), seenIds = Object.create(null), emails = Object.create(null);
   var invalid = allRecipients.some(function(row) {
     var id = thuTuanText_(row.MaCB);
+    if (id === THU_TUAN_TEST_RECIPIENT_ID_ && io.testMode !== true) return true;
     if (!id) return row.TrangThai === 'DangNhan';
     if (seenIds[id]) return true; // MaCB must be unique across every row, whatever its status.
     seenIds[id] = true; return false;
@@ -335,7 +383,10 @@ function thuTuanExecute_(dryRun) {
 /** Không gửi, không ghi: báo kỳ, mã lời dạy, lý do chặn (nếu có) và số người sẽ nhận. */
 function xemTruocThuTuan() { return thuTuanExecute_(true); }
 /** Chỉ gửi khi THU_TUAN_ENABLED=true và nội dung kỳ này đã được duyệt hợp lệ. */
-function guiThuTuan() { return thuTuanExecute_(false); }
+function guiThuTuan(event) {
+  if (event && thuTuanConfig_().testMode) return { status:'TEST_MODE_MANUAL_ONLY', sent:0 };
+  return thuTuanExecute_(false);
+}
 
 /** Run manually by an authorized reviewer with the actual week key, after source verification. */
 function duyetNoiDungThuTuan(ky) {
@@ -384,7 +435,11 @@ function thuTuanOwnTriggers_() {
 }
 
 function caiLichThuTuan() {
-  if (!thuTuanConfig_().enabled) throw new Error('ENABLE_AFTER_APPROVAL');
+  var cfg = thuTuanConfig_();
+  if (!cfg.enabled) throw new Error('ENABLE_AFTER_APPROVAL');
+  if (cfg.testModeValue && cfg.testModeValue !== 'true' && cfg.testModeValue !== 'false') throw new Error('INVALID_TEST_MODE');
+  if (cfg.testRecipientEmail && !cfg.testMode) throw new Error('TEST_RECIPIENT_WITHOUT_TEST_MODE');
+  if (cfg.testMode) throw new Error('TEST_MODE_CANNOT_SCHEDULE');
   var lock=LockService.getScriptLock();
   if (!lock.tryLock(1000)) throw new Error('BUSY');
   try {

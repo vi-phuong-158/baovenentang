@@ -2,13 +2,14 @@
 
 Module Apps Script **độc lập**, gửi mỗi sáng thứ Hai một thư điện tử lấy **nguyên văn** nội dung đã được con người duyệt trong Google Sheets.
 
-> **Trạng thái 27/9/2026:** regression cục bộ đạt 52/52; email đã được gửi và đối soát một lần trong TEST tới owner; cấu hình đã trả về `THU_TUAN_ENABLED=false` và không có trigger TEST. Production chưa được kiểm tra read-only nên chưa sẵn sàng bật. Xem `docs/brain/06-ai-working-log.md` để biết bằng chứng và giới hạn.
+> **Trạng thái 27/9/2026:** regression cục bộ đạt 50/50; bộ kết hợp đạt 58/58. Apps Script TEST đã gửi một thư qua code path mới tới đúng một mailbox TEST được allowlist; Gmail Web xác nhận banner inline, MIME, nội dung và dedupe. Cấu hình gửi đã được tắt, TEST_MODE tắt, override bị xóa và trigger bằng 0. Không tìm thấy Apps Script Production riêng, nên chưa thể nghiệm thu Production. Xem `docs/brain/06-ai-working-log.md` để biết bằng chứng và giới hạn.
 
 ## 0. Nguyên tắc không đổi
 
 - **Không có AI khi gửi.** Thư chỉ ghép các ô đã duyệt, không tạo, tóm tắt hay sửa câu chữ.
 - **Chỉ gửi nội dung đã duyệt:** `NHÁP → kiểm tra nguồn → DUYỆT (khóa phiên bản) → được phép gửi`. Thiếu gì hoặc bị sửa sau duyệt thì **dừng, không gửi**.
-- **Cấu trúc thư (giữ nguyên thứ tự):** tiêu đề và Tuần/Chủ đề/Mã lời dạy · thẻ trích dẫn Lời Bác dạy kèm nguồn · Bối cảnh · Hiểu lời Bác dạy · Liên hệ với Công an nhân dân · Liên hệ với công tác An ninh đối ngoại · Hành động tuần này · Gợi ý tự soi, tự liên hệ (nếu có). Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài.
+- **Cấu trúc thư (giữ nguyên thứ tự):** tiêu đề · ảnh banner cố định (nếu khả dụng) · Tuần/Chủ đề/Mã lời dạy · thẻ trích dẫn Lời Bác dạy kèm nguồn · Bối cảnh · Hiểu lời Bác dạy · Liên hệ với Công an nhân dân · Liên hệ với công tác An ninh đối ngoại · Hành động tuần này · Gợi ý tự soi, tự liên hệ (nếu có). Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài.
+- **Ảnh banner cố định:** `EmailAssets.gs` giữ một JPEG nội tuyến dạng Base64. Khi gửi, Apps Script tạo Blob và ghép `inlineImages` với `cid:loi-bac-hero`; email không tải ảnh từ Drive, Sheet, URL công khai hoặc mạng, và không cần OAuth scope mới. Có thể tắt bằng `THU_TUAN_HERO_IMAGE_ENABLED_ = false`; nếu tắt hoặc không tạo được Blob, ảnh được bỏ qua còn HTML và plain-text vẫn gửi. Ảnh có `alt`; hiển thị trên mobile là best-effort và phụ thuộc email client.
 - **Mỗi người nhận một thư riêng**, không CC/BCC, không lộ địa chỉ người khác. Không có đường dẫn theo dõi cá nhân.
 - **Không public:** không deploy Web App, không `doGet/doPost`, không copy vào `backend/`.
 
@@ -17,7 +18,7 @@ Module Apps Script **độc lập**, gửi mỗi sáng thứ Hai một thư đi�
 ### 1.1. Project Apps Script riêng
 
 1. Vào script.google.com → *Dự án mới*. Đặt tên, ví dụ “Thư tuần Lời Bác dạy”.
-2. Dán toàn bộ `Code.gs`. Bật *Cài đặt dự án → Hiển thị tệp kê khai “appsscript.json”* rồi dán `appsscript.json` (múi giờ `Asia/Ho_Chi_Minh`).
+2. Tạo `Code.gs` và `EmailAssets.gs`, chép nội dung từ cả hai tệp tương ứng. Bật *Cài đặt dự án → Hiển thị tệp kê khai “appsscript.json”* rồi dán `appsscript.json` (múi giờ `Asia/Ho_Chi_Minh`).
 3. **Không** bấm *Triển khai → Ứng dụng web*.
 
 Tài khoản sở hữu project là tài khoản gửi thư. Chọn tài khoản công vụ/được phép, có người dự phòng.
@@ -45,8 +46,17 @@ Tài khoản sở hữu project là tài khoản gửi thư. Chọn tài khoản
 | `THU_TUAN_PRIVATE_SHEET_ID` | ID bảng tính B (phải khác A) |
 | `THU_TUAN_APPROVER_EMAILS` | Email người duyệt được phân công, cách nhau bằng dấu phẩy |
 | `THU_TUAN_APPROVAL_SECRET` | **Không tự gõ.** Chạy hàm `taoKhoaDuyetThuTuan` một lần để script tự tạo. Không sao chép ra ngoài. |
+| `THU_TUAN_TEST_MODE` | Mặc định `false`. Chỉ bật trong project TEST khi đã chỉ định một recipient bên dưới; khi bật, script bỏ qua bảng `ThuTuan_NguoiNhan`. |
+| `THU_TUAN_TEST_RECIPIENT_EMAIL` | Một địa chỉ thử được cho phép; bắt buộc khi TEST_MODE bật. Không chấp nhận danh sách hoặc nhiều địa chỉ. |
 
 Khóa duyệt dùng để ký “dấu duyệt” (`DauVanBanDuyet`). Người chỉ có quyền sửa bảng tính không thể tự tạo dấu hợp lệ. **Đổi hoặc xóa khóa làm mọi bản đã duyệt mất hiệu lực** (phải duyệt lại).
+
+### Chế độ gửi một người nhận TEST
+
+- Chỉ dùng trong Apps Script project và Sheets TEST riêng. Đặt `THU_TUAN_TEST_MODE=true` cùng đúng một `THU_TUAN_TEST_RECIPIENT_EMAIL`; `guiThuTuan` gửi tới địa chỉ này thay cho toàn bộ bảng recipient và log bằng mã `THU_TUAN_TEST_OVERRIDE`.
+- Vẫn cần `THU_TUAN_ENABLED=true`, kỳ được duyệt hợp lệ, người duyệt nằm trong allowlist và HMAC hợp lệ. `caiLichThuTuan` từ chối khi TEST_MODE bật; lời gọi có event trigger cũng dừng, nên phải chạy thủ công.
+- Chạy `xemTruocThuTuan` và xác nhận `pending:1`, `unknown:0` trước khi gửi. Chạy lại để xác nhận `alreadySent:1`, `pending:0`. Không dùng cơ chế này để thử lên cấu hình hoặc dữ liệu Production.
+- Sau thử nghiệm: đặt `THU_TUAN_ENABLED=false`, `THU_TUAN_TEST_MODE=false`, xóa `THU_TUAN_TEST_RECIPIENT_EMAIL`, xác nhận không có trigger và kiểm tra log không còn `SENDING/UNKNOWN`.
 
 ### 1.4. Quyền và danh tính người duyệt
 
@@ -146,6 +156,7 @@ Giới hạn: MailApp và Sheets là hai dịch vụ tách biệt nên **không 
 | Bàn giao | Người cũ chạy `goLichThuTuan` → người mới chạy `caiLichThuTuan` | Nếu người cũ không còn truy cập: đặt `false`, nhờ quản trị Workspace gỡ, hoặc tạo project mới. Khóa script chống chạy song song trong cùng project; nhật ký chống gửi trùng. |
 
 Không có trigger tự thử lại. Lỗi/`DEFERRED` do người vận hành xử lý. Module không gửi email cảnh báo – người vận hành cần xem *Executions* sáng thứ Hai.
+`caiLichThuTuan` luôn từ chối khi `THU_TUAN_TEST_MODE=true`; event trigger cũng không gửi trong chế độ này.
 
 ## 7. Hạn mức và thời gian
 

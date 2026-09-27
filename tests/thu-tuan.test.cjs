@@ -1,16 +1,28 @@
 // Thư tuần "Lời Bác dạy": deterministic tests, all Google services mocked; no mail leaves this process.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto'),os=require('node:os');
 const root=path.resolve(__dirname,'..');
-const CODE=fs.readFileSync(path.join(root,'services/thu-tuan/Code.gs'),'utf8');
+const CODE=[
+ fs.readFileSync(path.join(root,'services/thu-tuan/Code.gs'),'utf8'),
+ fs.readFileSync(path.join(root,'services/thu-tuan/EmailAssets.gs'),'utf8')
+].join('\n');
 const SECRET='fixture-approval-key-0123456789abcdef';
 const REVIEWER='reviewer@example.test';
 const noIO=new Proxy({}, {get(){throw Error('Unexpected I/O');}});
 const Utilities={
  formatDate:(date,tz)=>new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(date),
  computeHmacSha256Signature:(value,key)=>Array.from(crypto.createHmac('sha256',key).update(value,'utf8').digest()).map(b=>b>127?b-256:b),
+ base64Decode:value=>Array.from(Buffer.from(value,'base64')),
+ newBlob:(bytes,mimeType,name)=>({bytes:Array.from(bytes),mimeType,name}),
  Charset:{UTF_8:'utf8'},getUuid:()=>crypto.randomUUID()
 };
-function weekly(extra={}){const ctx=vm.createContext({console,Date,JSON,Number,Math,Utilities,Logger:{log(){}},...extra});vm.runInContext(CODE,ctx);return ctx;}
+function weekly(extra={}){
+ const contextExtras={...extra};
+ const testUtilities={...Utilities,...(contextExtras.Utilities||{})};
+ delete contextExtras.Utilities;
+ const ctx=vm.createContext({console,Date,JSON,Number,Math,Utilities:testUtilities,Logger:{log(){}},...contextExtras});
+ vm.runInContext(CODE,ctx);
+ return ctx;
+}
 function contentRow(o={}){return Object.assign({Ky:'2026-09-21',ChuDe:'Kỷ luật và trách nhiệm',MaLoiDay:'LD-TEST-1',NoiDungNguyenVan:'Fixture only',NguonTrich:'Fixture source, Tập 0, tr. 0',GoiYLienHe:'',BoiCanh:'Fixture context',PhanTich:'Fixture analysis',LienHeCAND:'Fixture CAND link',LienHeAnNinhDoiNgoai:'Fixture external security link',HanhDongTuanNay:'Fixture action',NotebookLM_URL:'https://notebooklm.google.com/notebook/fixture-123',TrangThai:'DaDuyet',NguoiDuyet:REVIEWER,NgayDuyet:new Date('2026-09-19T03:00:00Z'),PhienBan:'1'},o);}
 function stamp(ctx,c){c.DauVanBanDuyet=ctx.thuTuanDigest_(c,SECRET);return c;}
 function fixture(ctx=weekly(),o={}){
@@ -39,9 +51,9 @@ function memSheet(headers,rows=[],{textCols=[]}={}){
   };}};
  return sheet;
 }
-function world({enabled=true,approvers=REVIEWER,secret=SECRET,actor=REVIEWER,content=[],recipients=[],triggers=[]}={}){
+function world({enabled=true,testMode=false,testRecipientEmail='',forbidRecipientSheetRead=false,approvers=REVIEWER,secret=SECRET,actor=REVIEWER,content=[],recipients=[],triggers=[]}={}){
  const ctx0=weekly(),H=ctx0.THU_TUAN_HEADERS;
- const props={THU_TUAN_ENABLED:String(enabled),THU_TUAN_CONTENT_SHEET_ID:'content-id',THU_TUAN_PRIVATE_SHEET_ID:'private-id',THU_TUAN_APPROVER_EMAILS:approvers};
+ const props={THU_TUAN_ENABLED:String(enabled),THU_TUAN_TEST_MODE:String(testMode),THU_TUAN_TEST_RECIPIENT_EMAIL:testRecipientEmail,THU_TUAN_CONTENT_SHEET_ID:'content-id',THU_TUAN_PRIVATE_SHEET_ID:'private-id',THU_TUAN_APPROVER_EMAILS:approvers};
  if(secret)props.THU_TUAN_APPROVAL_SECRET=secret;
  const sheets={
   'content-id|LoiDay_NoiDung':memSheet(H.LoiDay_NoiDung,content.map(c=>H.LoiDay_NoiDung.map(h=>c[h]??'')),{textCols:[1]}),
@@ -55,7 +67,7 @@ function world({enabled=true,approvers=REVIEWER,secret=SECRET,actor=REVIEWER,con
   PropertiesService:{getScriptProperties:()=>({getProperties:()=>({...props}),getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;}})},
   LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
   Session:{getActiveUser:()=>({getEmail:()=>actor})},
-  SpreadsheetApp:{openById:id=>({getSheetByName:name=>sheets[id+'|'+name]||null}),flush(){}},
+  SpreadsheetApp:{openById:id=>({getSheetByName:name=>{if(forbidRecipientSheetRead&&name==='ThuTuan_NguoiNhan')throw Error('TEST_MODE_MUST_NOT_READ_RECIPIENT_SHEET');return sheets[id+'|'+name]||null;}}),flush(){}},
   MailApp:{sendEmail:m=>mail.push(m),getRemainingDailyQuota:()=>100},
   ScriptApp:{getProjectTriggers:()=>triggers,newTrigger:h=>{builder.handler=h;return builder;},deleteTrigger:t=>deleted.push(t),WeekDay:{MONDAY:'MONDAY'}}
  });
@@ -224,30 +236,87 @@ test('adapter refuses shared sheets or a missing approval key before opening any
  assert.throws(()=>ctx.thuTuanAdapter_({contentId:'a',privateId:'a',secret:SECRET}),/SEPARATE_SHEETS_REQUIRED/);
  assert.throws(()=>ctx.thuTuanAdapter_({contentId:'a',privateId:'b',secret:''}),/MISSING_APPROVAL_SECRET/);
 });
+test('TEST_MODE requires exactly one explicit email and rejects malformed or list recipients before sheet access',()=>{
+ for(const email of ['',undefined,'qa@example.test,other@example.test','qa@example.test;other@example.test','not-an-email']){
+  const ctx=weekly({SpreadsheetApp:noIO});
+  assert.throws(()=>ctx.thuTuanAdapter_({contentId:'content',privateId:'private',secret:SECRET,testMode:true,testRecipientEmail:email}),/INVALID_TEST_RECIPIENT/,String(email));
+ }
+ const invalidMode=weekly({SpreadsheetApp:noIO});assert.throws(()=>invalidMode.thuTuanAdapter_({contentId:'content',privateId:'private',secret:SECRET,testMode:false,testModeValue:'TRUE'}),/INVALID_TEST_MODE/);
+ const strayRecipient=weekly({SpreadsheetApp:noIO});assert.throws(()=>strayRecipient.thuTuanAdapter_({contentId:'content',privateId:'private',secret:SECRET,testMode:false,testRecipientEmail:'qa@example.test'}),/TEST_RECIPIENT_WITHOUT_TEST_MODE/);
+});
+test('TEST_MODE sends only to its explicit override, retains approval/HMAC, and dedupes the reserved log ID',()=>{
+ const w=world({enabled:true,testMode:true,testRecipientEmail:'qa@example.test',forbidRecipientSheetRead:true,
+  content:[draft({})],recipients:[{MaCB:'LIVE1',Email:'live-one@example.test',TrangThai:'DangNhan'},{MaCB:'LIVE2',Email:'live-two@example.test',TrangThai:'DangNhan'}]});
+ w.setNow('2026-09-21T01:00:00Z');
+ assert.equal(w.ctx.xemTruocThuTuan().reason,'NOT_APPROVED');assert.equal(w.mail.length,0);
+ w.ctx.duyetNoiDungThuTuan('2026-09-21');
+ const preview=w.ctx.xemTruocThuTuan();assert.equal(preview.status,'PREVIEW');assert.equal(preview.pending,1);assert.equal(preview.unknown,0);assert.equal(preview.alreadySent,0);assert.equal(w.mail.length,0);
+ const sent=w.ctx.guiThuTuan();assert.equal(sent.status,'COMPLETE');assert.equal(sent.sent,1);assert.equal(w.mail.length,1);
+ assert.equal(w.mail[0].to,'qa@example.test');assert.equal(w.mail[0].subject,'Lời Bác dạy — tuần từ 2026-09-21');
+ assert.ok(w.mail[0].body.length>0);assert.ok(w.mail[0].htmlBody.length>0);assert.deepEqual(Object.keys(w.mail[0].inlineImages),[w.ctx.THU_TUAN_HERO_IMAGE_CID_]);
+ const log=w.sheets['private-id|ThuTuan_NhatKyGui'];assert.equal(log.data[1][2],'THU_TUAN_TEST_OVERRIDE');assert.equal(log.data[1][6],'SENT');
+ const again=w.ctx.xemTruocThuTuan();assert.equal(again.pending,0);assert.equal(again.alreadySent,1);assert.equal(w.ctx.guiThuTuan().sent,0);assert.equal(w.mail.length,1);
+ assert.ok(!w.mail.some(m=>['live-one@example.test','live-two@example.test'].includes(m.to)));
+});
+test('TEST_MODE cannot install a trigger and trigger events cannot send',()=>{
+ const w=world({enabled:true,testMode:true,testRecipientEmail:'qa@example.test',recipients:[{MaCB:'CB1',Email:'qa@example.test',TrangThai:'DangNhan'}]});
+ assert.throws(()=>w.ctx.caiLichThuTuan(),/TEST_MODE_CANNOT_SCHEDULE/);assert.equal(w.created.length,0);
+ const result=w.ctx.guiThuTuan({triggerUid:'fixture'});assert.equal(result.status,'TEST_MODE_MANUAL_ONLY');assert.equal(result.sent,0);assert.equal(w.mail.length,0);
+});
+test('a leftover test address or misspelled TEST_MODE fails closed before normal recipients can send',()=>{
+ for(const options of [{testRecipientEmail:'qa@example.test'},{testMode:true,testRecipientEmail:'qa@example.test'}]){
+  const w=world({enabled:true,content:[draft({})],recipients:[{MaCB:'CB1',Email:'live-one@example.test',TrangThai:'DangNhan'}],...options});
+  w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
+  if(options.testMode){w.props.THU_TUAN_TEST_MODE='TRUE';}
+  assert.throws(()=>w.ctx.guiThuTuan(),/TEST_RECIPIENT_WITHOUT_TEST_MODE|INVALID_TEST_MODE/);assert.equal(w.mail.length,0);
+  assert.throws(()=>w.ctx.caiLichThuTuan(),/TEST_RECIPIENT_WITHOUT_TEST_MODE|INVALID_TEST_MODE/);assert.equal(w.created.length,0);
+ }
+});
+test('the reserved TEST_MODE recipient ID is invalid in normal recipient mode',()=>{
+ const f=fixture();f.recipients[0].MaCB='THU_TUAN_TEST_OVERRIDE';assert.equal(f.run(false).status,'INVALID_RECIPIENT_LIST');assert.equal(f.sent.length,0);
+});
 test('header drift is rejected',()=>{
  const w=world();w.sheets['content-id|LoiDay_NoiDung'].data[0][11]='BoiCanhX';assert.throws(()=>w.ctx.xemTruocThuTuan(),/INVALID_HEADERS/);
 });
 
 // ---------- Email rendering ----------
-test('mail: formal responsive layout, all approved sections, escaping, optional NotebookLM and one private message per recipient',()=>{
+test('mail: formal responsive layout, all approved sections, escaping, inline hero, optional NotebookLM and one private message per recipient',()=>{
  const w=world({content:[],recipients:[]});const adapter=w.ctx.thuTuanAdapter_({contentId:'content-id',privateId:'private-id',secret:SECRET});
  const content=contentRow({ChuDe:'<script>alert(1)</script>',NoiDungNguyenVan:'Lời Bác & <dạy>\ndòng 2',NguonTrich:'Nguồn & <sách> "chính" và \'nguyên văn\'',GoiYLienHe:'Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'});
  const digestBefore=w.ctx.thuTuanDigest_(content,SECRET);adapter.send({Email:'one@example.test'},content);
- const m=w.mail[0];assert.deepEqual(Object.keys(m).sort(),['body','htmlBody','subject','to']);assert.equal(m.to,'one@example.test');assert.doesNotMatch(m.subject,/[\r\n]/);
+ const m=w.mail[0];assert.deepEqual(Object.keys(m).sort(),['body','htmlBody','inlineImages','subject','to']);assert.equal(m.to,'one@example.test');assert.doesNotMatch(m.subject,/[\r\n]/);
+ assert.deepEqual(Object.keys(m.inlineImages),[w.ctx.THU_TUAN_HERO_IMAGE_CID_]);
+ const hero=m.inlineImages[w.ctx.THU_TUAN_HERO_IMAGE_CID_];assert.equal(hero.mimeType,'image/jpeg');assert.equal(Buffer.from(hero.bytes).subarray(0,2).toString('hex'),'ffd8');assert.ok(hero.bytes.length<50000);
+ let width=0,height=0;for(let i=2;i<hero.bytes.length-9;){if(hero.bytes[i++]!==0xff)continue;const marker=hero.bytes[i++];if(marker===0xd8||marker===0xd9||marker===0x01||(marker>=0xd0&&marker<=0xd7))continue;const size=(hero.bytes[i]<<8)|hero.bytes[i+1];if([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker)){height=(hero.bytes[i+3]<<8)|hero.bytes[i+4];width=(hero.bytes[i+5]<<8)|hero.bytes[i+6];break;}i+=size;}
+ assert.equal(width,1280);assert.equal(height,427);
+ const imageTag=(m.htmlBody.match(/<img\b[^>]*>/i)||[])[0]||'';assert.ok(imageTag);assert.match(imageTag,/src="cid:loi-bac-hero"/);assert.match(imageTag,/alt="Minh họa chân dung Chủ tịch Hồ Chí Minh"/);assert.match(imageTag,/width:100%/);assert.match(imageTag,/height:auto/);assert.doesNotMatch(imageTag,/https?:\/\//i);
  assert.match(m.htmlBody,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.htmlBody,/Học tập – Liên hệ – Hành động/);assert.match(m.htmlBody,/Tuần/);assert.match(m.htmlBody,/Chủ đề/);assert.match(m.htmlBody,/Mã lời dạy/);
  const labels=['Lời Bác dạy','Nguồn trích dẫn','Bối cảnh','Hiểu lời Bác dạy','Liên hệ với Công an nhân dân','Liên hệ với công tác An ninh đối ngoại','Hành động tuần này','Gợi ý tự soi, tự liên hệ'];
- let previous=-1;for(const label of labels){const p=m.htmlBody.indexOf(label);assert.ok(p>previous,`missing or out of order: ${label}`);previous=p;}
+ let previous=-1;for(const label of labels){const p=m.htmlBody.indexOf(label);assert.ok(p>previous,'missing or out of order: '+label);previous=p;}
  assert.match(m.htmlBody,/name="viewport"/i);assert.match(m.htmlBody,/charset="utf-8"/i);assert.match(m.htmlBody,/max-width:640px/);assert.match(m.htmlBody,/font:15px\/1\.65 Arial,Helvetica,sans-serif/);assert.match(m.htmlBody,/overflow-wrap:anywhere/);
  assert.match(m.htmlBody,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);assert.doesNotMatch(m.htmlBody,/<script>/);assert.match(m.htmlBody,/Lời Bác &amp; &lt;dạy&gt;<br>dòng 2/);
  assert.match(m.htmlBody,/Nguồn &amp; &lt;sách&gt; &quot;chính&quot; và &#39;nguyên văn&#39;/);assert.match(m.htmlBody,/Soi &lt;mình&gt; &amp; nhận xét &quot;thẳng&quot; và &#39;tận tâm&#39;\./);
  assert.match(m.htmlBody,/href="https:\/\/notebooklm\.google\.com\/notebook\/fixture-123"/);assert.match(m.htmlBody,/Tra cứu thêm trên NotebookLM/);assert.ok(m.htmlBody.indexOf('Nguồn trích dẫn')<m.htmlBody.indexOf('Tra cứu thêm trên NotebookLM'));
  assert.match(m.htmlBody,/không phải nguồn chính thức/);assert.match(m.body,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(m.body,/Học tập – Liên hệ – Hành động/);
- for(const value of ['Lời Bác & <dạy>\ndòng 2','Nguồn & <sách> "chính" và \'nguyên văn\'','Fixture context','Fixture analysis','Fixture CAND link','Fixture external security link','Fixture action','Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'])assert.ok(m.body.includes(value),`plain text missing ${value}`);
+ for(const value of ['Lời Bác & <dạy>\ndòng 2','Nguồn & <sách> "chính" và \'nguyên văn\'','Fixture context','Fixture analysis','Fixture CAND link','Fixture external security link','Fixture action','Soi <mình> & nhận xét "thẳng" và \'tận tâm\'.'])assert.ok(m.body.includes(value),'plain text missing '+value);
  assert.match(m.body,/Tra cứu thêm trên NotebookLM/);assert.match(m.body,/đối chiếu nội dung với nguồn gốc trích dẫn/);
  assert.match(m.body,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.body,/Muốn dừng nhận thư/);assert.match(m.htmlBody,/Thư tuần “Lời Bác dạy” – nội dung đã được kiểm duyệt trước khi gửi\./);assert.match(m.htmlBody,/Muốn dừng nhận thư/);
+ assert.doesNotMatch(m.body+m.htmlBody,/one@example\.test|two@example\.test/);
  assert.equal(w.ctx.thuTuanDigest_(content,SECRET),digestBefore,'rendering must not change the approved HMAC payload');
  adapter.send({Email:'two@example.test'},contentRow({NotebookLM_URL:''}));
- assert.equal(w.mail.length,2);assert.equal(w.mail[1].to,'two@example.test');assert.doesNotMatch(w.mail[1].htmlBody,/NotebookLM|href=/);assert.doesNotMatch(w.mail[1].body,/NotebookLM/);
+ assert.equal(w.mail.length,2);assert.equal(w.mail[1].to,'two@example.test');assert.ok(w.mail[1].inlineImages);assert.doesNotMatch(w.mail[1].htmlBody,/NotebookLM|href=/);assert.doesNotMatch(w.mail[1].body,/NotebookLM/);
+});
+test('mail: disabled or unavailable hero falls back to valid HTML and plain text without inline images',()=>{
+ for(const unavailable of [false,true]){
+  const w=world({content:[],recipients:[]});
+  if(unavailable)w.ctx.Utilities.newBlob=()=>{throw Error('fixture image unavailable');};
+  else w.ctx.THU_TUAN_HERO_IMAGE_ENABLED_=false;
+  const adapter=w.ctx.thuTuanAdapter_({contentId:'content-id',privateId:'private-id',secret:SECRET});
+  assert.doesNotThrow(()=>adapter.send({Email:'one@example.test'},contentRow()));
+  const message=w.mail[0];assert.equal(message.to,'one@example.test');assert.equal(message.inlineImages,undefined);
+  assert.match(message.htmlBody,/THƯ TUẦN – LỜI BÁC DẠY/);assert.match(message.htmlBody,/name="viewport"/i);assert.doesNotMatch(message.htmlBody,/<img\b|src="cid:/i);
+  assert.match(message.body,/LỜI BÁC DẠY/);assert.match(message.body,/Fixture only/);
+ }
 });
 test('runtime never calls AI or network services and exposes no web endpoint',()=>{
  for(const banned of [/UrlFetchApp/,/generativelanguage|gemini|openai/i,/function\s+doGet|function\s+doPost/,/\bbcc\s*:|\bcc\s*:/i])assert.doesNotMatch(CODE,banned);

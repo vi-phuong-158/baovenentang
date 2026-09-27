@@ -1114,3 +1114,27 @@ Review toàn bộ 22 file trong diff `main...HEAD` (base `a5b8bf8`, head `5ead41
 - Gmail web hiển thị đúng thư trong mailbox. Không xác nhận mobile visual: Gmail web shell ở viewport hẹp không cho xem trọn chiều ngang và Browser chặn preview `data:` URL; không thử cách vòng qua chính sách.
 - Files: `services/thu-tuan/Code.gs`, `services/thu-tuan/README.md`, `tests/thu-tuan.test.cjs`, `docs/brain/06-ai-working-log.md`. Test lại bằng regression command ở trên; rủi ro còn lại là Production rollout chưa được xác minh/cho phép.
 - Out of scope / follow-up: `QUIZ_TUSACH_POST_APPROVAL_INTEGRITY_DECISION_PENDING`; đây là việc riêng, không block Thư tuần.
+
+---
+
+## [2026-09-27] THU_TUAN_EMAIL_FIXED_HERO
+
+- Làm mới bố cục email HTML Thư tuần “Lời Bác dạy” với header, banner, metadata, trích dẫn, nội dung theo section và footer; giữ thứ tự dữ liệu, escaping và bản plain text.
+- Thêm services/thu-tuan/EmailAssets.gs với JPEG người dùng cung cấp (1280×427, 37,334 bytes) mã hóa Base64 trong source. Adapter tạo Blob và gửi ảnh cố định qua inlineImages với CID loi-bac-hero; không dùng Drive, URL ngoài hay OAuth scope mới. Có thể tắt ảnh; lỗi tạo Blob vẫn gửi HTML/plain text không có ảnh.
+- Giữ nguyên approval gate, danh sách trường HMAC trong thuTuanDigest_, dedupe, reconciliation, recipient từng người và cấu hình gửi. Không đụng dữ liệu, properties, trigger hay gửi email Production. Verdict giữ nguyên: THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING.
+- Files: services/thu-tuan/Code.gs, services/thu-tuan/EmailAssets.gs, tests/thu-tuan.test.cjs, services/thu-tuan/README.md, docs/brain/06-ai-working-log.md. README ghi cách thêm hai file vào standalone Apps Script, cơ chế inline CID và fallback.
+- Regression: node --test tests/thu-tuan.test.cjs — 45/45 PASS; node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs — 53/53 PASS; git diff --check — PASS; CodeGraph sync — PASS.
+- Hướng dẫn test: chạy hai lệnh Node ở trên. Test dùng mock MailApp/Utilities; xác nhận attachment CID, byte JPEG, alt text, bố cục responsive, không tải ảnh ngoài, fallback, thứ tự gửi, escaping, plain text và digest. Kiểm tra trực quan trên mobile chưa được xác nhận; ứng dụng email có thể ẩn ảnh, nội dung chữ vẫn dùng được.
+- Rủi ro/trạng thái: chưa xác minh cấu hình Production; không thực hiện gửi thử Production. Production verdict tiếp tục là THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING.
+
+---
+
+## [2026-09-27] THU_TUAN_PRODUCTION_ACCEPTANCE_AUDIT
+
+- Thêm `THU_TUAN_TEST_MODE` và `THU_TUAN_TEST_RECIPIENT_EMAIL` cho một địa chỉ duy nhất. Khi bật, adapter không đọc sheet người nhận, ghi log dưới `THU_TUAN_TEST_OVERRIDE`; trigger bị chặn. Recipient thừa khi mode tắt và mode gõ sai đều fail-closed. Approval/HMAC, per-recipient send, dedupe và reconciliation giữ nguyên.
+- Production audit: Apps Script hiện có một project khớp module và tên/trạng thái của nó là TEST; không tìm thấy project Production tương ứng. TEST chạy độc lập, không deployment, không trigger ban đầu; timezone `Asia/Ho_Chi_Minh`, bốn OAuth scope giữ nguyên. Script Properties TEST có sheet IDs tách biệt, allowlist duy nhất và HMAC secret (chỉ xác nhận có mặt, không đọc/ghi log giá trị); gửi ban đầu tắt. Không đọc hay đổi resource Production.
+- TEST runtime: xác nhận tài khoản chạy khớp allowlist TEST duy nhất, đặt override tạm tới chính tài khoản đó và chỉ bật sau preview `pending:1, unknown:0`. Apps Script trả `COMPLETE, sent:1` lúc 23:27:44 `Asia/Ho_Chi_Minh` ngày 27/9/2026. Gmail xác nhận subject đúng, một header To, không Cc/Bcc, multipart/alternative có plain text 1,278 byte và HTML 7,522 byte; message size 69,273 byte. JPEG inline `image/jpeg`, 37,334 byte, Content-ID `loi-bac-hero`; HTML tham chiếu đúng CID. Preview ngay sau gửi trả `pending:0, alreadySent:1, unknown:0`; không có lần gửi thứ hai, reconciliation không còn mục chưa rõ.
+- Gmail Web/Desktop hiển thị banner đã nhúng với JPEG tự nhiên 1280×427, render khoảng 636.8×212.4 px, đúng tỷ lệ và nằm gọn trong khung. Screenshot bằng chứng lưu ngoài repository trong thư mục Codex với tên `thu-tuan-test-gmail-web.jpg`. Gmail Mobile chưa xác minh; fallback HTML/plain-text khi không có Blob vẫn được kiểm tra trong regression, nhưng chưa kiểm tra bằng cách tắt ảnh của Gmail.
+- Sau smoke: `THU_TUAN_ENABLED=false`, `THU_TUAN_TEST_MODE=false`, `THU_TUAN_TEST_RECIPIENT_EMAIL` đã xóa, kiểm tra Apps Script trả `triggersOfThisAccount:0`; helper cấu hình tạm đã gỡ khỏi source TEST. Không gửi tới danh sách Production, không đưa secret hoặc địa chỉ email vào repo/log, không thêm OAuth scope.
+- Regression sau thay đổi: `node --test tests/thu-tuan.test.cjs` — 50/50 PASS; `node --test tests/hoc-tap.test.cjs tests/thu-tuan.test.cjs` — 58/58 PASS; `git diff --check` — PASS; CodeGraph index cập nhật, không còn pending changes. Frontend build đã thử trong worktree nhưng không chạy được do `vite` không có trong `node_modules`; không cài dependency theo quy định repo. Không có lint/typecheck script trong `package.json`.
+- Blocker nghiệm thu Production: không tìm thấy project/config Production nên Script Properties, recipient source, quyền Gmail, trigger, sender và đối soát Production chưa xác minh; không gửi thử Production. Verdict: `THU_TUAN_CODE_COMPLETE_TEST_EMAIL_PASS_PRODUCTION_CONFIG_PENDING`.
