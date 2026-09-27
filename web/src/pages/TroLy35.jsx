@@ -4,7 +4,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Clock3,
   Copy,
   ExternalLink,
   MessageSquareText,
@@ -14,31 +13,18 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
-  TrendingUp,
 } from 'lucide-react';
-import { getTrends, getTroLy35History, runTroLy35, sendFeedback } from '../api.js';
+import { runTroLy35 } from '../api.js';
 import { markdownToHtml } from '../lib/markdown.js';
 import '../css/troly35.css';
 import logo35 from '../../logo.png';
 
 const STYLE_KEY = 'troly35_style';
 const CHAT_SESSION_KEY = 'troly35_chat_session';
-const HISTORY_LIMIT = 20;
 const CHAT_HISTORY_TURNS = 8;
 
-// Truy cập tự do: không bắt nhập mã. Trong production, proxy /api/gas tự gắn
-// mã chung từ env TROLY35_ACCESS_CODE. Biến VITE_ dưới đây chỉ dùng khi dev gọi
-// trực tiếp GAS (không qua proxy); để trống ở production để không lộ trong bundle.
-const ACCESS_CODE = (import.meta.env.VITE_TROLY35_ACCESS_CODE || '').trim();
-
-function loadChatSession() {
-  try {
-    const raw = sessionStorage.getItem(CHAT_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+// Only public material is allowed. The proxy's shared code is not user authentication.
+const ACCESS_CODE = '';
 
 const STYLES = [
   { value: 'chinhluan', label: 'Chính luận', hint: 'Trang trọng, lập luận chặt' },
@@ -351,136 +337,34 @@ function ChatMessage({ message, onCopy, onFeedback, onFeedbackDraft }) {
           </div>
         )}
 
-        {!isUser && !message.pending && !message.error && message.requestId && (
-          <div className="t35-feedback">
-            {message.feedback ? (
-              <div className={`t35-feedback-done ${message.feedback === 'good' ? 'good' : 'bad'}`}>
-                <Check size={13} />
-                Đã đánh giá {message.feedback === 'good' ? 'tốt' : 'chưa tốt'}
-              </div>
-            ) : (
-              <div className="t35-feedback-actions">
-                <button
-                  type="button"
-                  className="btn ghost sm t35-feedback-btn"
-                  onClick={() => onFeedback(message, 'good')}
-                  disabled={message.feedbackLoading}
-                >
-                  <ThumbsUp size={13} /> Tốt
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost sm t35-feedback-btn"
-                  onClick={() => onFeedback(message, 'bad')}
-                  disabled={message.feedbackLoading}
-                >
-                  <ThumbsDown size={13} /> Xấu
-                </button>
-                {message.feedbackLoading && <RefreshCw size={14} className="spinner" />}
-              </div>
-            )}
 
-            {message.showFeedbackNote && !message.feedback && (
-              <div className="t35-feedback-note">
-                <textarea
-                  className="field"
-                  rows={2}
-                  value={message.feedbackDraft || ''}
-                  onChange={e => onFeedbackDraft(message.id, e.target.value)}
-                  placeholder="Ghi chú ngắn để Trợ lý 35 cải thiện..."
-                />
-                <button
-                  type="button"
-                  className="btn primary sm t35-feedback-send"
-                  onClick={() => onFeedback(message, 'bad', true)}
-                  disabled={message.feedbackLoading}
-                >
-                  Gửi góp ý
-                </button>
-                {message.feedbackError && <div className="msg error">{message.feedbackError}</div>}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
 export default function TroLy35() {
-  const [mode, setMode] = useState(() => loadChatSession()?.mode || 'rebuttal');
+  const [mode, setMode] = useState('rebuttal');
   const [style, setStyle] = useState(() => {
     try { return localStorage.getItem(STYLE_KEY) || 'chinhluan'; } catch { return 'chinhluan'; }
   });
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState(() => {
-    const saved = loadChatSession();
-    return Array.isArray(saved?.messages) ? saved.messages.filter(m => !m.pending) : [];
-  });
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [runMsg, setRunMsg] = useState('');
   const [runMsgType, setRunMsgType] = useState('neutral');
 
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyMsg, setHistoryMsg] = useState('');
-
-  const [trends, setTrends] = useState(null);
-  const [trendWindow, setTrendWindow] = useState(7);
-  const [trendsLoading, setTrendsLoading] = useState(false);
-
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    loadTrends(trendWindow);
-    loadHistory();
+    try { sessionStorage.removeItem(CHAT_SESSION_KEY); } catch {}
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
 
-  useEffect(() => {
-    try {
-      const toSave = messages.filter(m => !m.pending);
-      if (toSave.length === 0) {
-        sessionStorage.removeItem(CHAT_SESSION_KEY);
-      } else {
-        sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify({ messages: toSave, mode }));
-      }
-    } catch {}
-  }, [messages, mode]);
 
-  const updateAssistantMessage = (id, patch) => {
-    setMessages(prev => prev.map(item => item.id === id ? { ...item, ...patch } : item));
-  };
-
-  const loadTrends = async (windowDays) => {
-    setTrendsLoading(true);
-    try {
-      const res = await getTrends({ accessCode: ACCESS_CODE, windowDays });
-      if (res.success !== false) setTrends(res.data || res);
-    } catch {
-      setTrends(null);
-    } finally {
-      setTrendsLoading(false);
-    }
-  };
-
-  const loadHistory = async () => {
-    setHistoryLoading(true);
-    setHistoryMsg('');
-    try {
-      const res = await getTroLy35History({ accessCode: ACCESS_CODE, limit: HISTORY_LIMIT });
-      if (res.success === false) throw new Error(res.error || 'Không tải được lịch sử.');
-      setHistory(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      setHistory([]);
-      setHistoryMsg(err.message || 'Không tải được lịch sử.');
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
 
   const copyText = async (text, label) => {
     try {
@@ -502,73 +386,6 @@ export default function TroLy35() {
   const chooseStyle = (value) => {
     setStyle(value);
     try { localStorage.setItem(STYLE_KEY, value); } catch {}
-  };
-
-  const submitFeedback = async (message, rating, confirmBad = false) => {
-    if (!message.requestId || message.feedback) return;
-
-    const note = (message.feedbackDraft || '').trim();
-    if (rating === 'bad' && !confirmBad) {
-      updateAssistantMessage(message.id, { showFeedbackNote: true, feedbackError: '' });
-      return;
-    }
-    if (rating === 'bad' && !note) {
-      updateAssistantMessage(message.id, { showFeedbackNote: true, feedbackError: 'Vui lòng nhập ghi chú ngắn.' });
-      return;
-    }
-
-    updateAssistantMessage(message.id, { feedbackLoading: true, feedbackError: '' });
-    try {
-      const res = await sendFeedback({
-        accessCode: ACCESS_CODE,
-        rating,
-        responseId: message.requestId,
-        queryPreview: message.queryText || '',
-        responsePreview: message.text || '',
-        comment: note,
-        reason: note,
-      });
-      if (res.success === false) throw new Error(res.error || 'Không lưu được đánh giá.');
-      updateAssistantMessage(message.id, {
-        feedback: rating,
-        feedbackLoading: false,
-        showFeedbackNote: false,
-        feedbackDraft: note,
-      });
-      loadTrends(trendWindow);
-      loadHistory();
-    } catch (err) {
-      updateAssistantMessage(message.id, {
-        feedbackLoading: false,
-        feedbackError: err.message || 'Không lưu được đánh giá.',
-      });
-    }
-  };
-
-  const openHistoryItem = (item) => {
-    const itemMode = getMode(item.mode).value;
-    setMode(itemMode);
-    setMessages([
-      {
-        id: `history-user-${item.requestId}`,
-        role: 'user',
-        mode: itemMode,
-        text: item.inputPreview || 'Nội dung không còn trong lịch sử.',
-      },
-      {
-        id: `history-assistant-${item.requestId}`,
-        role: 'assistant',
-        mode: itemMode,
-        text: item.answerText || item.error || 'Chưa có nội dung trả lời để hiển thị.',
-        requestId: item.requestId,
-        queryText: item.inputPreview || '',
-        feedback: item.ratingStatus || '',
-        feedbackDraft: item.note || '',
-        error: item.status === 'ERROR',
-      },
-    ]);
-    setRunMsg('Đã mở lại mục lịch sử.');
-    setRunMsgType('neutral');
   };
 
   const sendQuestion = async (e) => {
@@ -614,8 +431,6 @@ export default function TroLy35() {
           ? { ...item, text: answer, pending: false, requestId: res.requestId, responseRaw: res.result || {}, analysis: res.analysis || {}, knowledge: res.knowledge || [] }
           : item
       ));
-      loadTrends(trendWindow);
-      loadHistory();
     } catch (err) {
       setMessages(prev => prev.map(item =>
         item.id === assistantMessage.id
@@ -636,7 +451,8 @@ export default function TroLy35() {
     <div className="page page-fade">
       <div className="page-header">
         <h1>Trợ lý 35</h1>
-        <p>Hỏi đáp nhanh, hỗ trợ xử lý thông tin</p>
+        <p>Tra cứu và soạn nháp từ nội dung công khai. Kiểm tra nguồn trước khi sử dụng.</p>
+        <p className="text-sm">Không nhập hồ sơ công tác hoặc dữ liệu cá nhân. Hội thoại chỉ giữ trên màn hình đến khi tải lại trang; nội dung gửi được xử lý bởi dịch vụ AI.</p>
       </div>
 
       <div className="card elevated t35-card t35-chat-card">
@@ -699,8 +515,6 @@ export default function TroLy35() {
                 key={message.id}
                 message={message}
                 onCopy={copyText}
-                onFeedback={submitFeedback}
-                onFeedbackDraft={(id, value) => updateAssistantMessage(id, { feedbackDraft: value, feedbackError: '' })}
               />
             ))
           )}
@@ -726,7 +540,7 @@ export default function TroLy35() {
             <button type="submit" className="btn primary t35-compose-send" disabled={loading}>
               {loading ? <><RefreshCw size={15} className="spinner" /> Đang trả lời...</> : <><Send size={15} /> Gửi câu hỏi</>}
             </button>
-            <button type="button" className="btn ghost sm" onClick={clearChat} disabled={loading && messages.length === 0} aria-label="Xóa hội thoại">
+            <button type="button" className="btn ghost sm" onClick={clearChat} disabled={loading} aria-label="Xóa hội thoại">
               <Trash2 size={15} />
             </button>
           </div>
@@ -734,94 +548,6 @@ export default function TroLy35() {
         </form>
       </div>
 
-      <div className="card tinted t35-card">
-        <div className="row t35-card-head">
-          <div className="row">
-            <div className="chip"><Clock3 size={14} /></div>
-            <span className="t35-card-title">Lịch sử</span>
-          </div>
-          <button
-            type="button"
-            className="btn ghost sm t35-icon-btn"
-            aria-label="Tải lại lịch sử"
-            onClick={() => loadHistory()}
-            disabled={historyLoading}
-          >
-            {historyLoading ? <RefreshCw size={13} className="spinner" /> : <RefreshCw size={13} />}
-          </button>
-        </div>
-
-        {historyLoading && <div className="empty t35-empty-pad"><RefreshCw size={16} className="spinner" /></div>}
-        {!historyLoading && historyMsg && <div className="msg error">{historyMsg}</div>}
-        {!historyLoading && !historyMsg && history.length === 0 && (
-          <div className="empty t35-empty-pad">Chưa có lịch sử hội thoại.</div>
-        )}
-        {!historyLoading && history.map(item => (
-          <button
-            key={item.requestId}
-            type="button"
-            onClick={() => openHistoryItem(item)}
-            className="t35-history-item"
-          >
-            <div className="row t35-history-meta">
-              <span className="text-xs text-mute">{formatDate(item.timestamp)} · {getMode(item.mode).shortLabel}</span>
-              {item.ratingStatus && (
-                <span className={`pill t35-history-pill ${item.ratingStatus === 'good' ? 'ok' : ''}`}>
-                  {item.ratingStatus === 'good' ? 'Tốt' : 'Xấu'}
-                </span>
-              )}
-            </div>
-            <div className="text-sm t35-history-preview">
-              {item.inputPreview || item.topic || item.requestId}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <div className="card tinted t35-card last">
-        <div className="row t35-card-head">
-          <div className="row">
-            <div className="chip"><TrendingUp size={14} /></div>
-            <span className="t35-card-title">Xu hướng</span>
-          </div>
-          <div className="t35-trend-btns">
-            {[7, 30].map(w => (
-              <button
-                key={w}
-                onClick={() => { setTrendWindow(w); loadTrends(w); }}
-                className={`btn sm t35-trend-btn ${trendWindow === w ? 'primary' : 'ghost'}`}
-              >
-                {w} ngày
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {trendsLoading && <div className="empty t35-empty-pad"><RefreshCw size={16} className="spinner" /></div>}
-        {!trendsLoading && !trends && <div className="empty t35-empty-pad">Chưa có dữ liệu thống kê.</div>}
-        {trends && (
-          <>
-            <div className="t35-stat-grid">
-              {[
-                { label: 'Lượt', value: Number(trends.totalRequests || 0).toLocaleString('vi-VN') },
-                { label: 'Nguy hiểm TB', value: trends.averageDangerLevel || 0 },
-                { label: 'Tốt', value: `${trends.goodRatingRate || 0}%` },
-              ].map(s => (
-                <div key={s.label} className="t35-stat">
-                  <div className="t35-stat-value">{s.value}</div>
-                  <div className="text-xs text-mute">{s.label}</div>
-                </div>
-              ))}
-            </div>
-            {Array.isArray(trends.topTopics) && trends.topTopics.map((t, i) => (
-              <div key={i} className="row t35-trend-row">
-                <span className="text-sm">{t.topic}</span>
-                <span className="pill">{t.count}</span>
-              </div>
-            ))}
-          </>
-        )}
-      </div>
     </div>
   );
 }

@@ -33,7 +33,7 @@ async function parseApiResponse(response) {
 }
 
 const getJson = (url) =>
-  fetch(url).then(parseApiResponse);
+  fetch(url, { cache: 'no-store' }).then(parseApiResponse);
 
 // GET helpers
 export const getToday = () =>
@@ -45,8 +45,9 @@ export const getArticles = (days = 1, page = 1, limit = 20) =>
 export const getStats = () =>
   cached('stats-v2', () => getJson(`${API_URL}?action=stats`));
 
-export const getQuiz = (count = 10) =>
-  getJson(`${API_URL}?action=quiz&count=${count}`);
+export const getQuiz = (count = 10, category = '') =>
+  getJson(`${API_URL}?action=quiz&count=${count}&category=${encodeURIComponent(category)}`);
+export const getQuizTopics = () => getJson(`${API_URL}?action=quiz_topics`);
 
 function assertArrayResponse(data, featureName) {
   if (!Array.isArray(data)) {
@@ -56,11 +57,7 @@ function assertArrayResponse(data, featureName) {
 }
 
 export const getBooks = () =>
-  cached(
-    'books-v3',
-    () => getJson(`${API_URL}?action=books`).then(data => assertArrayResponse(data, 'Tủ sách số')),
-    { ttl: 60 * 60 * 1000 }
-  );
+  getJson(`${API_URL}?action=books`).then(data => assertArrayResponse(data, 'Tủ sách số'));
 
 export const getBookById = (id) =>
   getJson(`${API_URL}?action=book&id=${encodeURIComponent(id)}`);

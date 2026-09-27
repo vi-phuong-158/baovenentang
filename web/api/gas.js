@@ -13,7 +13,8 @@ const ipHits = new Map();
 const TOKEN_INJECT_ACTIONS = new Set(['subscribe', 'submit_quiz', 'contact']);
 const ADMIN_ACTIONS = new Set(['bantin35_generate', 'bantin35_setup_trigger', 'bantin35_trigger_status', 'feedback_stats', 'video_export']);
 // Truy cập tự do: proxy tự gắn mã chung cho các action Trợ lý 35 nếu client không gửi.
-const TROLY35_ACTIONS = new Set(['troly35_run', 'troly35_rate', 'troly35_history', 'troly35_trends', 'troly35_feedback']);
+const TROLY35_ACTIONS = new Set(['troly35_run']);
+const DISABLED_ACTIONS = new Set(['troly35_history', 'troly35_trends', 'troly35_rate', 'troly35_feedback', 'submit_quiz']);
 
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -47,6 +48,10 @@ function shouldInjectToken(action) {
 }
 
 function authorizeAction(req, action, res) {
+  if (DISABLED_ACTIONS.has(action)) {
+    res.status(403).json({ success: false, error: 'Chức năng lưu hoặc đọc dữ liệu cá nhân đang tạm dừng.' });
+    return false;
+  }
   if (!ADMIN_ACTIONS.has(action)) return true;
   if (!ADMIN_API_TOKEN || clientToken(req) !== ADMIN_API_TOKEN) {
     res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -68,6 +73,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ success: false, error: 'Quá nhiều request, vui lòng thử lại sau.' });
   }
 
+  res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Api-Token, Authorization');
