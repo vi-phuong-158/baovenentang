@@ -4,6 +4,31 @@ Nhật ký ghi lại các thay đổi, sửa đổi mã nguồn và kiến trúc
 
 ---
 
+## [2026-09-28] Tách PR sạch và cập nhật hardening Thư tuần
+
+### File đã sửa
+- services/thu-tuan/Code.gs: mang service từ commit ad366861 sang branch sạch; bổ sung kiểm tra cú pháp email chặt hơn cho recipient thường và TEST override.
+- services/thu-tuan/EmailAssets.gs, services/thu-tuan/appsscript.json, services/thu-tuan/tools/corpus-to-sheet.cjs, services/thu-tuan/README.md, tests/thu-tuan.test.cjs: mang phần còn lại của service và regression suite sang branch sạch; thêm trường hợp email sai cú pháp vào test hiện có.
+- docs/brain/01-architecture.md, docs/brain/03-decisions.md, docs/brain/06-ai-working-log.md: ghi nhận kiến trúc project riêng, các quyết định approval, recipient, TEST, dedupe, banner và nhật ký riêng thuộc Thư tuần.
+
+### Lý do
+- PR #10 có thay đổi ngoài phạm vi. Branch này bắt đầu từ origin/main hiện tại và chỉ tái tạo service Thư tuần cùng tài liệu trực tiếp liên quan.
+- Validator trước đó chấp nhận một số địa chỉ sai cú pháp như local-part có dấu chấm liên tiếp hoặc domain label có dấu gạch ngang ở đầu/cuối. Kiểm tra mới từ chối các dạng đó trước khi gửi và áp dụng cùng quy tắc cho TEST override.
+- README được đồng bộ với 52 test thực tế của branch sạch; không giữ số cũ 50/50 hoặc bộ kết hợp không có trên base.
+
+### Rủi ro
+- Test cục bộ giả lập Google Sheets, MailApp, trigger và Script Properties; không chứng minh runtime Apps Script hoặc cấu hình Production.
+- Production configuration/runtime remains unverified. Task này không gửi email Production và không sửa trigger, Script Properties, Sheet, approval hoặc recipient data Production.
+- Kiểm tra email là kiểm tra cú pháp, không xác minh mailbox tồn tại.
+
+### Kiểm tra và cách chạy lại
+1. node --test tests/thu-tuan.test.cjs — 52/52 PASS, bao gồm recipient thường và TEST override sai cú pháp.
+2. Get-Content -Raw services/thu-tuan/Code.gs | node --check - — kiểm tra cú pháp Apps Script V8.
+3. Trong web/, npm run build -- --outDir <thư mục tạm> — build frontend hiện có mà không ghi đè web/dist.
+4. Nghiệm thu runtime TEST chỉ trên project và Sheets TEST riêng theo mục 9 README; bước này không chạy lại trong task tách PR.
+5. Không có tests/hoc-tap.test.cjs trên origin/main, nên không có bộ test kết hợp.
+6. git diff --check — PASS; staged diff chỉ gồm 9 file trong scope Thư tuần.
+
 ## [2026-09-27] Tạm tắt Dark mode chưa hoàn thiện
 
 ### Thay đổi

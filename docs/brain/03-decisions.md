@@ -72,3 +72,11 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
 - **Lý do không đổi backend**: Giữ nguyên `08-troly35.gs`; mã chung vẫn khớp `TROLY35_ACCESS_CODE_SHA256` nên backend xác thực như cũ, không cần `clasp push`/redeploy.
 - **Hệ quả/giới hạn**: Vì mọi người dùng chung một mã, hạn mức/ngày (`troLy35AssertDailyLimit_`) và lịch sử/xu hướng trở thành CHUNG cho tất cả. Nếu cần tách theo người dùng hoặc ẩn lịch sử/xu hướng, phải thiết kế lại (khóa theo IP hash hoặc bỏ panel lịch sử/xu hướng).
 - **Điều kiện vận hành**: Bắt buộc đặt env `TROLY35_ACCESS_CODE` trên Vercel (plaintext khớp SHA256 trong Script Properties), nếu không proxy không tiêm mã và backend sẽ từ chối.
+
+## 9. Thư tuần dùng Apps Script riêng và chỉ gửi nội dung đã duyệt
+- Phạm vi: services/thu-tuan/ chạy trong Apps Script project riêng, dùng hai bảng tính tách biệt, không public Web App và không dùng backend Trợ lý 35.
+- Approval: canonical payload version 2 được ký HMAC-SHA256 bằng secret tối thiểu 32 ký tự trong Script Properties. Người duyệt và ngày duyệt thuộc payload; người duyệt phải nằm trong allow-list. Dấu kiểu cũ hoặc bất kỳ thay đổi canonical nào đều fail closed. Các cột legacy không tham gia HMAC và không được render.
+- Nội dung thư: chỉ render tuần, chủ đề, mã lời dạy, nguyên văn, nguồn, bối cảnh, phân tích/ý nghĩa, liên hệ Công an nhân dân, hành động tuần này và NotebookLM tùy chọn. Không render gợi ý tự soi hoặc liên hệ An ninh đối ngoại.
+- Người nhận và gửi: kiểm tra mọi dòng recipient trước khi gửi, kể cả dòng tạm dừng; mã cán bộ toàn bảng và email đang hoạt động không được trùng. Mỗi người nhận một email riêng, không CC/BCC. TEST mode chỉ nhận một mailbox override, không cài trigger và không gửi qua event trigger.
+- Dedupe: ghi SENDING trước MailApp, bỏ qua SENT, giữ SENDING/UNKNOWN để đối soát thủ công và không tự gửi lại khi kết quả chưa rõ. Banner JPEG cố định được nhúng bằng CID; không dùng Drive hoặc URL ảnh ngoài và không cần OAuth scope mới.
+- Production gate: code/test trong repository không xác minh cấu hình hoặc runtime Production. Chỉ owner mới có thể cho go/no-go sau khi review project, Sheets, recipient/approver, secret mới, nguồn/approval, preview, quota, reconciliation và trigger.
