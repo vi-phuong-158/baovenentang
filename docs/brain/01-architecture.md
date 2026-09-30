@@ -100,3 +100,10 @@ flowchart TD
 2. Frontend dùng cùng dữ liệu action `books`/`book` từ sheet `TU_SACH`; trường `NotebookLM URL` hiện dùng chung một link NotebookLM cho toàn bộ tủ sách.
 3. Người dùng mở NotebookLM từ chi tiết tài liệu trong `Tủ sách`, sau đó chọn nguồn tài liệu cần hỏi đáp trong NotebookLM.
 4. Luồng NotebookLM không gọi Gemini, không ghi dữ liệu mới và không thay đổi contract API hiện tại.
+
+## Luồng xử lý Thư tuần “Lời Bác dạy”
+
+- services/thu-tuan/ là Apps Script project độc lập, không có doGet/doPost và không được chép vào backend Web App public. Project dùng một bảng nội dung và một bảng riêng tư cho recipient cùng nhật ký gửi.
+- Luồng gửi: trigger thứ Hai hoặc chạy thủ công → Script Lock → xác minh approval HMAC-SHA256 canonical version 2 và allow-list người duyệt → kiểm tra toàn bộ recipient table → ghi SENDING → gửi riêng từng email qua MailApp → ghi SENT hoặc giữ trạng thái cần reconciliation.
+- Canonical content chỉ gồm các trường được duyệt; hai cột legacy GoiYLienHe và LienHeAnNinhDoiNgoai không thuộc dấu HMAC v2 và không được render. Thư có HTML responsive, plain-text fallback và banner JPEG inline qua CID; lỗi tạo banner không chặn email.
+- TEST mode dùng một recipient override, chỉ chạy thủ công và chặn tạo trigger. Production configuration/runtime chưa được xác minh; không xem kết quả kiểm thử cục bộ hoặc TEST là nghiệm thu Production.
