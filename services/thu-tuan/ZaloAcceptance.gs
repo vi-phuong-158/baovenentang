@@ -18,8 +18,8 @@ function thuTuanZaloAcceptanceSameState_(left,right) {
 function thuTuanZaloAcceptanceGuard_(event, sending) {
   if (event) throw new Error('TEST_ACCEPTANCE_MANUAL_ONLY');
   var cfg = thuTuanConfig_(), p = cfg.zaloProperties;
-  if (p.THU_TUAN_ENABLED !== (sending ? 'true' : 'false') || p.THU_TUAN_TEST_MODE !== 'true' ||
-      p.THU_TUAN_TRANSPORT !== 'ZALO' || p.THU_TUAN_ZALO_ENV !== 'TEST')
+  if (cfg.enabledValue !== (sending ? 'true' : 'false') || cfg.testModeValue !== 'true' ||
+      cfg.transport !== 'ZALO' || p.THU_TUAN_ZALO_ENV !== 'TEST')
     throw new Error('TEST_ACCEPTANCE_ISOLATION_REQUIRED');
   var zalo = thuTuanZaloConfig_(cfg);
   thuTuanDigest_({},cfg.secret);
@@ -62,7 +62,9 @@ function thuTuanZaloAcceptanceSeal_(state,io,content) {
 
 function thuTuanZaloAcceptanceSafe_(result) {
   var safe = {status:result.status,key:THU_TUAN_ZALO_ACCEPTANCE_KEY_};
-  ['sent','pending','unknown','alreadySent','total','valid','invalid','duplicate'].forEach(function(key) {
+  if (result.reason) safe.reason = ['PRE_SEND_BLOCKED','PRE_SEND_LOG_UNCONFIRMED'].indexOf(result.reason) >= 0 ?
+    result.reason : thuTuanZaloSafeReason_({message:result.reason});
+  ['sent','attempted','confirmed','pending','unknown','alreadySent','total','valid','invalid','duplicate'].forEach(function(key) {
     if (Number.isInteger(result[key]) && result[key] >= 0) safe[key] = result[key];
   });
   return safe;
@@ -154,7 +156,7 @@ function thuTuanZaloAcceptanceRun_(event,operation) {
     } else {
       phase = 'LOCK';
       lock = LockService.getScriptLock();
-      if (!lock.tryLock(1000)) return {status:'BUSY'};
+      if (!lock.tryLock(1000)) throw new Error('BUSY');
       locked = true;
       phase = 'LOCK_RECHECK';
       if (!thuTuanZaloAcceptanceSameState_(thuTuanZaloAcceptanceGuard_(null,sending),state))
@@ -181,15 +183,25 @@ function thuTuanZaloAcceptanceRun_(event,operation) {
         }
       }
     }
-  } catch (error) { result = {status:'TEST_ACCEPTANCE_BLOCKED',phase:phase,reason:thuTuanZaloAcceptanceReason_(error)}; }
+  } catch (error) { result = {status:error && error.message === 'BUSY' ? 'BUSY' : 'TEST_ACCEPTANCE_BLOCKED',phase:phase,reason:thuTuanZaloAcceptanceReason_(error)}; }
   finally {
-    if (locked && sending) {
+    if (!event && sending) {
       try {
         var finalProps = PropertiesService.getScriptProperties();
+        var finalValues = finalProps.getProperties(), actualScript = ScriptApp.getScriptId();
+        // A manual SEND is also a TEST kill switch. On BUSY, the active runner will stop at its next guard.
+        // No log or lock owned by another execution is changed. Never write an unverified/PROD project.
+        if (finalValues.THU_TUAN_TEST_MODE !== 'true' || finalValues.THU_TUAN_TRANSPORT !== 'ZALO' ||
+            finalValues.THU_TUAN_ZALO_ENV !== 'TEST' || typeof actualScript !== 'string' || !actualScript ||
+            finalValues.THU_TUAN_ZALO_TEST_SCRIPT_ID !== actualScript ||
+            finalValues.THU_TUAN_ZALO_PROD_SCRIPT_ID === actualScript)
+          throw new Error('TEST_ACCEPTANCE_DISABLE_UNCONFIRMED');
         finalProps.setProperty('THU_TUAN_ENABLED','false');
         if (finalProps.getProperty('THU_TUAN_ENABLED') !== 'false') throw new Error('TEST_ACCEPTANCE_DISABLE_UNCONFIRMED');
       }
-      catch (_) { result = {status:'TEST_ACCEPTANCE_DISABLE_UNCONFIRMED'}; }
+      catch (_) {
+        result = Object.assign({},result,{status:'TEST_ACCEPTANCE_DISABLE_UNCONFIRMED',operationStatus:result.status});
+      }
     }
     if (locked) lock.releaseLock();
   }

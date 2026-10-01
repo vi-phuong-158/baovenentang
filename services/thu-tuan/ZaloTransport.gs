@@ -149,7 +149,14 @@ function thuTuanZaloAdapter_(cfg) {
     validateLogs:function(entries) {
       // Existing part history must be a prefix; a gap must never cause an earlier part to be sent later.
       var sorted = entries.slice().sort(function(a,b) { return a.Part-b.Part; });
-      return sorted.every(function(entry,i) { return entry.Part === i+1; });
+      return sorted.every(function(entry,i) {
+        if (entry.Part !== i+1) return false;
+        // Hold unresolved states for reconciliation; never replay a known non-send before a later SENT.
+        if (entry.TrangThai === 'SENT' && sorted.slice(0,i).some(function(prior) {
+          return prior.TrangThai === 'PENDING' || prior.TrangThai === 'FAILED';
+        })) return false;
+        return true;
+      });
     },
     preflight:function() { unchanged(); return thuTuanZaloPreflight_(zalo); },
     beforeSend:unchanged,

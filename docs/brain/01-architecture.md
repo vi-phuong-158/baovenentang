@@ -1,5 +1,14 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Sau review PR #12 — state gửi và cấu hình (01/10/2026)
+
+- Core runner giữ tiến độ Zalo tại boundary: sent là SENT đã ghi bền vững, attempted là lần gọi send, confirmed là receipt hợp lệ trong lượt hiện tại. Lỗi loop I/O không mất số phần trước; lỗi sau send vẫn giữ đối soát. Gmail giữ behavior cũ, không API/schema mới.
+- Sau flush SENDING, guard chưa gọi API thất bại thì ghi FAILED/PRE_SEND_BLOCKED và dừng. FAILED chỉ cho biết phần đó chưa được lượt này gửi; nếu write không xác nhận thì giữ SENDING và yêu cầu đối soát. UNKNOWN không auto retry. Prefix log từ chối phần PENDING/FAILED trước phần SENT.
+- Config whitelist pin hai profile và credential của profile hoạt động; Gmail không giữ Zalo credentials; approval secret vẫn riêng ở core HMAC. Acceptance so sánh strict mọi key/value của snapshot cấu hình có ý nghĩa, không snapshot toàn bộ Properties/seal/unrelated secrets. Recheck nội dung/cấu hình trước và sau flush vẫn giữ để chặn race.
+- Manual acceptance SEND có kill switch TEST trong finally kể cả BUSY/guard/adapter hỏng: độc lập xác minh actual Script ID/pin TEST/no PROD collision và raw TEST flags trước property write/readback. Không sở hữu lock khi BUSY, không ghi log hoặc release lock lượt khác; request đang chạy được ghi receipt/state rồi dừng ở guard kế tiếp. Unverified identity/write failure báo DISABLE_UNCONFIRMED và giữ operationStatus/counters.
+- Diagnostic marker mới mỗi phiên bằng UUID/HMAC domain riêng, chỉ public challenge ở READY, không nonce/secret; parser/pin dùng marker tham số cùng cửa sổ. Bot ID pin là identity, không hardcode tên. Counterpart Gmail log optional nhưng schema hiện hữu vẫn kiểm.
+- Helper fixed-week chỉ thuộc lần TEST acceptance lịch sử, không bộ cài Production. Bản sửa PR #12 chỉ kiểm local, chưa lưu/chạy lại GAS; runtime PASS trước đây không chứng minh bản sửa mới.
+
 ## Cập nhật 01/10/2026 — Chẩn đoán nhận event TEST
 
 - Guard gửi Zalo không đổi: vẫn cần chat ID từ event GROUP đã xác minh, SHA-256 và membership confirmation trước preview/getMe chính thức/gửi. TEST-only không cần profile PROD chưa tồn tại.

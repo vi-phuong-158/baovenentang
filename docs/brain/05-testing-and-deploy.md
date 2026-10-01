@@ -1,5 +1,12 @@
 # 05-testing-and-deploy.md - Kiểm thử và Triển khai
 
+## Validation patch review PR #12 (01/10/2026)
+
+- Main tự chạy `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: **135/135** (119 module,16 acceptance), local/synthetic, không network. Parse syntax năm `.gs` bằng Node vm.Script, `git diff --check` đạt. Không gọi PASS toàn repo.
+- Fault injection: lỗi SENDING/loop read sau part1, receipt hợp lệ nhưng SENT write hỏng, postflush guard trước API, FAILED write hỏng, clock lỗi sau receipt, resume phần chưa gửi và ngăn đảo thứ tự. UNKNOWN/SENDING giữ fail closed/no retry. TEST SEND lỗi initial guard/adapter/BUSY vẫn false verified; PROD/unverified project/trigger không property write; disable readback hỏng giữ operationStatus/counters.
+- Security: active-only credentials/opposite pins, Gmail không mang token Zalo; fresh marker khác phiên chống replay với timestamp mới, nonce/secret/raw data không output; đổi tên Bot không bỏ identity pin; Gmail tab vắng được phép, header sai vẫn chặn.
+- Patch chưa được lưu/chạy lại trên GAS. Runtime PASS và 120/120 dưới đây thuộc source trước patch; không coi mocks là runtime acceptance của bản mới. Không cần gửi thêm fixture để hoàn tất review source; triển khai TEST bản mới là bước riêng, không Production.
+
 ## Gate hiện hành 01/10/2026 — ưu tiên hơn lịch sử 30/9
 
 - Regression main: `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs` **120/120** (local/synthetic). Test thứ tự PropertiesService keys đã fail trước sửa/pass sau sửa; exact values/key sets/array order, privacy allowlist, approval race, tamper, UNKNOWN, disable readback và core dedupe vẫn được kiểm. Independent review helper không finding mới.

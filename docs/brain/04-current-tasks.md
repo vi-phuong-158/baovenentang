@@ -1,5 +1,10 @@
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
+## Sau review PR #12 (01/10/2026)
+
+- Đã sửa ba lỗi luồng gửi, marker public cố định, cfg toàn Properties; thêm chặn replay sai thứ tự và sửa diagnostic Gmail optional/tên Bot. Main local regression **135/135**, syntax năm GAS files và diff check đạt. Review độc lập không blocker mới và tự chạy **135/135**; không merge.
+- Bản sửa chưa lưu/chạy lại GAS. Runtime acceptance PASS bên dưới là evidence source trước patch. Không yêu cầu owner gửi thêm tin; không thay cloud, secret, trigger hay Production. Helper fixed-week giữ phạm vi TEST lịch sử; recheck mỗi phần vẫn cần thiết để chống race.
+
 ## Hiện hành 01/10/2026 — Zalo TEST acceptance
 
 - Trạng thái mới nhất: GROUP marker nhận trong GAS06:13:15–06:14:09 VN, target/hash pin an toàn, membership owner đã xác nhận. OAuth/getMe GAS/full preflight OK; webhook404 vẫn UNKNOWN, không quy lỗi Platform từ phiên408 trước đó.

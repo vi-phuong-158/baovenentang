@@ -3,7 +3,6 @@ var THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_ = [
   'https://bot-api.zaloplatforms.com',
   'https://bot-api.zapps.me'
 ];
-var THU_TUAN_ZALO_DIAGNOSTIC_MARKER_ = 'THU_TUAN_ZALO_TEST_20261001_7C4D';
 
 function thuTuanZaloDiagnosticConfig_() {
   var p = PropertiesService.getScriptProperties().getProperties();
@@ -34,6 +33,22 @@ function thuTuanZaloDiagnosticKind_(value) {
   if (Array.isArray(value)) return 'ARRAY';
   var kinds = {object:'OBJECT',string:'STRING',number:'NUMBER',boolean:'BOOLEAN'};
   return kinds[typeof value] || 'OTHER';
+}
+
+/** Fresh public challenge; neither its nonce nor the approval secret leaves this function. */
+function thuTuanZaloDiagnosticMarker_(cfg) {
+  if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
+    throw new Error('TEST_DIAGNOSTIC_CONFIG_CHANGED');
+  var secret = PropertiesService.getScriptProperties().getProperty('THU_TUAN_APPROVAL_SECRET');
+  if (typeof secret !== 'string' || secret.length < 32)
+    throw new Error('TEST_DIAGNOSTIC_MARKER_UNAVAILABLE');
+  var nonce = Utilities.getUuid();
+  if (typeof nonce !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nonce))
+    throw new Error('TEST_DIAGNOSTIC_MARKER_UNAVAILABLE');
+  var bytes = Utilities.computeHmacSha256Signature('THU_TUAN_ZALO_TEST_CHALLENGE\n'+nonce+'\n'+Date.now(),secret,Utilities.Charset.UTF_8);
+  return 'THU_TUAN_ZALO_TEST_' + bytes.map(function(byte) {
+    return ('0'+((byte+256)%256).toString(16)).slice(-2);
+  }).join('');
 }
 
 /** Classify standard GAS signatures locally. Categories are hints, never raw error text or proven causes. */
@@ -102,8 +117,6 @@ function thuTuanZaloDiagnosticMe_(response, cfg) {
   var object = response.summary.ok && response.summary.resultKind === 'OBJECT';
   return Object.assign({},response.summary, {
     botMatches:!!object && typeof me.id === 'string' && me.id === cfg.botId,
-    accountMatches:!!object && me.account_name === 'bot.POyBVXga',
-    displayNameMatches:!!object && me.display_name === 'Bot Mô hình học tập lời Bác',
     canJoinGroups:!!object && me.can_join_groups === true
   });
 }
@@ -121,7 +134,8 @@ function thuTuanZaloDiagnosticSheets_(cfg) {
       return {status:'TEST_DIAGNOSTIC_IO_BLOCKED'};
     var config = thuTuanConfig_(), key = thuTuanWeekKey_(new Date());
     var zalo = thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_Zalo_NhatKyGui'),'ThuTuan_Zalo_NhatKyGui');
-    var gmail = thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_NhatKyGui'),'ThuTuan_NhatKyGui');
+    var gmailPresent = !!SpreadsheetApp.openById(cfg.privateId).getSheetByName('ThuTuan_NhatKyGui');
+    var gmail = gmailPresent ? thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_NhatKyGui'),'ThuTuan_NhatKyGui') : [];
     var rows = thuTuanRows_(thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung'),'LoiDay_NoiDung');
     var current = thuTuanForKey_(rows,key);
     function currentCount(logs) {
@@ -131,7 +145,7 @@ function thuTuanZaloDiagnosticSheets_(cfg) {
     }
     var summary = {status:'TEST_DIAGNOSTIC_SHEETS_VERIFIED',key:key,
       zaloHeaders:16,zaloRows:zalo.length,zaloCurrentWeekRows:currentCount(zalo),
-      gmailHeaders:9,gmailRows:gmail.length,gmailCurrentWeekRows:currentCount(gmail),
+      gmailPresent:gmailPresent,gmailHeaders:gmailPresent ? 9 : null,gmailRows:gmail.length,gmailCurrentWeekRows:currentCount(gmail),
       currentContentRows:current.length,approvalProblem:'CONTENT_MISSING_OR_DUPLICATE'};
     if (rows.some(function(row) { return thuTuanIsDate_(row.Ky); })) summary.approvalProblem = 'KY_NOT_PLAIN_TEXT';
     else if (current.length === 1) {
@@ -145,7 +159,7 @@ function thuTuanZaloDiagnosticSheets_(cfg) {
   } catch (_) { return {status:'TEST_DIAGNOSTIC_IO_BLOCKED'}; }
 }
 
-function thuTuanZaloDiagnosticEvent_(response, started, observed) {
+function thuTuanZaloDiagnosticEvent_(response, started, observed, marker) {
   var result = response.result, message = result && result.message, chat = message && message.chat;
   var object = response.summary.ok && response.summary.resultKind === 'OBJECT' &&
     result.event_name === 'message.text.received';
@@ -158,9 +172,10 @@ function thuTuanZaloDiagnosticEvent_(response, started, observed) {
   var text = message && message.text;
   // Mentions may surround the marker. Require one complete whitespace-delimited token,
   // and reject additional occurrences even if embedded in a longer token.
-  var markerMatched = !!object && typeof text === 'string' &&
-    text.split(THU_TUAN_ZALO_DIAGNOSTIC_MARKER_).length === 2 &&
-    text.split(/\s+/).filter(function(token) { return token === THU_TUAN_ZALO_DIAGNOSTIC_MARKER_; }).length === 1;
+  var markerValid = typeof marker === 'string' && /^THU_TUAN_ZALO_TEST_[0-9a-f]{64}$/.test(marker);
+  var markerMatched = !!object && markerValid && typeof text === 'string' &&
+    text.split(marker).length === 2 &&
+    text.split(/\s+/).filter(function(token) { return token === marker; }).length === 1;
   var valid = !!object && type !== 'UNKNOWN' && idValid && typeof text === 'string' && Number.isInteger(date);
   return Object.assign({},response.summary, {chatType:type, markerMatched:markerMatched,
     timestampInWindow:!!timestampValid, eventValid:valid,
@@ -168,9 +183,9 @@ function thuTuanZaloDiagnosticEvent_(response, started, observed) {
 }
 
 /** Only the manually paired receiver calls this; target stays inside Script Properties. */
-function thuTuanZaloDiagnosticPin_(cfg, response, started, observed) {
+function thuTuanZaloDiagnosticPin_(cfg, response, started, observed, marker) {
   try {
-    if (!thuTuanZaloDiagnosticEvent_(response,started,observed).verifiedGroupMarker)
+    if (!thuTuanZaloDiagnosticEvent_(response,started,observed,marker).verifiedGroupMarker)
       return {status:'TEST_TARGET_PIN_EVENT_UNVERIFIED'};
     if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
       return {status:'TEST_TARGET_PIN_CONFIG_CHANGED'};
@@ -213,22 +228,22 @@ function thuTuanZaloDiagnosticRun_(event, receive) {
       var host = THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_[1];
       var me = thuTuanZaloDiagnosticMe_(thuTuanZaloDiagnosticRequest_(cfg,host,'getMe',{}),cfg);
       report = {status:'TEST_RECEIVE_PREFLIGHT_BLOCKED', environment:'TEST', host:'SDK', getMe:me};
-      if (me.botMatches && me.accountMatches && me.displayNameMatches && me.canJoinGroups) {
+      if (me.botMatches && me.canJoinGroups) {
         var webhook = thuTuanZaloDiagnosticWebhook_(thuTuanZaloDiagnosticRequest_(cfg,host,'getWebhookInfo',{}));
         report.getWebhookInfo = webhook;
         if (webhook.webhookUrlPresent !== true) {
-          var started = Date.now();
+          var marker = thuTuanZaloDiagnosticMarker_(cfg), started = Date.now();
           report.status = 'TEST_RECEIVE_NO_VERIFIED_GROUP_MARKER';
           report.startedAt = new Date(started).toISOString();
           report.polls = [];
-          Logger.log(JSON.stringify({status:'TEST_RECEIVE_READY', marker:THU_TUAN_ZALO_DIAGNOSTIC_MARKER_,
+          Logger.log(JSON.stringify({status:'TEST_RECEIVE_READY', marker:marker,
             startedAt:report.startedAt, budgetSeconds:120, maxRequests:4}));
           for (var i=0;i<4 && Date.now()-started<120000;i++) {
             var response = thuTuanZaloDiagnosticRequest_(cfg,host,'getUpdates',{timeout:'30'});
-            var safe = thuTuanZaloDiagnosticEvent_(response,started,Date.now());
+            var safe = thuTuanZaloDiagnosticEvent_(response,started,Date.now(),marker);
             report.polls.push(safe);
             if (safe.verifiedGroupMarker) {
-              report.pin = thuTuanZaloDiagnosticPin_(cfg,response,started,Date.now());
+              report.pin = thuTuanZaloDiagnosticPin_(cfg,response,started,Date.now(),marker);
               report.status = report.pin.status === 'TEST_TARGET_PINNED' ?
                 'TEST_RECEIVE_GROUP_TARGET_PINNED' : 'TEST_RECEIVE_GROUP_TARGET_PIN_BLOCKED';
               break;

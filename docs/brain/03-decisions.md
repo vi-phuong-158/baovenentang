@@ -1,5 +1,13 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Sau review PR #12 — tiến độ và fail-closed TEST (01/10/2026)
+
+- Sửa ba findings trước merge, không chấp nhận rủi ro báo sent=0 sau delivery hoặc UNKNOWN khi chưa gọi API. Counters riêng cho attempts/receipts/durable SENT; auto FAILED chỉ khi có bằng chứng nội bộ chưa invoke send, không tự retry cùng lượt. Ghi FAILED không chắc chắn thì log vẫn held cho operator.
+- Theo yêu cầu kết thúc TEST tắt gửi, BUSY của manual fixture SEND cũng tắt verified TEST như kill switch ở guard kế tiếp. Không hủy request đang bay/khóa/log của lượt khác. Production hoặc identity không kiểm chứng tuyệt đối không property write; disable-unconfirmed phải giữ kết quả gửi và không được tuyên bố flag false.
+- Thu hẹp cfg thay vì sao chép toàn bộ Properties; vẫn giữ active token/target và opposite identity pins để fail closed trước tráo môi trường. Fresh UUID/HMAC challenge thay marker cố định công khai, không đổi secret/scopes/dependency. Bot ID string pin đủ làm identity; tên Bot thay đổi không buộc sửa code.
+- Giữ rechecks từng phần để chống race; không tối ưu số lần đọc bằng cách bỏ guard. Giữ helper fixed-week như artifact của nghiệm thu TEST lịch sử; không đưa helper vào bộ cài Production hoặc biến thành fixture sender thường trực.
+- Chỉ local regression/security review cho patch; không mở GAS, gửi lại fixture, merge hay mở Production. Runtime PASS trước patch được giữ như lịch sử với giới hạn rõ ràng.
+
 ## Quyết định 01/10/2026 — Phân biệt nguyên nhân receive path trong TEST
 
 - Sau GROUP marker thực tế 06:13–06:14, không poll/chẩn đoán nhận thêm. Dùng target/hash đã xác minh và membership owner để chạy fixture kỳ riêng. Sửa false-positive snapshot guard: JSON.stringify phụ thuộc thứ tự PropertiesService keys; dùng strict recursive own-key/value comparison, không bỏ bất kỳ thuộc tính cấu hình nào. Test tái hiện thất bại trước sửa; regression 120/120 và security review độc lập không có finding mới. GAS PREPARE/APPROVE/PREVIEW đã thành công sau sửa.

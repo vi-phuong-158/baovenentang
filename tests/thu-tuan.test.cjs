@@ -551,7 +551,7 @@ test('SENDING is durably flushed before calling Zalo; a failed initial write pre
  }});
  assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
  const failed=zaloWorld();failed.ctx.SpreadsheetApp.flush=()=>{throw Error('private spreadsheet failure');};
- assert.equal(failed.ctx.guiThuTuan().status,'ZALO_GATE_BLOCKED');assert.equal(failed.sendRequests.length,0);
+ const blocked=failed.ctx.guiThuTuan();assert.equal(blocked.status,'RECONCILIATION_REQUIRED');assert.equal(blocked.reason,'PRE_SEND_LOG_UNCONFIRMED');assert.equal(blocked.attempted,0);assert.equal(failed.sendRequests.length,0);
  assert.equal(failed.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(failed.sendRequests.length,0);
 });
 test('confirmed delivery with a failed SENT write is UNKNOWN; failed UNKNOWN write preserves SENDING',()=>{
@@ -721,7 +721,89 @@ test('Zalo log, runner output and error reporting contain no token, chat ID, URL
 test('config or approval changed during the SENDING flush prevents the actual API send',()=>{
  for(const mutate of [w=>w.props.THU_TUAN_ZALO_TEST_CHAT_ID='another-chat',w=>w.row[2]+='edited',w=>w.row[5]='Nhap']){
   const w=zaloWorld();w.ctx.SpreadsheetApp.flush=()=>mutate(w);
-  assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,0);assert.equal(w.zaloEntries()[0].TrangThai,'UNKNOWN');
+  const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');assert.equal(r.unknown,0);assert.equal(r.attempted,0);assert.equal(w.sendRequests.length,0);assert.equal(w.zaloEntries()[0].TrangThai,'FAILED');
+ }
+});
+
+test('Zalo preserves prior delivery counts when a later SENDING write fails before the API',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}}),getRange=w.zaloLog.getRange;
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][12]===2&&values[0][6]==='SENDING')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');
+ assert.equal(r.sent,1);assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(r.unknown,0);
+ assert.deepEqual(w.zaloEntries().map(e=>e.TrangThai),['SENT','FAILED']);assert.equal(w.sendRequests.length,1);
+});
+
+test('a loop read failure after part one preserves counts and never reports a pre-send gate',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}}),adapter=w.ctx.thuTuanZaloAdapter_;
+ w.ctx.thuTuanZaloAdapter_=cfg=>{const io=adapter(cfg),content=io.content;return {...io,content(){
+  if(w.sendRequests.length)throw Error('private read failure');return content();
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_RUN_BLOCKED');assert.equal(r.sent,1);
+ assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(w.sendRequests.length,1);
+ assert.equal(JSON.stringify([r,w.logs]).includes('private read failure'),false);
+});
+
+test('valid API receipt followed by failed SENT write reports receipt separately and cannot retry',()=>{
+ const w=zaloWorld(),getRange=w.zaloLog.getRange;
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][6]==='SENT')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.sent,0);
+ assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(r.unknown,1);
+ assert.equal(w.ctx.guiThuTuan().attempted,0);assert.equal(w.sendRequests.length,1);
+});
+
+test('pre-send guard failure with an unconfirmed FAILED write holds the row without API invocation',()=>{
+ const w=zaloWorld(),getRange=w.zaloLog.getRange;
+ w.ctx.SpreadsheetApp.flush=()=>{w.props.THU_TUAN_ENABLED='false';};
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][6]==='FAILED')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.reason,'PRE_SEND_LOG_UNCONFIRMED');
+ assert.equal(r.attempted,0);assert.equal(r.confirmed,0);assert.equal(w.zaloEntries()[0].TrangThai,'SENDING');assert.equal(w.sendRequests.length,0);
+ w.props.THU_TUAN_ENABLED='true';assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,0);
+});
+
+test('a known non-send before a later SENT cannot replay multipart content out of order',()=>{
+ for(const state of ['FAILED','PENDING']){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});w.ctx.guiThuTuan();w.zaloLog.data[1][6]=state;
+  assert.equal(w.ctx.guiThuTuan().status,'DUPLICATE_OR_INVALID_LOG');assert.equal(w.sendRequests.length,3);
+ }
+});
+
+test('a guard blocking part two preserves part one and a later manual run resumes only unsent parts',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});
+ w.ctx.SpreadsheetApp.flush=()=>{if(w.zaloEntries().some(e=>e.Part===2&&e.TrangThai==='SENDING'))w.props.THU_TUAN_ENABLED='false';};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');assert.equal(r.sent,1);
+ assert.equal(r.attempted,1);assert.equal(r.confirmed,1);assert.equal(r.unknown,0);
+ w.ctx.SpreadsheetApp.flush=()=>{};w.props.THU_TUAN_ENABLED='true';
+ const resumed=w.ctx.guiThuTuan();assert.equal(resumed.status,'COMPLETE');assert.equal(resumed.alreadySent,1);assert.equal(resumed.sent,2);
+ assert.equal(w.sendRequests.length,3);assert.equal(w.sendRequests.filter(x=>x.payload.text===w.sendRequests[0].payload.text).length,1);
+});
+
+test('an unexpected error after API receipt remains held and keeps the receipt count',()=>{
+ const w=zaloWorld(),adapter=w.ctx.thuTuanZaloAdapter_;
+ w.ctx.thuTuanZaloAdapter_=cfg=>{const io=adapter(cfg),now=io.now;return {...io,now(){
+  if(w.sendRequests.length)throw Error('private clock failure');return now();
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.sent,0);
+ assert.equal(r.attempted,1);assert.equal(r.confirmed,1);assert.equal(r.unknown,1);assert.equal(w.zaloEntries()[0].TrangThai,'SENDING');
+ w.ctx.thuTuanZaloAdapter_=adapter;
+ assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,1);
+});
+
+test('configuration retains only active Zalo credentials and required isolation pins',()=>{
+ for(const env of ['TEST','PROD']){
+  const w=zaloWorld({env}),inactive=env==='TEST'?'PROD':'TEST';
+  w.props.UNRELATED_SECRET='unrelated-secret';w.props['THU_TUAN_ZALO_'+inactive+'_BOT_TOKEN']='inactive-secret';
+  w.props['THU_TUAN_ZALO_'+inactive+'_CHAT_ID']='inactive-chat';w.props.THU_TUAN_ZALO_TEST_ACCEPTANCE_PREVIEW='unrelated-seal';
+  const cfg=w.ctx.thuTuanConfig_(),p=cfg.zaloProperties;
+  assert.equal(p['THU_TUAN_ZALO_'+env+'_BOT_TOKEN'],'synthetic-token-'+env);
+  assert.equal(p['THU_TUAN_ZALO_'+inactive+'_SCRIPT_ID'],'script-'+inactive);
+  for(const key of ['UNRELATED_SECRET','THU_TUAN_APPROVAL_SECRET','THU_TUAN_ZALO_TEST_ACCEPTANCE_PREVIEW','THU_TUAN_ZALO_'+inactive+'_BOT_TOKEN','THU_TUAN_ZALO_'+inactive+'_CHAT_ID'])assert.equal(p[key],undefined);
+  w.props.THU_TUAN_TRANSPORT='GMAIL';assert.equal(Object.keys(w.ctx.thuTuanConfig_().zaloProperties).length,0);
  }
 });
 test('a Zalo SENT log whose week was coerced to Date still prevents sending again',()=>{
@@ -733,7 +815,10 @@ test('Zalo headers and missing approval key fail closed without any fetch',()=>{
  const x=zaloWorld();delete x.props.THU_TUAN_APPROVAL_SECRET;assert.equal(x.ctx.guiThuTuan().reason,'MISSING_APPROVAL_SECRET');assert.equal(x.requests.length,0);
 });
 
-// ---------- Manual TEST diagnostics: no target, sending, mutation or raw output ----------
+// ---------- Manual TEST diagnostics and explicitly paired TEST target capture ----------
+function diagnosticSessionMarker(w){
+ return JSON.parse(w.logs.findLast(x=>JSON.parse(x).status==='TEST_RECEIVE_READY')).marker;
+}
 function diagnosticWorld(response){
  const w=zaloWorld({enabled:false});
  for(const field of ['CHAT_ID','CHAT_SHA256','GROUP_CONFIRMED'])delete w.props['THU_TUAN_ZALO_TEST_'+field];
@@ -763,7 +848,7 @@ test('TEST diagnosis compares both official hosts without requiring target or ch
  assert.equal(r.status,'TEST_DIAGNOSTIC');assert.equal(r.hosts.length,2);
  assert.deepEqual(w.requests.map(x=>x.method),['getMe','getWebhookInfo','getMe','getWebhookInfo']);
  assert.deepEqual(w.requests.map(x=>x.host),['https://bot-api.zaloplatforms.com','https://bot-api.zaloplatforms.com','https://bot-api.zapps.me','https://bot-api.zapps.me']);
- assert.ok(r.hosts.every(x=>x.getMe.botMatches&&x.getMe.accountMatches&&x.getMe.displayNameMatches&&x.getMe.canJoinGroups));
+ assert.ok(r.hosts.every(x=>x.getMe.botMatches&&x.getMe.canJoinGroups));
  assert.ok(r.hosts.every(x=>x.getWebhookInfo.apiCode===404&&x.getWebhookInfo.webhookUrlPresent===null));
  assert.equal(JSON.stringify(w.props),w.propsBefore);assert.equal(w.zaloLog.data.length,1);
  for(const x of w.requests){assert.equal(x.options.followRedirects,false);assert.equal(x.options.validateHttpsCertificates,true);assert.equal(x.options.method,'post');}
@@ -834,16 +919,17 @@ test('bounded TEST receiving uses only SDK host, four string timeout requests an
 });
 test('diagnostic singular GROUP event requires the marker, string ID and current timestamp; PRIVATE is never a group',()=>{
  const start=Date.parse('2026-10-01T03:00:00Z'),now=start+10000;
- const w=diagnosticWorld(),marker=w.ctx.THU_TUAN_ZALO_DIAGNOSTIC_MARKER_;
+ const w=diagnosticWorld(),marker='THU_TUAN_ZALO_TEST_'+'a'.repeat(64);
  const event=(chatType='GROUP',text=marker,date=start,id='synthetic-chat-TEST')=>({summary:{ok:true,resultKind:'OBJECT',httpStatus:200},result:{event_name:'message.text.received',message:{chat:{chat_type:chatType,id},text,date}}});
- assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now).verifiedGroupMarker,true);
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now,marker).verifiedGroupMarker,true);
  for(const e of [event('PRIVATE'),event('GROUP','wrong-marker'),event('GROUP',marker,start-1),event('GROUP',marker,now+1),event('GROUP',marker,String(start)),event('GROUP',marker,start/1000),event('GROUP',marker,start,123),event('GROUP',marker,start,'bad id')])
-  assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(e,start,now).verifiedGroupMarker,false);
- const array={summary:{ok:true,resultKind:'ARRAY'},result:[event().result]};assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(array,start,now).chatType,'UNKNOWN');
- assert.equal(JSON.stringify(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now)).includes('synthetic-chat'),false);
+  assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(e,start,now,marker).verifiedGroupMarker,false);
+ const array={summary:{ok:true,resultKind:'ARRAY'},result:[event().result]};assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(array,start,now,marker).chatType,'UNKNOWN');
+ assert.equal(JSON.stringify(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now,marker)).includes('synthetic-chat'),false);
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now).verifiedGroupMarker,false);
 });
 test('fresh GROUP marker pins only the verified TEST target pair and leaves membership unconfirmed',()=>{
- const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?{ok:true,result:{event_name:'message.text.received',message:{chat:{chat_type:'GROUP',id:'synthetic-chat-TEST'},text:w.ctx.THU_TUAN_ZALO_DIAGNOSTIC_MARKER_,date:w.ctx.Date.now()}}}:standard);
+ const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w):standard);
  const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');assert.equal(r.polls.length,1);
  assert.equal(w.pinWrites.length,1);assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_ID,'synthetic-chat-TEST');
  assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_SHA256,crypto.createHash('sha256').update('synthetic-chat-TEST').digest('hex'));
@@ -870,14 +956,14 @@ test('bounded receiving stops on network failure and at its elapsed-time limit',
 });
 function diagnosticGroupEvent(w,overrides={}){
  const chat={chat_type:'GROUP',id:'synthetic-chat-TEST',...(overrides.chat||{})};
- return {ok:true,result:{event_name:'message.text.received',message:{chat,text:w.ctx.THU_TUAN_ZALO_DIAGNOSTIC_MARKER_,date:w.ctx.Date.now(),...overrides,chat}}};
+ return {ok:true,result:{event_name:'message.text.received',message:{chat,text:diagnosticSessionMarker(w),date:w.ctx.Date.now(),...overrides,chat}}};
 }
 test('paired receiver permits surrounding mentions but rejects duplicate or embedded marker tokens',()=>{
  for(const makeText of [m=>m+' '+m,m=>'prefix'+m,m=>m+'suffix',m=>m+' prefix'+m]){
-  const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:makeText(w.ctx.THU_TUAN_ZALO_DIAGNOSTIC_MARKER_)}):standard);
+  const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:makeText(diagnosticSessionMarker(w))}):standard);
   const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.polls.length,4);assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),w.propsBefore);
  }
- const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:'@Bot '+w.ctx.THU_TUAN_ZALO_DIAGNOSTIC_MARKER_+' xin chào'}):standard);
+ const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:'@Bot '+diagnosticSessionMarker(w)+' xin chào'}):standard);
  assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_GROUP_TARGET_PINNED');assert.equal(w.pinWrites.length,1);
 });
 test('PRIVATE, stale and wrong-marker events cannot pin; valid unmatched events allow the later paired marker',()=>{
@@ -975,4 +1061,55 @@ test('TEST scope helper does not claim grant or suppress the native consent term
  w.ctx.ScriptApp.AuthMode={FULL:'FULL'};w.ctx.ScriptApp.requireScopes=()=>{throw Error('NATIVE_CONSENT_TERMINATION');};
  assert.throws(()=>w.ctx.capQuyenZaloThuTuanTest(),/NATIVE_CONSENT_TERMINATION/);
  assert.equal(w.logs.length,before);assert.equal(w.pinWrites.length,0);assert.equal(w.requests.length,0);
+});
+
+test('every receiver session uses a fresh challenge and a previous challenge cannot pin even with a fresh timestamp',()=>{
+ let previous='',updates=0;
+ const w=diagnosticWorld(({w,method,standard})=>{
+  if(method!=='getUpdates'||!previous)return standard;
+  return diagnosticGroupEvent(w,++updates===1?{text:previous}:{});
+ });
+ const nonces=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];
+ w.ctx.Utilities={...w.ctx.Utilities,getUuid:()=>nonces.shift()};
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_NO_VERIFIED_GROUP_MARKER');
+ previous=diagnosticSessionMarker(w);assert.equal(w.pinWrites.length,0);
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.notEqual(diagnosticSessionMarker(w),previous);
+ assert.equal(r.polls[0].timestampInWindow,true);assert.equal(r.polls[0].markerMatched,false);
+ assert.equal(r.polls[1].verifiedGroupMarker,true);assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');
+ assert.equal(updates,2);assert.equal(w.pinWrites.length,1);
+});
+
+test('public receiver challenge is an opaque domain-separated HMAC and never reveals its nonce or secrets',()=>{
+ const w=diagnosticWorld(),nonce='11111111-1111-4111-8111-111111111111';
+ w.ctx.Utilities={...w.ctx.Utilities,getUuid:()=>nonce};
+ const now=w.ctx.Date.now(),r=w.ctx.nhanSuKienZaloThuTuanTest(),marker=diagnosticSessionMarker(w);
+ assert.match(marker,/^THU_TUAN_ZALO_TEST_[0-9a-f]{64}$/);
+ assert.equal(marker,'THU_TUAN_ZALO_TEST_'+crypto.createHmac('sha256',SECRET).update('THU_TUAN_ZALO_TEST_CHALLENGE\n'+nonce+'\n'+now).digest('hex'));
+ const safe=JSON.stringify([r,w.logs]);
+ for(const hidden of [SECRET,nonce,'synthetic-token-TEST','synthetic-chat-TEST','content-id','private-id','bot-TEST'])assert.equal(safe.includes(hidden),false);
+ assert.equal(JSON.stringify(r).includes(marker),false);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ const x=diagnosticWorld();x.ctx.Utilities={...x.ctx.Utilities,getUuid:()=>undefined};
+ assert.equal(x.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');
+ assert.equal(x.requests.filter(item=>item.method==='getUpdates').length,0);assert.equal(x.pinWrites.length,0);
+ assert.equal(x.logs.some(log=>JSON.parse(log).status==='TEST_RECEIVE_READY'),false);
+});
+
+test('diagnostics use the pinned Bot ID even when display name and account name change',()=>{
+ const renamed='RENAMED_DISPLAY_PRIVATE',account='RENAMED_ACCOUNT_PRIVATE';
+ const w=diagnosticWorld(({w,method,standard})=>method==='getMe'?{ok:true,result:{id:'bot-TEST',display_name:renamed,account_name:account,can_join_groups:true}}:
+  method==='getUpdates'?diagnosticGroupEvent(w):standard);
+ const initial=w.ctx.chanDoanZaloThuTuan();assert.ok(initial.hosts.every(host=>host.getMe.botMatches));
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');
+ assert.equal(w.pinWrites.length,1);const safe=JSON.stringify([initial,r,w.logs]);
+ for(const hidden of [renamed,account,'accountMatches','displayNameMatches'])assert.equal(safe.includes(hidden),false);
+});
+
+test('diagnostic Gmail counterpart log is optional while an existing malformed schema still blocks',()=>{
+ const w=diagnosticWorld();delete w.sheets['private-id|ThuTuan_NhatKyGui'];
+ const before=JSON.stringify(w.sheets),r=w.ctx.chanDoanZaloThuTuan();
+ assert.equal(r.sheets.status,'TEST_DIAGNOSTIC_SHEETS_VERIFIED');assert.equal(r.sheets.gmailPresent,false);
+ assert.equal(r.sheets.gmailHeaders,null);assert.equal(r.sheets.gmailRows,0);assert.equal(r.sheets.gmailCurrentWeekRows,0);
+ assert.equal(r.sheets.zaloHeaders,16);assert.equal(r.sheets.approvalProblem,'OK');assert.equal(JSON.stringify(w.sheets),before);
+ const x=diagnosticWorld();x.sheets['private-id|ThuTuan_NhatKyGui'].data[0][0]='bad-header';
+ assert.equal(x.ctx.chanDoanZaloThuTuan().sheets.status,'TEST_DIAGNOSTIC_IO_BLOCKED');assert.equal(x.pinWrites.length,0);
 });

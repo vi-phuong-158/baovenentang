@@ -31,7 +31,7 @@ function world(){
   PropertiesService:{getScriptProperties:()=>({getProperties:()=>({...props}),getProperty:key=>props[key]??null,
    setProperty(key,value){propertyWrites.push(key);if(w.propertyWriteHook)w.propertyWriteHook(key,value);else props[key]=value;}})},
   LockService:{getScriptLock:()=>({tryLock(){if(w.lockHook)w.lockHook();return !w.busy;},releaseLock(){}})},
-  ScriptApp:{getScriptId:()=>props.THU_TUAN_ZALO_TEST_SCRIPT_ID},
+  ScriptApp:{getScriptId:()=> 'synthetic-script'},
   SpreadsheetApp:{openById:id=>({getSheetByName:name=>tables[id+'|'+name]??null}),flush(){}},
   MailApp:new Proxy({},{get(){throw Error('Gmail must never be used');}}),
   UrlFetchApp:{fetch(url,options){
@@ -133,8 +133,38 @@ test('send teardown verifies the disabled flag readback without losing real rece
  const w=world();previewed(w);w.props.THU_TUAN_ENABLED='true';
  w.propertyWriteHook=(key,value)=>{if(key!=='THU_TUAN_ENABLED')w.props[key]=value;};
  const r=w.ctx.guiFixtureZaloThuTuanTest();assert.equal(r.status,'TEST_ACCEPTANCE_DISABLE_UNCONFIRMED');
+ assert.equal(r.operationStatus,'COMPLETE');assert.equal(r.sent,1);assert.equal(r.confirmed,1);assert.equal(r.attempted,1);
  assert.equal(w.props.THU_TUAN_ENABLED,'true');assert.equal(w.deliveries.length,1);assert.equal(w.zalo.data[1][6],'SENT');assert.equal(w.zalo.data[1][15],'synthetic-receipt-1');
  assert.equal(w.requests.length,2);
+});
+
+test('manual SEND disables verified TEST on initial guard, adapter and BUSY failures without sending',()=>{
+ for(const mutate of [w=>delete w.props.THU_TUAN_ZALO_TEST_GROUP_CONFIRMED,
+  w=>w.props.THU_TUAN_ZALO_TEST_CHAT_ID='mismatched-chat',w=>delete w.props.THU_TUAN_APPROVAL_SECRET,
+  w=>w.zalo.data[0].push('wrong header'),w=>{w.busy=true;}]){
+  const w=world();w.props.THU_TUAN_ENABLED='true';mutate(w);
+  const r=w.ctx.guiFixtureZaloThuTuanTest();assert.ok(['TEST_ACCEPTANCE_BLOCKED','BUSY'].includes(r.status));
+  assert.equal(w.props.THU_TUAN_ENABLED,'false');assert.equal(w.requests.length,0);assert.equal(w.zalo.writes.length,0);
+ }
+});
+
+test('SEND teardown refuses Production, unverified identity and trigger calls',()=>{
+ for(const mutate of [w=>w.props.THU_TUAN_ZALO_ENV='PROD',w=>w.props.THU_TUAN_TEST_MODE='false',
+  w=>w.props.THU_TUAN_TRANSPORT='GMAIL',w=>delete w.props.THU_TUAN_ZALO_TEST_SCRIPT_ID,
+  w=>w.props.THU_TUAN_ZALO_TEST_SCRIPT_ID='production-script',w=>w.props.THU_TUAN_ZALO_PROD_SCRIPT_ID='synthetic-script']){
+  const w=world();w.props.THU_TUAN_ENABLED='true';mutate(w);
+  const r=w.ctx.guiFixtureZaloThuTuanTest();assert.equal(r.status,'TEST_ACCEPTANCE_DISABLE_UNCONFIRMED');
+  assert.equal(w.props.THU_TUAN_ENABLED,'true');assert.equal(w.propertyWrites.length,0);assert.equal(w.requests.length,0);
+ }
+ const w=world();w.props.THU_TUAN_ENABLED='true';assert.equal(w.ctx.guiFixtureZaloThuTuanTest({triggerUid:'synthetic'}).status,'TEST_ACCEPTANCE_BLOCKED');
+ assert.equal(w.propertyWrites.length,0);assert.equal(w.props.THU_TUAN_ENABLED,'true');
+});
+
+test('TEST kill switch on BUSY stops the active sender at its next guard without releasing its lock',()=>{
+ const w=world();w.props.THU_TUAN_ENABLED='true';const io=w.ctx.thuTuanZaloAdapter_(w.ctx.thuTuanConfig_());
+ w.ctx.LockService={getScriptLock:()=>({tryLock:()=>false,releaseLock(){throw Error('not owned');}})};
+ assert.equal(w.ctx.guiFixtureZaloThuTuanTest().status,'BUSY');assert.equal(w.props.THU_TUAN_ENABLED,'false');
+ assert.throws(()=>io.beforeSend(),/ZALO_CONFIG_CHANGED/);assert.equal(w.requests.length,0);
 });
 
 test('acceptance reports only fixed phase and reason codes, never native error details',()=>{

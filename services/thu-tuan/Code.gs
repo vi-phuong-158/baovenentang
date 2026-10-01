@@ -197,12 +197,24 @@ function thuTuanRenderHtml_(content, includeHero) {
 }
 function thuTuanConfig_() {
   var p = PropertiesService.getScriptProperties().getProperties();
+  var transport = p.THU_TUAN_TRANSPORT === undefined || p.THU_TUAN_TRANSPORT === '' ? 'GMAIL' : p.THU_TUAN_TRANSPORT;
+  var zaloProperties = {};
+  if (transport === 'ZALO') {
+    zaloProperties.THU_TUAN_ZALO_ENV = p.THU_TUAN_ZALO_ENV;
+    ['TEST','PROD'].forEach(function(env) {
+      var prefix = 'THU_TUAN_ZALO_' + env + '_';
+      var keys = ['SCRIPT_ID','CONTENT_SHEET_ID','PRIVATE_SHEET_ID','BOT_ID','CHAT_SHA256'];
+      if (p.THU_TUAN_ZALO_ENV === env) keys = keys.concat(['BOT_TOKEN','CHAT_ID','GROUP_CONFIRMED']);
+      keys.forEach(function(key) { if (p[prefix+key] !== undefined) zaloProperties[prefix+key] = p[prefix+key]; });
+    });
+  }
   return {
-    transport: p.THU_TUAN_TRANSPORT === undefined || p.THU_TUAN_TRANSPORT === '' ? 'GMAIL' : p.THU_TUAN_TRANSPORT,
-    zaloProperties: p,
+    transport: transport,
+    zaloProperties: zaloProperties,
     enabled: p.THU_TUAN_ENABLED === 'true',
+    enabledValue: p.THU_TUAN_ENABLED,
     testMode: p.THU_TUAN_TEST_MODE === 'true',
-    testModeValue: thuTuanText_(p.THU_TUAN_TEST_MODE),
+    testModeValue: p.THU_TUAN_TEST_MODE,
     testRecipientEmail: thuTuanText_(p.THU_TUAN_TEST_RECIPIENT_EMAIL).toLowerCase(),
     contentId: thuTuanText_(p.THU_TUAN_CONTENT_SHEET_ID),
     privateId: thuTuanText_(p.THU_TUAN_PRIVATE_SHEET_ID),
@@ -365,6 +377,31 @@ function thuTuanContentUnchanged_(io, key, digest) {
 
 /** Pure orchestration with injected I/O; tests never contact Google or recipients. */
 function thuTuanRun_(io, key, dryRun) {
+  var progress = {sent:0,attempted:0,confirmed:0,inFlight:false};
+  var result;
+  try { result = thuTuanRunWithProgress_(io,key,dryRun,progress); }
+  catch (error) {
+    if (io.transport !== 'ZALO') throw error;
+    result = {status:progress.inFlight ? 'RECONCILIATION_REQUIRED' : 'ZALO_RUN_BLOCKED',
+      reason:thuTuanZaloSafeReason_(error),sent:progress.sent,unknown:progress.inFlight ? 1 : 0};
+  }
+  if (io.transport === 'ZALO') {
+    result.attempted = progress.attempted;
+    result.confirmed = progress.confirmed;
+  }
+  return result;
+}
+
+/** A durable FAILED here proves this execution has not invoked the send API. */
+function thuTuanNotSent_(io,entry) {
+  try {
+    entry.TrangThai='FAILED'; entry.MaLoi='PRE_SEND_BLOCKED'; entry.CapNhatLuc=new Date(io.now());
+    io.put(entry);
+    return true;
+  } catch (_) { return false; } // Any persisted SENDING remains held, without claiming delivery.
+}
+
+function thuTuanRunWithProgress_(io, key, dryRun, progress) {
   var started = io.now();
   var allContent = io.content();
   if (allContent.some(function(row) { return thuTuanIsDate_(row.Ky); })) return { status: 'KY_NOT_PLAIN_TEXT', sent: 0 };
@@ -449,15 +486,35 @@ function thuTuanRun_(io, key, dryRun) {
       MaLoiDay:content.MaLoiDay, PhienBan:content.PhienBan, DauVanBanDuyet:digest };
     if (io.decorateEntry) io.decorateEntry(entry,recipient,content);
     entry.TrangThai='SENDING'; entry.CapNhatLuc=new Date(io.now()); entry.MaLoi='';
-    io.put(entry); // A failed write MUST prevent sending.
+    try { io.put(entry); } // A failed write MUST prevent sending.
+    catch (error) {
+      if (io.transport !== 'ZALO') throw error;
+      var recovered = thuTuanNotSent_(io,entry);
+      return thuTuanMerge_({status:recovered ? 'ZALO_PRE_SEND_BLOCKED' : 'RECONCILIATION_REQUIRED',
+        reason:recovered ? 'PRE_SEND_BLOCKED' : 'PRE_SEND_LOG_UNCONFIRMED',sent:sent,unknown:recovered ? 0 : 1},summary,counts);
+    }
+    // These guards run before invoking send, so their failure cannot imply uncertain delivery.
+    if (io.transport === 'ZALO') {
+      try {
+        if (io.beforeSend) io.beforeSend();
+        if (!thuTuanContentUnchanged_(io,key,digest)) throw new Error('CONTENT_CHANGED_DURING_WEEK');
+      } catch (_) {
+        var notSent = thuTuanNotSent_(io,entry);
+        return thuTuanMerge_({status:notSent ? 'ZALO_PRE_SEND_BLOCKED' : 'RECONCILIATION_REQUIRED',
+          reason:notSent ? 'PRE_SEND_BLOCKED' : 'PRE_SEND_LOG_UNCONFIRMED',sent:sent,unknown:notSent ? 0 : 1},summary,counts);
+      }
+    }
     try {
-      if (io.beforeSend) {
+      if (io.transport !== 'ZALO' && io.beforeSend) {
         io.beforeSend();
         if (!thuTuanContentUnchanged_(io,key,digest)) throw new Error('CONTENT_CHANGED_DURING_WEEK');
       }
+      progress.attempted++;
+      progress.inFlight=true;
       var receipt = io.send(recipient,content);
       if (io.confirmReceipt) io.confirmReceipt(entry,receipt);
-      entry.TrangThai='SENT'; entry.CapNhatLuc=new Date(io.now()); io.put(entry); sent++;
+      progress.confirmed++;
+      entry.TrangThai='SENT'; entry.CapNhatLuc=new Date(io.now()); io.put(entry); sent++; progress.sent=sent; progress.inFlight=false;
     } catch (_) {
       entry.TrangThai='UNKNOWN'; entry.MaLoi='SEND_OR_LOG_UNCERTAIN'; entry.CapNhatLuc=new Date(io.now());
       try { io.put(entry); } catch (_) { /* Persisted SENDING is also held for reconciliation. */ }
@@ -472,14 +529,16 @@ function thuTuanExecute_(dryRun) {
   if (!dryRun && !cfg.enabled) return { status:'DISABLED', sent:0 };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { status:'BUSY', sent:0 };
+  var result;
   try {
-    var result = thuTuanRun_(thuTuanAdapter_(cfg),thuTuanWeekKey_(new Date()),dryRun);
+    result = thuTuanRun_(thuTuanAdapter_(cfg),thuTuanWeekKey_(new Date()),dryRun);
     result.enabled = cfg.enabled;
     Logger.log(JSON.stringify(result)); // Counts/status/codes only, no recipient/content/error details.
     return result;
   } catch (error) {
     if (cfg.transport !== 'ZALO') throw error;
-    var blocked = { status:'ZALO_GATE_BLOCKED', reason:thuTuanZaloSafeReason_(error) };
+    var blocked = result ? Object.assign({},result,{status:'ZALO_REPORT_BLOCKED',operationStatus:result.status}) :
+      { status:'ZALO_GATE_BLOCKED', reason:thuTuanZaloSafeReason_(error),sent:0,attempted:0,confirmed:0 };
     Logger.log(JSON.stringify(blocked));
     return blocked;
   } finally { lock.releaseLock(); }
