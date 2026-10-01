@@ -1,6 +1,27 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 01/10/2026 — Phân biệt nguyên nhân receive path trong TEST
+
+- Sau GROUP marker thực tế 06:13–06:14, không poll/chẩn đoán nhận thêm. Dùng target/hash đã xác minh và membership owner để chạy fixture kỳ riêng. Sửa false-positive snapshot guard: JSON.stringify phụ thuộc thứ tự PropertiesService keys; dùng strict recursive own-key/value comparison, không bỏ bất kỳ thuộc tính cấu hình nào. Test tái hiện thất bại trước sửa; regression 120/120 và security review độc lập không có finding mới. GAS PREPARE/APPROVE/PREVIEW đã thành công sau sửa.
+- Giữ guard outbound đầy đủ; helper chẩn đoán riêng chỉ đọc trong TEST bị tắt, không cần chat pin để kiểm getMe/bootstrap. Không cài/chạy SDK hoặc thêm dependency; đọc source SDK được tài liệu chính thức liên kết để đối chiếu request/schema.
+- Tài liệu dùng bot-api.zaloplatforms.com, SDK Node 0.1.6 và Python 0.1.9 dùng bot-api.zapps.me. Đây là giả thuyết cần runtime comparison, chưa đủ căn cứ đổi endpoint gửi hoặc quy lỗi Platform.
+- Không suy webhook state từ 404 hoặc quyền/token/secret từ 408; token Bot, secret_token webhook và HMAC approval secret là ba vai trò khác nhau. GROUP marker đúng schema và đúng phiên nhận mới là evidence cho target; PRIVATE không được dùng làm đích nhóm.
+- Theo chỉ đạo owner: giữ token TEST và approval secret tới khi test thành công, owner thay cùng lượt sau đó. Profile PROD chưa tồn tại được để trống toàn bộ. Hai điều này không còn là gate điều tra/nghiệm thu TEST-only; ghi chú cũ được giữ như lịch sử.
+- GAS thực tế thiếu quyền UrlFetch dù manifest có scope; dùng requireScopes đúng external_request với guard TEST/manual để mở native consent, không invalidateAuth hoặc yêu cầu lại tất cả scope. Giữ getMe local và GAS thành hai loại evidence riêng. Không đổi endpoint dựa trên khác biệt docs/SDK khi local cả hai đã trả Bot đúng.
+- Sau consent đã đo getMe GAS thành công cả hai host; receiver GAS bốn HTTP200/408 chưa có owner timing confirmation. Không tiếp tục poll mù/đổ lỗi Platform. Chuẩn bị fixture ở kỳ riêng thay vì sửa log Gmail hoặc hạ guard đổi transport. Helper phải bind nguồn đã duyệt, full TEST và preview seal; verifier approval đặt trong lock hiện có để tránh race config/Sheets/history trước write. Send luôn tắt và readback khi đã giữ lock; uncertainty không tự retry. Audit receipt thật không được thay bằng dữ liệu giả hoặc claim runtime UNKNOWN đã thử.
+
 Dưới đây là các quyết định kỹ thuật cốt lõi đã được thống nhất và áp dụng trong dự án:
+
+## Quyết định 30/9/2026 — Zalo outbound cho Thư tuần
+
+- Giữ Gmail mặc định/rollback qua property; không đổi stack, không bổ sung dependency. Tách `thuTuanStorage_` và kiểm tra nội dung dùng chung trong Code.gs; ZaloTransport.gs triển khai adapter outbound UrlFetchApp. Không clone renderer/state machine từ bandocapt, không webhook/Vercel.
+- Đã nghiên cứu source/test/README/brain hiện tại của bandocapt và module Zalo trong Git snapshot `9c2554cb47b1829e6a920a62b65b47bad2157202` (checkout hiện tại không còn module). Logic chấp nhận HTTP thành công thiếu receipt và split UTF-16 thô không đáp ứng yêu cầu Thư tuần. Quy tắc chỉ cho PRIVATE trong module cũ là chính sách sản phẩm, không chứng minh Platform cấm group.
+- Tài liệu chính thức sendMessage/getMe/call-api/error-code/group được đối chiếu lại: text tối đa 2000, plain text khi không có parse_mode/text_styles, bot ID chuỗi, can_join_groups và nhóm đang thử nghiệm nội bộ theo trang 3/6/2026. Không kết luận group khả dụng cho Bot cụ thể trước getMe + xác nhận nhóm bởi owner.
+- Chia nguyên văn renderer text tối đa 3 phần, mỗi phần ≤1800 đơn vị UTF-16; dùng Intl.Segmenter khi có, fallback bảo vệ dấu kết hợp tiếng Việt, surrogate, emoji ZWJ/skin tone/flag/tag/variation selector và CRLF. Vượt giới hạn thì fail closed, không cắt bớt nội dung/đổi câu chữ. HMAC vẫn canonical v2; plan hash bảo vệ thay đổi cách render/split sau khi có log.
+- SENT chỉ khi HTTP 2xx, ok boolean true, message_id chuỗi hợp lệ. Không chắc chắn → UNKNOWN và dừng; không retry 408/429/timeout, không tự Gmail fallback để tránh gửi trùng. Nhật ký Zalo riêng 16 cột ghi từng phần, receipt/hash nhưng không chat_id/token/nội dung; đọc cả log Gmail để chặn chuyển transport cùng kỳ.
+- Cách ly yêu cầu pin đầy đủ profile đang hoạt động và ENV↔TEST_MODE khớp; profile đối diện có thể vắng mặt hoàn toàn trước khi môi trường đó được tạo. Nếu profile đối diện khai báo dở thì chặn; nếu đủ cả hai profile thì bắt buộc script/Bot/chat hash và bốn workbook phải khác nhau. So sánh `ScriptApp.getScriptId()` ngăn đổi môi trường trong nhầm project. Chỉ active profile giữ token/chat_id; TEST chặn trigger. Thêm external_request OAuth scope; exceptionLogging NONE và loại bỏ raw API errors/redirects.
+- getMe không kiểm chứng membership của chat_id; GROUP_CONFIRMED là attest thủ công cần owner. Không tìm thấy idempotency/receipt lookup trong các trang đã đọc: mọi UNKNOWN phải đối soát từng phần, chỉ PENDING khi xác minh chưa giao; rollback cho kỳ chưa có lịch sử Zalo.
+- Local 82 test/build thành công chưa đủ pilot: TEST hiện thiếu toàn bộ cấu hình Zalo, chưa upload/chạy cloud; Python regression thiếu pytest. Không gửi/cấu hình Production; quy trình bàn giao nằm mục 12 README service.
 
 ## 1. Sử dụng Google Sheets làm Cơ sở dữ liệu chính
 - **Mục tiêu**: Giảm thiểu chi phí vận hành về $0 và tận dụng giao diện có sẵn của Google Sheets cho người dùng nghiệp vụ không chuyên về công nghệ.
