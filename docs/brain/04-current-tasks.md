@@ -3,7 +3,7 @@
 ## Sau review PR #12 (01/10/2026)
 
 - Đã sửa ba lỗi luồng gửi, marker public cố định, cfg toàn Properties; thêm chặn replay sai thứ tự và sửa diagnostic Gmail optional/tên Bot. Main local regression **135/135**, syntax năm GAS files và diff check đạt. Review độc lập không blocker mới và tự chạy **135/135**; không merge.
-- Bản sửa chưa lưu/chạy lại GAS. Runtime acceptance PASS bên dưới là evidence source trước patch. Không yêu cầu owner gửi thêm tin; không thay cloud, secret, trigger hay Production. Helper fixed-week giữ phạm vi TEST lịch sử; recheck mỗi phần vẫn cần thiết để chống race.
+- GAS TEST đã lưu đúng source 5896c84 (hash 4 file khớp sau reload) và chạy lại chỉ đọc: PREVIEW alreadySent1/pending0/unknown0/part1 765/sealed; doiSoat 1 SENT/receipt hợp lệ/reconciliationClear. Không gửi thêm tin, ENABLED vẫn false. Lần gửi thật trong runtime acceptance PASS bên dưới vẫn thuộc source trước patch. Không yêu cầu owner gửi thêm tin; không thay cloud, secret, trigger hay Production. Helper fixed-week giữ phạm vi TEST lịch sử; recheck mỗi phần vẫn cần thiết để chống race.
 
 ## Hiện hành 01/10/2026 — Zalo TEST acceptance
 

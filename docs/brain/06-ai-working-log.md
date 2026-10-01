@@ -1,5 +1,13 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-01, chạy lại GAS TEST sau review PR #12] Preview và đối soát bản sửa đạt
+
+- Theo yêu cầu user (cho phép sửa code project TEST), Claude mở project `TEST - Thu Tuan Loi Bac Day` trong Chrome của owner. Trước khi sửa, hash 6 file cloud khớp source `226fd46` (appsscript.json chỉ khác định dạng editor). Thay nội dung 4 file `Mã.gs`(Code.gs), `ZaloTransport.gs`, `ZaloDiagnostics.gs`, `ZaloAcceptance.gs` bằng bản `5896c84`, lưu dự án, tải lại trang: hash cả 4 file khớp `5896c84`; manifest và EmailAssets.gs không đổi. Không deploy, không đổi Properties/trigger/Production.
+- `xemTruocFixtureZaloThuTuanTest`: `PREVIEW`, key 2026-10-05, sent0/attempted0/confirmed0/pending0/unknown0/alreadySent1, total1/valid1/invalid0/duplicate0, partCount1/partLengths[765], previewSealed=true. Guard preview cần ENABLED=false nên xác nhận gửi vẫn tắt.
+- `doiSoatFixtureZaloThuTuanTest`: `TEST_FIXTURE_RECEIPT_AUDIT`, logRows1, SENT1/SENDING0/UNKNOWN0/PENDING0/FAILED0/OTHER0, receipt part1/1 messageIdPresent, sentReceiptsDistinct=true, reconciliationClear=true.
+- Sự cố thao tác: một lần ô chọn hàm hiển thị nhầm nên `chuanBiFixtureZaloThuTuanTest` chạy thay đối soát; trả `TEST_FIXTURE_ALREADY_EXISTS_OR_HAS_HISTORY` trước mọi bước ghi, không thay đổi dữ liệu. Sau đó kiểm `aria-selected` trước khi chạy.
+- Files: README.md, services/thu-tuan/README.md, docs/brain/{01-architecture.md,04-current-tasks.md,05-testing-and-deploy.md,06-ai-working-log.md}; chỉ cập nhật trạng thái GAS, không sửa code. Rủi ro: lần gửi thật/dedupe vẫn thuộc source trước patch; nhánh lỗi mới (FAILED trước API, kill switch BUSY, ghi log hỏng) chỉ kiểm bằng mocks, không cố tạo lỗi thật trên nhóm. Cách test: chạy lại hai hàm trên trong GAS TEST với ENABLED=false; local `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs` (135/135).
+
 ## [2026-10-01, review PR #12] Sửa state gửi Zalo và thu hẹp credential
 
 - User review xác nhận PR có thể merge TEST sau ba lỗi gửi; main sửa các lỗi và hai security findings, không merge/cloud/send. CodeGraph impact/callees xác định core runner/config ảnh hưởng preview/send/approval/helper, không frontend/backend routes. Agents điều tra/review độc lập; agent source sửa diagnostic/tests, main sửa core/transport/acceptance và tổng hợp.
