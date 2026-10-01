@@ -1,5 +1,12 @@
 # 05-testing-and-deploy.md - Kiểm thử và Triển khai
 
+## Validation chuẩn bị pilot Production Thư tuần (01/10/2026)
+
+- `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: **148/148** (132 module + 16 acceptance), local/synthetic, không network. 13 test mới: receiver PROD chỉ ghi cặp PROD, không send/không lộ dữ liệu/không ghi TEST, chặn từng gate, cô lập entrypoint hai chiều, GROUP_CONFIRMED hiện có/race, marker cũ/PRIVATE/sai/domain TEST, readiness READY chỉ getMe + không mutation, NOT_READY theo mã, privacy output, trigger attention, `caiLichThuTuan` PROD, trigger PROD gửi một lần rồi alreadySent.
+- Mutation check thủ công: bỏ guard GROUP_CONFIRMED, bỏ kiểm trùng PROD/TEST, bỏ throw trigger, bỏ quét UNKNOWN/trigger, bỏ kiểm alreadySent → mỗi lần đều có test fail; khôi phục lại 148/148.
+- Syntax: parse toàn bộ 21 file `.gs` đã track bằng `vm.Script` (cùng lệnh với CI); không dùng `node --check` cho `.gs`. CI `.github/workflows/thu-tuan.yml` chạy cùng hai bước trên Node 22 cho PR/push `main`; chưa chạy trên GitHub tới khi push.
+- Không chạy GAS/Production. Pilot thật cần owner làm theo mục 12 “Pilot Production” trong README module; chỉ sau gửi thật + đối chiếu mới có `PRODUCTION_ACCEPTANCE_PASS`.
+
 ## Validation patch review PR #12 (01/10/2026)
 
 - Main tự chạy `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: **135/135** (119 module,16 acceptance), local/synthetic, không network. Parse syntax năm `.gs` bằng Node vm.Script, `git diff --check` đạt. Không gọi PASS toàn repo.

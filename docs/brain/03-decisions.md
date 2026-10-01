@@ -1,5 +1,13 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
+
+- Receiver PROD dùng chung core TEST thay vì nhân bản; môi trường là hằng số của entrypoint để property không thể đổi hành vi entrypoint. Thêm kiểm trùng pin PROD với TEST. Không thêm preview seal/acceptance wrapper PROD, webhook, retry, fallback Gmail, telemetry hay cột log.
+- Bất kỳ `GROUP_CONFIRMED` hiện có đều chặn pin mới, áp dụng cả TEST và PROD, để xác nhận của target cũ không bao giờ tự áp sang target mới. Không tự reset; con người xóa xác nhận trước khi pin lại.
+- Readiness là hàm riêng chỉ đọc, chạy sau bước duyệt, gọi getMe nhưng không bọc thêm ScriptLock vì preview core tự lock. Quét SENDING/UNKNOWN toàn lịch sử (cả log Gmail nếu có); trạng thái lạ cũng chặn vì core coi là chưa đối soát. `READY_FOR_PRODUCTION_PILOT` ≠ `PRODUCTION_ACCEPTANCE_PASS`; TEST acceptance ≠ PROD acceptance.
+- Trigger báo lỗi bằng throw mã cố định (không email riêng) để dùng cơ chế thông báo lỗi trigger sẵn có. COMPLETE (kể cả sent=0/alreadySent=N) và DISABLED không throw. Hai test cũ kỳ vọng `TEST_MODE_MANUAL_ONLY` trả về từ trigger được cập nhật để kỳ vọng throw theo yêu cầu mới; exception gốc của runner giữ nguyên.
+- `caiLichThuTuan` giữ gate hiện có (ENABLED=true, không TEST_MODE, toàn bộ `thuTuanZaloConfig_`); không gọi getMe. Readiness phải chạy trước khi owner bật ENABLED và cài lịch.
+
 ## Sau review PR #12 — tiến độ và fail-closed TEST (01/10/2026)
 
 - Sửa ba findings trước merge, không chấp nhận rủi ro báo sent=0 sau delivery hoặc UNKNOWN khi chưa gọi API. Counters riêng cho attempts/receipts/durable SENT; auto FAILED chỉ khi có bằng chứng nội bộ chưa invoke send, không tự retry cùng lượt. Ghi FAILED không chắc chắn thì log vẫn held cho operator.

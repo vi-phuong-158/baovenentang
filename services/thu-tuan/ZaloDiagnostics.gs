@@ -1,31 +1,50 @@
-/** Read-only TEST diagnostics plus an explicit paired-marker receiver that can pin the verified TEST target. Never sends. */
+/** Read-only TEST diagnostics plus explicit paired-marker receivers that can pin a verified TEST or PROD target. Never sends. */
 var THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_ = [
   'https://bot-api.zaloplatforms.com',
   'https://bot-api.zapps.me'
 ];
+// TEST runs in TEST_MODE; PROD target capture runs only with TEST_MODE explicitly off. Sending stays disabled for both.
+var THU_TUAN_ZALO_DIAGNOSTIC_TEST_MODE_ = {TEST:'true', PROD:'false'};
 
-function thuTuanZaloDiagnosticConfig_() {
-  var p = PropertiesService.getScriptProperties().getProperties();
-  if (p.THU_TUAN_ENABLED !== 'false' || p.THU_TUAN_TEST_MODE !== 'true' ||
-      p.THU_TUAN_TRANSPORT !== 'ZALO' || p.THU_TUAN_ZALO_ENV !== 'TEST')
-    throw new Error('TEST_DIAGNOSTIC_ISOLATION_REQUIRED');
+function thuTuanZaloDiagnosticConfig_() { return thuTuanZaloDiagnosticConfigFor_('TEST'); }
+
+/** env comes from the entrypoint; THU_TUAN_ZALO_ENV must agree with it and never selects it. */
+function thuTuanZaloDiagnosticConfigFor_(env) {
+  if (env !== 'TEST' && env !== 'PROD') throw new Error('DIAGNOSTIC_ISOLATION_REQUIRED');
+  var p = PropertiesService.getScriptProperties().getProperties(), prefix = 'THU_TUAN_ZALO_' + env + '_';
+  var denied = env + '_DIAGNOSTIC_ISOLATION_REQUIRED';
+  if (p.THU_TUAN_ENABLED !== 'false' || p.THU_TUAN_TEST_MODE !== THU_TUAN_ZALO_DIAGNOSTIC_TEST_MODE_[env] ||
+      p.THU_TUAN_TRANSPORT !== 'ZALO' || p.THU_TUAN_ZALO_ENV !== env)
+    throw new Error(denied);
   var keys = ['SCRIPT_ID','CONTENT_SHEET_ID','PRIVATE_SHEET_ID','BOT_ID'];
   keys.forEach(function(key) {
-    var value = p['THU_TUAN_ZALO_TEST_' + key];
+    var value = p[prefix + key];
     if (typeof value !== 'string' || !value || value !== value.trim())
-      throw new Error('TEST_DIAGNOSTIC_ISOLATION_REQUIRED');
+      throw new Error(denied);
   });
-  if (ScriptApp.getScriptId() !== p.THU_TUAN_ZALO_TEST_SCRIPT_ID ||
-      p.THU_TUAN_CONTENT_SHEET_ID !== p.THU_TUAN_ZALO_TEST_CONTENT_SHEET_ID ||
-      p.THU_TUAN_PRIVATE_SHEET_ID !== p.THU_TUAN_ZALO_TEST_PRIVATE_SHEET_ID ||
+  if (ScriptApp.getScriptId() !== p[prefix + 'SCRIPT_ID'] ||
+      p.THU_TUAN_CONTENT_SHEET_ID !== p[prefix + 'CONTENT_SHEET_ID'] ||
+      p.THU_TUAN_PRIVATE_SHEET_ID !== p[prefix + 'PRIVATE_SHEET_ID'] ||
       p.THU_TUAN_CONTENT_SHEET_ID === p.THU_TUAN_PRIVATE_SHEET_ID)
-    throw new Error('TEST_DIAGNOSTIC_ISOLATION_REQUIRED');
-  var token = p.THU_TUAN_ZALO_TEST_BOT_TOKEN;
+    throw new Error(denied);
+  // A Production pin must never reuse a declared TEST project, Bot or Sheet.
+  if (env === 'PROD' && (p.THU_TUAN_ZALO_TEST_SCRIPT_ID === p[prefix + 'SCRIPT_ID'] ||
+      p.THU_TUAN_ZALO_TEST_BOT_ID === p[prefix + 'BOT_ID'] ||
+      ['CONTENT_SHEET_ID','PRIVATE_SHEET_ID'].some(function(key) {
+        var test = p['THU_TUAN_ZALO_TEST_' + key];
+        return test === p.THU_TUAN_CONTENT_SHEET_ID || test === p.THU_TUAN_PRIVATE_SHEET_ID;
+      })))
+    throw new Error(denied);
+  var token = p[prefix + 'BOT_TOKEN'];
   if (typeof token !== 'string' || !/^[A-Za-z0-9_:-]{8,512}$/.test(token))
-    throw new Error('TEST_DIAGNOSTIC_TOKEN_REQUIRED');
-  return {token:token, botId:p.THU_TUAN_ZALO_TEST_BOT_ID,
-    scriptId:p.THU_TUAN_ZALO_TEST_SCRIPT_ID, contentId:p.THU_TUAN_CONTENT_SHEET_ID,
-    privateId:p.THU_TUAN_PRIVATE_SHEET_ID};
+    throw new Error(env + '_DIAGNOSTIC_TOKEN_REQUIRED');
+  return {token:token, botId:p[prefix + 'BOT_ID'],
+    scriptId:p[prefix + 'SCRIPT_ID'], contentId:p.THU_TUAN_CONTENT_SHEET_ID,
+    privateId:p.THU_TUAN_PRIVATE_SHEET_ID, env:env};
+}
+
+function thuTuanZaloDiagnosticSameConfig_(cfg) {
+  return JSON.stringify(thuTuanZaloDiagnosticConfigFor_(cfg && cfg.env)) === JSON.stringify(cfg);
 }
 
 function thuTuanZaloDiagnosticKind_(value) {
@@ -35,18 +54,19 @@ function thuTuanZaloDiagnosticKind_(value) {
   return kinds[typeof value] || 'OTHER';
 }
 
-/** Fresh public challenge; neither its nonce nor the approval secret leaves this function. */
+/** Fresh public challenge in an environment domain; neither its nonce nor the approval secret leaves this function. */
 function thuTuanZaloDiagnosticMarker_(cfg) {
-  if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
-    throw new Error('TEST_DIAGNOSTIC_CONFIG_CHANGED');
+  if (!thuTuanZaloDiagnosticSameConfig_(cfg))
+    throw new Error('DIAGNOSTIC_CONFIG_CHANGED');
   var secret = PropertiesService.getScriptProperties().getProperty('THU_TUAN_APPROVAL_SECRET');
   if (typeof secret !== 'string' || secret.length < 32)
-    throw new Error('TEST_DIAGNOSTIC_MARKER_UNAVAILABLE');
+    throw new Error('DIAGNOSTIC_MARKER_UNAVAILABLE');
   var nonce = Utilities.getUuid();
   if (typeof nonce !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nonce))
-    throw new Error('TEST_DIAGNOSTIC_MARKER_UNAVAILABLE');
-  var bytes = Utilities.computeHmacSha256Signature('THU_TUAN_ZALO_TEST_CHALLENGE\n'+nonce+'\n'+Date.now(),secret,Utilities.Charset.UTF_8);
-  return 'THU_TUAN_ZALO_TEST_' + bytes.map(function(byte) {
+    throw new Error('DIAGNOSTIC_MARKER_UNAVAILABLE');
+  var domain = 'THU_TUAN_ZALO_' + cfg.env + '_';
+  var bytes = Utilities.computeHmacSha256Signature(domain+'CHALLENGE\n'+nonce+'\n'+Date.now(),secret,Utilities.Charset.UTF_8);
+  return domain + bytes.map(function(byte) {
     return ('0'+((byte+256)%256).toString(16)).slice(-2);
   }).join('');
 }
@@ -74,14 +94,15 @@ function thuTuanZaloDiagnosticErrorCategory_(error, phase) {
 
 /** Internal response stays in memory; only the summary is returned by public entrypoints. */
 function thuTuanZaloDiagnosticRequest_(cfg, host, method, payload) {
+  var denied = String(cfg && cfg.env) + '_DIAGNOSTIC_METHOD_DENIED';
   if (THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_.indexOf(host) < 0 ||
       ['getMe','getWebhookInfo','getUpdates'].indexOf(method) < 0)
-    throw new Error('TEST_DIAGNOSTIC_METHOD_DENIED');
+    throw new Error(denied);
   var expected = method === 'getUpdates' ? {timeout:'30'} : {};
   if (JSON.stringify(payload) !== JSON.stringify(expected))
-    throw new Error('TEST_DIAGNOSTIC_METHOD_DENIED');
-  if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
-    throw new Error('TEST_DIAGNOSTIC_CONFIG_CHANGED');
+    throw new Error(denied);
+  if (!thuTuanZaloDiagnosticSameConfig_(cfg))
+    throw new Error('DIAGNOSTIC_CONFIG_CHANGED');
   var started = Date.now();
   var summary = {httpStatus:null, json:false, ok:false, apiCode:null, resultKind:'NONE',
     phase:'FETCH',errorCategory:null,elapsedMs:0};
@@ -130,7 +151,7 @@ function thuTuanZaloDiagnosticWebhook_(response) {
 
 function thuTuanZaloDiagnosticSheets_(cfg) {
   try {
-    if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
+    if (!thuTuanZaloDiagnosticSameConfig_(cfg))
       return {status:'TEST_DIAGNOSTIC_IO_BLOCKED'};
     var config = thuTuanConfig_(), key = thuTuanWeekKey_(new Date());
     var zalo = thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_Zalo_NhatKyGui'),'ThuTuan_Zalo_NhatKyGui');
@@ -159,7 +180,7 @@ function thuTuanZaloDiagnosticSheets_(cfg) {
   } catch (_) { return {status:'TEST_DIAGNOSTIC_IO_BLOCKED'}; }
 }
 
-function thuTuanZaloDiagnosticEvent_(response, started, observed, marker) {
+function thuTuanZaloDiagnosticEvent_(response, started, observed, marker, env) {
   var result = response.result, message = result && result.message, chat = message && message.chat;
   var object = response.summary.ok && response.summary.resultKind === 'OBJECT' &&
     result.event_name === 'message.text.received';
@@ -172,7 +193,9 @@ function thuTuanZaloDiagnosticEvent_(response, started, observed, marker) {
   var text = message && message.text;
   // Mentions may surround the marker. Require one complete whitespace-delimited token,
   // and reject additional occurrences even if embedded in a longer token.
-  var markerValid = typeof marker === 'string' && /^THU_TUAN_ZALO_TEST_[0-9a-f]{64}$/.test(marker);
+  // A marker from the other environment's domain can never match this session.
+  var domain = env === 'PROD' ? 'PROD' : 'TEST';
+  var markerValid = typeof marker === 'string' && new RegExp('^THU_TUAN_ZALO_' + domain + '_[0-9a-f]{64}$').test(marker);
   var markerMatched = !!object && markerValid && typeof text === 'string' &&
     text.split(marker).length === 2 &&
     text.split(/\s+/).filter(function(token) { return token === marker; }).length === 1;
@@ -184,36 +207,41 @@ function thuTuanZaloDiagnosticEvent_(response, started, observed, marker) {
 
 /** Only the manually paired receiver calls this; target stays inside Script Properties. */
 function thuTuanZaloDiagnosticPin_(cfg, response, started, observed, marker) {
+  var env = cfg.env, prefix = 'THU_TUAN_ZALO_' + env + '_';
   try {
-    if (!thuTuanZaloDiagnosticEvent_(response,started,observed,marker).verifiedGroupMarker)
-      return {status:'TEST_TARGET_PIN_EVENT_UNVERIFIED'};
-    if (JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
-      return {status:'TEST_TARGET_PIN_CONFIG_CHANGED'};
+    if (!thuTuanZaloDiagnosticEvent_(response,started,observed,marker,env).verifiedGroupMarker)
+      return {status:env + '_TARGET_PIN_EVENT_UNVERIFIED'};
+    if (!thuTuanZaloDiagnosticSameConfig_(cfg))
+      return {status:env + '_TARGET_PIN_CONFIG_CHANGED'};
     var chat = response.result.message.chat.id, hash = thuTuanZaloHash_(chat);
     var props = PropertiesService.getScriptProperties(), values = props.getProperties();
-    var idKey = 'THU_TUAN_ZALO_TEST_CHAT_ID', hashKey = 'THU_TUAN_ZALO_TEST_CHAT_SHA256';
+    var idKey = prefix + 'CHAT_ID', hashKey = prefix + 'CHAT_SHA256', confirmedKey = prefix + 'GROUP_CONFIRMED';
+    // An attestation of any value belongs to an earlier target; a human must remove it before a new pin.
+    if (values[confirmedKey] !== undefined) return {status:env + '_TARGET_PIN_GROUP_CONFIRMATION_PRESENT'};
     if ((values[idKey] !== undefined && values[idKey] !== chat) ||
         (values[hashKey] !== undefined && values[hashKey] !== hash))
-      return {status:'TEST_TARGET_PIN_CONFLICT'};
+      return {status:env + '_TARGET_PIN_CONFLICT'};
     if (values[idKey] !== chat || values[hashKey] !== hash) {
       var pair = {}; pair[idKey] = chat; pair[hashKey] = hash;
-      props.setProperties(pair,false); // One pair update; preserve all other properties and membership attestations.
+      props.setProperties(pair,false); // One pair update for this env only; never sets GROUP_CONFIRMED.
     }
     var saved = props.getProperties();
-    if (saved[idKey] !== chat || saved[hashKey] !== hash ||
-        JSON.stringify(thuTuanZaloDiagnosticConfig_()) !== JSON.stringify(cfg))
-      return {status:'TEST_TARGET_PIN_UNCONFIRMED'};
-    return {status:'TEST_TARGET_PINNED',membershipConfirmationRequired:true};
-  } catch (_) { return {status:'TEST_TARGET_PIN_UNCONFIRMED'}; }
+    if (saved[idKey] !== chat || saved[hashKey] !== hash || saved[confirmedKey] !== undefined ||
+        !thuTuanZaloDiagnosticSameConfig_(cfg))
+      return {status:env + '_TARGET_PIN_UNCONFIRMED'};
+    return {status:env + '_TARGET_PINNED',membershipConfirmationRequired:true};
+  } catch (_) { return {status:env + '_TARGET_PIN_UNCONFIRMED'}; }
 }
 
-function thuTuanZaloDiagnosticRun_(event, receive) {
-  if (event) return {status:'TEST_DIAGNOSTIC_MANUAL_ONLY'};
+function thuTuanZaloDiagnosticRun_(event, receive, env) {
+  // The read-only host comparison stays TEST-only; PROD exposes only the paired receiver.
+  if ((env !== 'TEST' && env !== 'PROD') || (!receive && env !== 'TEST')) return {status:'DIAGNOSTIC_BLOCKED'};
+  if (event) return {status:env + '_DIAGNOSTIC_MANUAL_ONLY'};
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return {status:'BUSY'};
   var report;
   try {
-    var cfg = thuTuanZaloDiagnosticConfig_();
+    var cfg = thuTuanZaloDiagnosticConfigFor_(env);
     if (!receive) {
       report = {status:'TEST_DIAGNOSTIC', environment:'TEST', hosts:[]};
       THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_.forEach(function(host,i) {
@@ -224,50 +252,56 @@ function thuTuanZaloDiagnosticRun_(event, receive) {
         report.hosts.push(item);
       });
       report.sheets = thuTuanZaloDiagnosticSheets_(cfg);
+    } else if (PropertiesService.getScriptProperties().getProperty('THU_TUAN_ZALO_' + env + '_GROUP_CONFIRMED') !== null) {
+      // Required order: remove confirmation -> pin target -> human check -> GROUP_CONFIRMED=true. No API call here.
+      report = {status:env + '_RECEIVE_GROUP_CONFIRMATION_PRESENT', environment:env};
     } else {
       var host = THU_TUAN_ZALO_DIAGNOSTIC_HOSTS_[1];
       var me = thuTuanZaloDiagnosticMe_(thuTuanZaloDiagnosticRequest_(cfg,host,'getMe',{}),cfg);
-      report = {status:'TEST_RECEIVE_PREFLIGHT_BLOCKED', environment:'TEST', host:'SDK', getMe:me};
+      report = {status:env + '_RECEIVE_PREFLIGHT_BLOCKED', environment:env, host:'SDK', getMe:me};
       if (me.botMatches && me.canJoinGroups) {
         var webhook = thuTuanZaloDiagnosticWebhook_(thuTuanZaloDiagnosticRequest_(cfg,host,'getWebhookInfo',{}));
         report.getWebhookInfo = webhook;
         if (webhook.webhookUrlPresent !== true) {
           var marker = thuTuanZaloDiagnosticMarker_(cfg), started = Date.now();
-          report.status = 'TEST_RECEIVE_NO_VERIFIED_GROUP_MARKER';
+          report.status = env + '_RECEIVE_NO_VERIFIED_GROUP_MARKER';
           report.startedAt = new Date(started).toISOString();
           report.polls = [];
-          Logger.log(JSON.stringify({status:'TEST_RECEIVE_READY', marker:marker,
+          Logger.log(JSON.stringify({status:env + '_RECEIVE_READY', marker:marker,
             startedAt:report.startedAt, budgetSeconds:120, maxRequests:4}));
           for (var i=0;i<4 && Date.now()-started<120000;i++) {
             var response = thuTuanZaloDiagnosticRequest_(cfg,host,'getUpdates',{timeout:'30'});
-            var safe = thuTuanZaloDiagnosticEvent_(response,started,Date.now(),marker);
+            var safe = thuTuanZaloDiagnosticEvent_(response,started,Date.now(),marker,env);
             report.polls.push(safe);
             if (safe.verifiedGroupMarker) {
               report.pin = thuTuanZaloDiagnosticPin_(cfg,response,started,Date.now(),marker);
-              report.status = report.pin.status === 'TEST_TARGET_PINNED' ?
-                'TEST_RECEIVE_GROUP_TARGET_PINNED' : 'TEST_RECEIVE_GROUP_TARGET_PIN_BLOCKED';
+              report.status = report.pin.status === env + '_TARGET_PINNED' ?
+                env + '_RECEIVE_GROUP_TARGET_PINNED' : env + '_RECEIVE_GROUP_TARGET_PIN_BLOCKED';
               break;
             }
             // Unmatched valid events may precede the fresh marker; keep the same bounded session.
-            if (safe.ok && !safe.eventValid) { report.status = 'TEST_RECEIVE_MALFORMED_EVENT'; break; }
+            if (safe.ok && !safe.eventValid) { report.status = env + '_RECEIVE_MALFORMED_EVENT'; break; }
             if (!safe.ok && (safe.httpStatus !== 200 || safe.apiCode !== 408 || !safe.json)) break;
           }
           report.elapsedMs = Math.max(0,Date.now()-started);
           report.endedAt = new Date().toISOString();
-        } else report.status = 'TEST_RECEIVE_WEBHOOK_PRESENT';
+        } else report.status = env + '_RECEIVE_WEBHOOK_PRESENT';
       }
     }
-  } catch (_) { report = {status:'TEST_DIAGNOSTIC_BLOCKED'}; }
+  } catch (_) { report = {status:env + '_DIAGNOSTIC_BLOCKED'}; }
   finally { lock.releaseLock(); }
   Logger.log(JSON.stringify(report));
   return report;
 }
 
 /** Initial read-only comparison. Never receives events. */
-function chanDoanZaloThuTuan(event) { return thuTuanZaloDiagnosticRun_(event,false); }
+function chanDoanZaloThuTuan(event) { return thuTuanZaloDiagnosticRun_(event,false,'TEST'); }
 
 /** Run only after the owner handshake and no-other-consumer confirmation; pins a fresh GROUP target pair, never membership. */
-function nhanSuKienZaloThuTuanTest(event) { return thuTuanZaloDiagnosticRun_(event,true); }
+function nhanSuKienZaloThuTuanTest(event) { return thuTuanZaloDiagnosticRun_(event,true,'TEST'); }
+
+/** Production counterpart, run manually in the PROD project with sending disabled; pins only the PROD pair, never membership. */
+function nhanSuKienZaloThuTuanProd(event) { return thuTuanZaloDiagnosticRun_(event,true,'PROD'); }
 
 /** Manual TEST-only scope request. Google owns the consent prompt; no auth URL or exception is logged here. */
 function capQuyenZaloThuTuanTest(event) {

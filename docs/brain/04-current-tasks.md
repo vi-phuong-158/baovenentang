@@ -1,5 +1,11 @@
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
+## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
+
+- Hoàn tất code/test/CI/docs: receiver PROD, readiness chỉ đọc, trigger attention, guard GROUP_CONFIRMED, CI. Regression local **148/148**; syntax 21 file `.gs`. Branch `claude/thu-tuan-prod-pilot-readiness`, chưa commit/push/PR khi ghi mục này.
+- Verdict vòng này: `THU_TUAN_ZALO_READY_FOR_PRODUCTION_PILOT` ở mức code/test. **Không** phải `PRODUCTION_ACCEPTANCE_PASS`: chưa có project/Bot/nhóm PROD, chưa chạy receiver/readiness PROD, chưa gửi Production.
+- Việc tiếp theo của owner (ngoài vòng này): review/merge; tạo PROD và cấu hình theo mục 12 “Pilot Production” trong `services/thu-tuan/README.md`; pin → xác nhận người → GROUP_CONFIRMED=true → duyệt → readiness → quyết định bật gửi. CI chỉ chạy được sau khi workflow lên GitHub.
+
 ## Sau review PR #12 (01/10/2026)
 
 - Đã sửa ba lỗi luồng gửi, marker public cố định, cfg toàn Properties; thêm chặn replay sai thứ tự và sửa diagnostic Gmail optional/tên Bot. Main local regression **135/135**, syntax năm GAS files và diff check đạt. Review độc lập không blocker mới và tự chạy **135/135**; không merge.
