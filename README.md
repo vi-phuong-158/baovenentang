@@ -780,6 +780,7 @@ Không commit các thay đổi chỉ do line ending.
 
 ## Liên kết tài liệu liên quan
 
+- [Thư tuần Gmail/Zalo trên Apps Script](services/thu-tuan/README.md): nghiệm thu source trước patch đạt `THU_TUAN_ZALO_TEST_RUNTIME_ACCEPTANCE_PASS` — GAS TEST gửi 01 fixture, receipt/dedupe/reconciliation và owner xác nhận đủ tin. Sửa review PR #12 có regression **135/135 local**; bản sửa đã lưu lên GAS TEST và preview/đối soát chỉ đọc đạt (không gửi thêm); xem runbook về counters, marker mới và TEST kill switch. Trạng thái cloud cuối lần nghiệm thu: gửi tắt; owner thay hai secret TEST cùng lượt. Không mở Production.
 - [Backend README](backend/README.md)
 - [Setup notes](docs/SETUP.md)
 - [Kế hoạch Trợ lý 35](docs/ke-hoach-troly35.md)

@@ -1,5 +1,36 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Sau review PR #12 — state gửi và cấu hình (01/10/2026)
+
+- Core runner giữ tiến độ Zalo tại boundary: sent là SENT đã ghi bền vững, attempted là lần gọi send, confirmed là receipt hợp lệ trong lượt hiện tại. Lỗi loop I/O không mất số phần trước; lỗi sau send vẫn giữ đối soát. Gmail giữ behavior cũ, không API/schema mới.
+- Sau flush SENDING, guard chưa gọi API thất bại thì ghi FAILED/PRE_SEND_BLOCKED và dừng. FAILED chỉ cho biết phần đó chưa được lượt này gửi; nếu write không xác nhận thì giữ SENDING và yêu cầu đối soát. UNKNOWN không auto retry. Prefix log từ chối phần PENDING/FAILED trước phần SENT.
+- Config whitelist pin hai profile và credential của profile hoạt động; Gmail không giữ Zalo credentials; approval secret vẫn riêng ở core HMAC. Acceptance so sánh strict mọi key/value của snapshot cấu hình có ý nghĩa, không snapshot toàn bộ Properties/seal/unrelated secrets. Recheck nội dung/cấu hình trước và sau flush vẫn giữ để chặn race.
+- Manual acceptance SEND có kill switch TEST trong finally kể cả BUSY/guard/adapter hỏng: độc lập xác minh actual Script ID/pin TEST/no PROD collision và raw TEST flags trước property write/readback. Không sở hữu lock khi BUSY, không ghi log hoặc release lock lượt khác; request đang chạy được ghi receipt/state rồi dừng ở guard kế tiếp. Unverified identity/write failure báo DISABLE_UNCONFIRMED và giữ operationStatus/counters.
+- Diagnostic marker mới mỗi phiên bằng UUID/HMAC domain riêng, chỉ public challenge ở READY, không nonce/secret; parser/pin dùng marker tham số cùng cửa sổ. Bot ID pin là identity, không hardcode tên. Counterpart Gmail log optional nhưng schema hiện hữu vẫn kiểm.
+- Helper fixed-week chỉ thuộc lần TEST acceptance lịch sử, không bộ cài Production. Bản sửa PR #12 đã lưu lên GAS TEST và chạy lại preview/đối soát chỉ đọc đạt; lần gửi thật vẫn thuộc source trước patch, nhánh lỗi mới chỉ kiểm local.
+
+## Cập nhật 01/10/2026 — Chẩn đoán nhận event TEST
+
+- Guard gửi Zalo không đổi: vẫn cần chat ID từ event GROUP đã xác minh, SHA-256 và membership confirmation trước preview/getMe chính thức/gửi. TEST-only không cần profile PROD chưa tồn tại.
+- Chẩn đoán thủ công TEST được tách khỏi transport: xác minh script, hai Sheet và Bot pin, yêu cầu ENABLED=false/TEST_MODE=true/ZALO/ENV=TEST, Script Lock và chỉ API đọc. Không receiver thường trực, webhook, trigger hoặc đường gửi mới. Không xuất token, secret, chat ID, raw event/error hoặc webhook URL.
+- Initial `chanDoanZaloThuTuan` chỉ đọc. Receiver ghép cặp với một marker owner trong GROUP đúng cửa sổ có thể lưu riêng TEST_CHAT_ID/SHA256, từ chối pin khác, xác minh readback; không đặt GROUP_CONFIRMED. Membership vẫn phải do owner xác nhận trước preview/preflight/gửi.
+- `capQuyenZaloThuTuanTest` là entrypoint thủ công TEST bị tắt để yêu cầu riêng external_request đã khai báo; native Google consent không bị catch/suppressed. Không revoke, API call, auth URL hoặc cấu hình gửi. Phase/category lỗi cố định giúp phân biệt FETCH authorization, HTTP response và JSON/API mà không xuất raw errors.
+- Hai endpoint tài liệu/SDK phải được so sánh bằng evidence chỉ đọc trước kết luận; không thay host transport từ giả thuyết. getUpdates trả result object, timeout là chuỗi; chỉ một consumer trong phiên nhận có giới hạn và phối hợp thời điểm với owner.
+- Các trạng thái cloud/local 30/9 bên dưới là lịch sử. Chỉ đạo owner giữ hai secret TEST tới khi test thành công thay thế yêu cầu rotation trước điều tra; Production giữ nguyên.
+- Fixture TEST dùng helper riêng `ZaloAcceptance.gs`, cố định source2026-09-28/fixture2026-10-05, full pin target/membership trước mọi thao tác. Core `thuTuanRun_` không đổi guard transport/state; không chuyển kỳ của luồng gửi thường trực. Tạo clone Nhap, duyệt bằng implementation chung `thuTuanApproveContent_` với verifier trong cùng lock, preview seal bind config/target/approval/plan, gửi rồi tắt/readback ENABLED=false, audit receipt chỉ đọc. Public `duyetNoiDungThuTuan` vẫn dùng implementation đó với behavior cũ, không verifier bổ sung. Không schema/trigger/API public mới, không deploy webapp.
+- Snapshot guard của helper so sánh đệ quy mọi own-key và giá trị chính xác; object enumeration order của PropertiesService không ảnh hưởng kết quả. Array giữ thứ tự/độ dài, secret/pin không bỏ hoặc chuẩn hóa. Phase/reason chỉ dùng mã allowlist, không native error. Thay đổi giới hạn acceptance helper, không đổi guard/state machine gửi.
+
+## Cập nhật 30/9/2026 — Transport Thư tuần Gmail/Zalo
+
+- Service vẫn là project Apps Script độc lập tại `services/thu-tuan`, không nằm trong backend Web App. `THU_TUAN_TRANSPORT` mặc định GMAIL; ZALO dùng `ZaloTransport.gs` và UrlFetchApp trực tiếp. Không webhook, Vercel hay retry/fallback tự động.
+- `Code.gs` giữ renderer canonical, approval/HMAC, adapter storage Sheets dùng chung, LockService và state machine. Gmail dùng MailApp và nhật ký 9 cột hiện có. Zalo dùng cùng plain text, chia tối đa 3 phần ≤1800 đơn vị UTF-16, giữ nguyên chuỗi khi nối, bảo vệ Unicode/emoji; mỗi phần có identity và receipt riêng.
+- Bảng hạn chế bổ sung `ThuTuan_Zalo_NhatKyGui`: `Khoa, Ky, MaCB, MaLoiDay, PhienBan, DauVanBanDuyet, TrangThai, CapNhatLuc, MaLoi, Transport, Environment, TargetHash, Part, PartCount, PlanHash, MessageId`. Không migrate schema Gmail. Hai log được đối chiếu để chặn đổi transport trong kỳ đã có lịch sử.
+- Trước gửi: khóa script, xác minh approval, kế hoạch phần, log và preflight getMe đúng Bot/can_join_groups. Đọc lại cấu hình/nội dung trước từng phần và sau flush SENDING; HTTP 2xx + ok boolean true + message_id hợp lệ mới SENT. Mọi kết quả gửi/ghi log không chắc chắn UNKNOWN (hoặc SENDING nếu không ghi được UNKNOWN), dừng để reconciliation thủ công. Preview không gọi mạng/ghi log.
+- TEST/PROD pin riêng script ID, Bot ID, hash chat và hai bảng tính. Mỗi deployment chỉ cần đủ pin của profile đang hoạt động; profile đối diện có thể chưa tồn tại, nhưng nếu khai báo một phần thì fail closed, và nếu khai báo đủ thì các identity/Sheet ID phải khác nhau. TEST project không thể đổi sang PROD bằng Script Properties vì `ScriptApp.getScriptId()` không khớp pin PROD. Chỉ môi trường hoạt động cần token/chat_id/GROUP_CONFIRMED. TEST_MODE phải khớp ENV, TEST không trigger. Có capability getMe không thay xác nhận thủ công Bot đã vào đúng nhóm; tài liệu group hiện vẫn ghi thử nghiệm nội bộ.
+- Manifest thêm external_request; exceptionLogging vẫn NONE. Không lưu token/chat_id/nội dung lỗi hoặc URL token trong log. Cấu hình Gmail hiện có không cần thuộc tính/sheet Zalo để tiếp tục sử dụng.
+- CodeGraph đã xác định đường gọi `thuTuanExecute_ → thuTuanRun_`, các hàm approval/render/log và routes chỉ ở service riêng; API frontend/backend không bị đổi. Runbook và bảng properties: `services/thu-tuan/README.md`, mục 12.
+- Runtime TEST chưa triển khai/nghiệm thu Zalo: project TEST đang tắt, chưa có thuộc tính Bot/chat/pin. Production chưa thay đổi. Local 82 test thành công, frontend build thành công; regression Python chưa chạy do thiếu pytest.
+
 ## Tech Stack & Các thành phần chính
 
 Hệ thống được thiết kế theo mô hình bán tập trung với các lớp công nghệ nhẹ để tối ưu hóa chi phí vận hành và tính linh hoạt.

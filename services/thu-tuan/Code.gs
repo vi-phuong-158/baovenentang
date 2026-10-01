@@ -7,7 +7,9 @@ var THU_TUAN_HEADERS = {
   LoiDay_NoiDung: ['Ky','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','TrangThai','NguoiDuyet','NgayDuyet','PhienBan','DauVanBanDuyet',
     'ChuDe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL'],
   ThuTuan_NguoiNhan: ['MaCB','Email','TrangThai','NgayDangKy'],
-  ThuTuan_NhatKyGui: ['Khoa','Ky','MaCB','MaLoiDay','PhienBan','DauVanBanDuyet','TrangThai','CapNhatLuc','MaLoi']
+  ThuTuan_NhatKyGui: ['Khoa','Ky','MaCB','MaLoiDay','PhienBan','DauVanBanDuyet','TrangThai','CapNhatLuc','MaLoi'],
+  ThuTuan_Zalo_NhatKyGui: ['Khoa','Ky','MaCB','MaLoiDay','PhienBan','DauVanBanDuyet','TrangThai','CapNhatLuc','MaLoi',
+    'Transport','Environment','TargetHash','Part','PartCount','PlanHash','MessageId']
 };
 
 function thuTuanWeekKey_(date) {
@@ -195,10 +197,24 @@ function thuTuanRenderHtml_(content, includeHero) {
 }
 function thuTuanConfig_() {
   var p = PropertiesService.getScriptProperties().getProperties();
+  var transport = p.THU_TUAN_TRANSPORT === undefined || p.THU_TUAN_TRANSPORT === '' ? 'GMAIL' : p.THU_TUAN_TRANSPORT;
+  var zaloProperties = {};
+  if (transport === 'ZALO') {
+    zaloProperties.THU_TUAN_ZALO_ENV = p.THU_TUAN_ZALO_ENV;
+    ['TEST','PROD'].forEach(function(env) {
+      var prefix = 'THU_TUAN_ZALO_' + env + '_';
+      var keys = ['SCRIPT_ID','CONTENT_SHEET_ID','PRIVATE_SHEET_ID','BOT_ID','CHAT_SHA256'];
+      if (p.THU_TUAN_ZALO_ENV === env) keys = keys.concat(['BOT_TOKEN','CHAT_ID','GROUP_CONFIRMED']);
+      keys.forEach(function(key) { if (p[prefix+key] !== undefined) zaloProperties[prefix+key] = p[prefix+key]; });
+    });
+  }
   return {
+    transport: transport,
+    zaloProperties: zaloProperties,
     enabled: p.THU_TUAN_ENABLED === 'true',
+    enabledValue: p.THU_TUAN_ENABLED,
     testMode: p.THU_TUAN_TEST_MODE === 'true',
-    testModeValue: thuTuanText_(p.THU_TUAN_TEST_MODE),
+    testModeValue: p.THU_TUAN_TEST_MODE,
     testRecipientEmail: thuTuanText_(p.THU_TUAN_TEST_RECIPIENT_EMAIL).toLowerCase(),
     contentId: thuTuanText_(p.THU_TUAN_CONTENT_SHEET_ID),
     privateId: thuTuanText_(p.THU_TUAN_PRIVATE_SHEET_ID),
@@ -228,36 +244,51 @@ function thuTuanRows_(sheet, name) {
   }).filter(function(row) { return headers.some(function(h) { return thuTuanText_(row[h]); }); });
 }
 
-function thuTuanAdapter_(cfg) {
+function thuTuanStorage_(cfg, logName) {
   if (!cfg.contentId || !cfg.privateId || cfg.contentId === cfg.privateId) throw new Error('SEPARATE_SHEETS_REQUIRED');
   if (cfg.testModeValue && cfg.testModeValue !== 'true' && cfg.testModeValue !== 'false') throw new Error('INVALID_TEST_MODE');
-  var testMode = cfg.testMode === true;
-  var testRecipientEmail = thuTuanText_(cfg.testRecipientEmail).toLowerCase();
-  if (!testMode && testRecipientEmail) throw new Error('TEST_RECIPIENT_WITHOUT_TEST_MODE');
-  if (testMode && !thuTuanValidEmail_(testRecipientEmail))
-    throw new Error('INVALID_TEST_RECIPIENT');
   thuTuanDigest_({}, cfg.secret); // Fail before any read when the approval key is missing.
-  var logSheet = thuTuanSheet_(cfg.privateId,'ThuTuan_NhatKyGui');
+  var logSheet = thuTuanSheet_(cfg.privateId,logName);
   return {
     now: function() { return Date.now(); },
     approvers: cfg.approvers || [],
     content: function() { return thuTuanRows_(thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung'),'LoiDay_NoiDung'); },
-    testMode: testMode,
+    testMode: cfg.testMode === true,
+    logs: function() {
+      var other = logName === 'ThuTuan_NhatKyGui' ? 'ThuTuan_Zalo_NhatKyGui' : 'ThuTuan_NhatKyGui';
+      var rows = thuTuanRows_(logSheet,logName);
+      // Optional for old Gmail installations; if present, its schema must be valid.
+      if (SpreadsheetApp.openById(cfg.privateId).getSheetByName(other))
+        rows = rows.concat(thuTuanRows_(thuTuanSheet_(cfg.privateId,other),other));
+      return rows;
+    },
+    digest: function(content) { return thuTuanDigest_(content, cfg.secret); },
+    put: function(entry) {
+      var values = THU_TUAN_HEADERS[logName].map(function(key) { return entry[key] || ''; });
+      if (!entry._row) entry._row = logSheet.getLastRow()+1;
+      // Khoa..TrangThai stay plain text: Sheets would otherwise turn '2026-09-21' into a date.
+      logSheet.getRange(entry._row,1,1,logName === 'ThuTuan_NhatKyGui' ? 7 : values.length).setNumberFormat('@');
+      logSheet.getRange(entry._row,1,1,values.length).setValues([values]);
+      SpreadsheetApp.flush();
+    }
+  };
+}
+
+function thuTuanAdapter_(cfg) {
+  var transport = cfg.transport || 'GMAIL';
+  if (transport === 'ZALO') return thuTuanZaloAdapter_(cfg);
+  if (transport !== 'GMAIL') throw new Error('INVALID_TRANSPORT');
+  var testMode = cfg.testMode === true;
+  var testRecipientEmail = thuTuanText_(cfg.testRecipientEmail).toLowerCase();
+  if (!testMode && testRecipientEmail) throw new Error('TEST_RECIPIENT_WITHOUT_TEST_MODE');
+  if (testMode && !thuTuanValidEmail_(testRecipientEmail)) throw new Error('INVALID_TEST_RECIPIENT');
+  return Object.assign(thuTuanStorage_(cfg,'ThuTuan_NhatKyGui'), {
+    transport: 'GMAIL',
     recipients: function() {
       if (testMode) return [{ MaCB:THU_TUAN_TEST_RECIPIENT_ID_, Email:testRecipientEmail, TrangThai:'DangNhan' }];
       return thuTuanRows_(thuTuanSheet_(cfg.privateId,'ThuTuan_NguoiNhan'),'ThuTuan_NguoiNhan');
     },
-    logs: function() { return thuTuanRows_(logSheet,'ThuTuan_NhatKyGui'); },
     quota: function() { return MailApp.getRemainingDailyQuota(); },
-    digest: function(content) { return thuTuanDigest_(content, cfg.secret); },
-    put: function(entry) {
-      var values = THU_TUAN_HEADERS.ThuTuan_NhatKyGui.map(function(key) { return entry[key] || ''; });
-      if (!entry._row) entry._row = logSheet.getLastRow()+1;
-      // Khoa..TrangThai stay plain text: Sheets would otherwise turn '2026-09-21' into a date.
-      logSheet.getRange(entry._row,1,1,7).setNumberFormat('@');
-      logSheet.getRange(entry._row,1,1,values.length).setValues([values]);
-      SpreadsheetApp.flush();
-    },
     send: function(recipient,content) {
       // One message per recipient; no cc/bcc, so no address is disclosed to others.
       var heroImage = thuTuanHeroBlob_();
@@ -273,7 +304,7 @@ function thuTuanAdapter_(cfg) {
       }
       MailApp.sendEmail(message);
     }
-  };
+  });
 }
 
 function thuTuanForKey_(rows, key) { return rows.filter(function(row) { return thuTuanText_(row.Ky) === key; }); }
@@ -339,8 +370,38 @@ function thuTuanMerge_() {
   return out;
 }
 
+function thuTuanContentUnchanged_(io, key, digest) {
+  var fresh = thuTuanForKey_(io.content(), key);
+  return fresh.length === 1 && io.digest(fresh[0]) === digest && !thuTuanApprovalProblem_(fresh[0], digest, io.approvers);
+}
+
 /** Pure orchestration with injected I/O; tests never contact Google or recipients. */
 function thuTuanRun_(io, key, dryRun) {
+  var progress = {sent:0,attempted:0,confirmed:0,inFlight:false};
+  var result;
+  try { result = thuTuanRunWithProgress_(io,key,dryRun,progress); }
+  catch (error) {
+    if (io.transport !== 'ZALO') throw error;
+    result = {status:progress.inFlight ? 'RECONCILIATION_REQUIRED' : 'ZALO_RUN_BLOCKED',
+      reason:thuTuanZaloSafeReason_(error),sent:progress.sent,unknown:progress.inFlight ? 1 : 0};
+  }
+  if (io.transport === 'ZALO') {
+    result.attempted = progress.attempted;
+    result.confirmed = progress.confirmed;
+  }
+  return result;
+}
+
+/** A durable FAILED here proves this execution has not invoked the send API. */
+function thuTuanNotSent_(io,entry) {
+  try {
+    entry.TrangThai='FAILED'; entry.MaLoi='PRE_SEND_BLOCKED'; entry.CapNhatLuc=new Date(io.now());
+    io.put(entry);
+    return true;
+  } catch (_) { return false; } // Any persisted SENDING remains held, without claiming delivery.
+}
+
+function thuTuanRunWithProgress_(io, key, dryRun, progress) {
   var started = io.now();
   var allContent = io.content();
   if (allContent.some(function(row) { return thuTuanIsDate_(row.Ky); })) return { status: 'KY_NOT_PLAIN_TEXT', sent: 0 };
@@ -351,7 +412,9 @@ function thuTuanRun_(io, key, dryRun) {
   var problem = thuTuanApprovalProblem_(content, digest, io.approvers);
   if (problem) return { status: 'CONTENT_NOT_APPROVED', reason: problem, key: key, sent: 0 };
   var summary = { key: key, maLoiDay: thuTuanText_(content.MaLoiDay), phienBan: thuTuanText_(content.PhienBan) };
-  var recipientAudit = thuTuanAuditRecipients_(io.recipients(), io.testMode === true);
+  if (io.summary) summary = thuTuanMerge_(summary,io.summary);
+  var audit = io.audit || thuTuanAuditRecipients_;
+  var recipientAudit = audit(io.recipients(content), io.testMode === true);
   if (!recipientAudit.ok) return thuTuanMerge_({ status:'INVALID_RECIPIENT_LIST', sent:0 }, recipientAudit.counts);
   var recipients = recipientAudit.recipients;
   var activeIds = Object.create(null);
@@ -362,6 +425,8 @@ function thuTuanRun_(io, key, dryRun) {
   });
   var byKey = {};
   for (var i=0;i<logs.length;i++) {
+    if ((logs[i].Transport || 'GMAIL') !== (io.transport || 'GMAIL'))
+      return { status:'TRANSPORT_CHANGED_DURING_WEEK', sent:0 };
     var khoa = thuTuanText_(logs[i].Khoa);
     if (khoa.indexOf(key + '|') !== 0 || byKey[khoa]) return { status: 'DUPLICATE_OR_INVALID_LOG', sent: 0 };
     var logId = khoa.substring((key + '|').length);
@@ -370,8 +435,10 @@ function thuTuanRun_(io, key, dryRun) {
       return { status: 'DUPLICATE_OR_INVALID_LOG', sent: 0 };
     }
     if (logs[i].DauVanBanDuyet !== digest) return { status: 'CONTENT_CHANGED_DURING_WEEK', sent: 0 };
+    if (io.validateLog && !io.validateLog(logs[i],content)) return { status:'DUPLICATE_OR_INVALID_LOG', sent:0 };
     byKey[khoa] = logs[i];
   }
+  if (io.validateLogs && !io.validateLogs(logs)) return { status:'DUPLICATE_OR_INVALID_LOG', sent:0 };
   var pending = [], unknown = 0, alreadySent = 0;
   recipients.forEach(function(recipient) {
     var entry = byKey[key+'|'+recipient.MaCB];
@@ -391,27 +458,63 @@ function thuTuanRun_(io, key, dryRun) {
     recipientAudit.counts);
   if (dryRun) return thuTuanMerge_({ status: 'PREVIEW', sent: 0, quota: io.quota(),
     notebookLM: !!thuTuanNotebookUrl_(content.NotebookLM_URL) }, summary, counts);
-  if (io.quota() < pending.length) return thuTuanMerge_({ status: 'QUOTA_DEFERRED', sent: 0 }, summary, counts);
+  if (unknown) return thuTuanMerge_({ status:'RECONCILIATION_REQUIRED', sent:0 }, summary, counts);
+  if (pending.length && io.preflight) {
+    var preflight = io.preflight();
+    if (preflight !== 'OK') return thuTuanMerge_({ status:preflight, sent:0 }, summary, counts);
+  }
+  var quota = io.quota();
+  if (quota !== null && quota < pending.length) return thuTuanMerge_({ status: 'QUOTA_DEFERRED', sent: 0 }, summary, counts);
   var sent = 0;
   for (var j=0;j<pending.length;j++) {
-    if (io.now()-started > 240000 || io.quota()<1)
+    quota = io.quota();
+    if (io.now()-started > 240000 || (quota !== null && quota<1))
       return thuTuanMerge_({ status: 'DEFERRED', sent: sent, remaining: pending.length - j }, summary, counts);
     // Recheck content and opt-out immediately before each send.
-    var fresh = thuTuanForKey_(io.content(), key);
-    if (fresh.length !== 1 || io.digest(fresh[0]) !== digest || thuTuanApprovalProblem_(fresh[0], digest, io.approvers))
+    if (!thuTuanContentUnchanged_(io,key,digest))
       return thuTuanMerge_({ status: 'CONTENT_CHANGED_DURING_WEEK', sent: sent }, summary, counts);
     var recipient = pending[j].recipient;
-    var currentAudit = thuTuanAuditRecipients_(io.recipients(), io.testMode === true);
+    var currentAudit = audit(io.recipients(content), io.testMode === true);
     if (!currentAudit.ok) return thuTuanMerge_({ status:'INVALID_RECIPIENT_LIST', sent:sent }, currentAudit.counts, summary, counts);
     var current = currentAudit.recipients.filter(function(row) { return row.MaCB === recipient.MaCB; });
     if (current.length !== 1 || current[0].Email !== recipient.Email) continue;
+    if (io.beforeSend) {
+      try { io.beforeSend(); }
+      catch (_) { return thuTuanMerge_({ status:'ZALO_CONFIG_CHANGED', sent:sent }, summary, counts); }
+    }
     var entry = pending[j].entry || { Khoa:key+'|'+recipient.MaCB, Ky:key, MaCB:recipient.MaCB,
       MaLoiDay:content.MaLoiDay, PhienBan:content.PhienBan, DauVanBanDuyet:digest };
+    if (io.decorateEntry) io.decorateEntry(entry,recipient,content);
     entry.TrangThai='SENDING'; entry.CapNhatLuc=new Date(io.now()); entry.MaLoi='';
-    io.put(entry); // A failed write MUST prevent sending.
+    try { io.put(entry); } // A failed write MUST prevent sending.
+    catch (error) {
+      if (io.transport !== 'ZALO') throw error;
+      var recovered = thuTuanNotSent_(io,entry);
+      return thuTuanMerge_({status:recovered ? 'ZALO_PRE_SEND_BLOCKED' : 'RECONCILIATION_REQUIRED',
+        reason:recovered ? 'PRE_SEND_BLOCKED' : 'PRE_SEND_LOG_UNCONFIRMED',sent:sent,unknown:recovered ? 0 : 1},summary,counts);
+    }
+    // These guards run before invoking send, so their failure cannot imply uncertain delivery.
+    if (io.transport === 'ZALO') {
+      try {
+        if (io.beforeSend) io.beforeSend();
+        if (!thuTuanContentUnchanged_(io,key,digest)) throw new Error('CONTENT_CHANGED_DURING_WEEK');
+      } catch (_) {
+        var notSent = thuTuanNotSent_(io,entry);
+        return thuTuanMerge_({status:notSent ? 'ZALO_PRE_SEND_BLOCKED' : 'RECONCILIATION_REQUIRED',
+          reason:notSent ? 'PRE_SEND_BLOCKED' : 'PRE_SEND_LOG_UNCONFIRMED',sent:sent,unknown:notSent ? 0 : 1},summary,counts);
+      }
+    }
     try {
-      io.send(recipient,content);
-      entry.TrangThai='SENT'; entry.CapNhatLuc=new Date(io.now()); io.put(entry); sent++;
+      if (io.transport !== 'ZALO' && io.beforeSend) {
+        io.beforeSend();
+        if (!thuTuanContentUnchanged_(io,key,digest)) throw new Error('CONTENT_CHANGED_DURING_WEEK');
+      }
+      progress.attempted++;
+      progress.inFlight=true;
+      var receipt = io.send(recipient,content);
+      if (io.confirmReceipt) io.confirmReceipt(entry,receipt);
+      progress.confirmed++;
+      entry.TrangThai='SENT'; entry.CapNhatLuc=new Date(io.now()); io.put(entry); sent++; progress.sent=sent; progress.inFlight=false;
     } catch (_) {
       entry.TrangThai='UNKNOWN'; entry.MaLoi='SEND_OR_LOG_UNCERTAIN'; entry.CapNhatLuc=new Date(io.now());
       try { io.put(entry); } catch (_) { /* Persisted SENDING is also held for reconciliation. */ }
@@ -426,11 +529,18 @@ function thuTuanExecute_(dryRun) {
   if (!dryRun && !cfg.enabled) return { status:'DISABLED', sent:0 };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { status:'BUSY', sent:0 };
+  var result;
   try {
-    var result = thuTuanRun_(thuTuanAdapter_(cfg),thuTuanWeekKey_(new Date()),dryRun);
+    result = thuTuanRun_(thuTuanAdapter_(cfg),thuTuanWeekKey_(new Date()),dryRun);
     result.enabled = cfg.enabled;
     Logger.log(JSON.stringify(result)); // Counts/status/codes only, no recipient/content/error details.
     return result;
+  } catch (error) {
+    if (cfg.transport !== 'ZALO') throw error;
+    var blocked = result ? Object.assign({},result,{status:'ZALO_REPORT_BLOCKED',operationStatus:result.status}) :
+      { status:'ZALO_GATE_BLOCKED', reason:thuTuanZaloSafeReason_(error),sent:0,attempted:0,confirmed:0 };
+    Logger.log(JSON.stringify(blocked));
+    return blocked;
   } finally { lock.releaseLock(); }
 }
 
@@ -444,6 +554,11 @@ function guiThuTuan(event) {
 
 /** Run manually by an authorized reviewer with the actual week key, after source verification. */
 function duyetNoiDungThuTuan(ky) {
+  return thuTuanApproveContent_(ky);
+}
+
+/** Shared approval implementation; an internal verifier can bind TEST acceptance inside this same lock. */
+function thuTuanApproveContent_(ky, verifyBeforeWrite) {
   var cfg=thuTuanConfig_(), actor=thuTuanText_(Session.getActiveUser().getEmail()).toLowerCase();
   if (!actor || cfg.approvers.indexOf(actor)<0) throw new Error('APPROVER_REQUIRED');
   if (typeof ky !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(ky) || thuTuanWeekKey_(new Date(ky+'T00:00:00+07:00'))!==ky) throw new Error('INVALID_WEEK');
@@ -460,6 +575,7 @@ function duyetNoiDungThuTuan(ky) {
     var approvedAt=new Date(Math.floor(Date.now()/1000)*1000);
     var approved=Object.assign({},row,{TrangThai:'DaDuyet',NguoiDuyet:actor,NgayDuyet:approvedAt});
     var digest=thuTuanDigest_(approved, cfg.secret);
+    if (verifyBeforeWrite) verifyBeforeWrite(cfg,row,approved,digest);
     sheet.getRange(row._row,10).setNumberFormat('@');
     sheet.getRange(row._row,6,1,5).setValues([['DaDuyet',actor,approvedAt,row.PhienBan,digest]]);
     SpreadsheetApp.flush();
@@ -494,6 +610,8 @@ function caiLichThuTuan() {
   if (cfg.testModeValue && cfg.testModeValue !== 'true' && cfg.testModeValue !== 'false') throw new Error('INVALID_TEST_MODE');
   if (cfg.testRecipientEmail && !cfg.testMode) throw new Error('TEST_RECIPIENT_WITHOUT_TEST_MODE');
   if (cfg.testMode) throw new Error('TEST_MODE_CANNOT_SCHEDULE');
+  if (cfg.transport !== 'GMAIL' && cfg.transport !== 'ZALO') throw new Error('INVALID_TRANSPORT');
+  if (cfg.transport === 'ZALO') thuTuanZaloConfig_(cfg);
   var lock=LockService.getScriptLock();
   if (!lock.tryLock(1000)) throw new Error('BUSY');
   try {

@@ -3,7 +3,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const root=path.resolve(__dirname,'..');
 const CODE=[
  fs.readFileSync(path.join(root,'services/thu-tuan/Code.gs'),'utf8'),
- fs.readFileSync(path.join(root,'services/thu-tuan/EmailAssets.gs'),'utf8')
+ fs.readFileSync(path.join(root,'services/thu-tuan/EmailAssets.gs'),'utf8'),
+ fs.readFileSync(path.join(root,'services/thu-tuan/ZaloTransport.gs'),'utf8'),
+ fs.readFileSync(path.join(root,'services/thu-tuan/ZaloDiagnostics.gs'),'utf8')
 ].join('\n');
 const SECRET='fixture-approval-key-0123456789abcdef';
 const REVIEWER='reviewer@example.test';
@@ -11,6 +13,8 @@ const noIO=new Proxy({}, {get(){throw Error('Unexpected I/O');}});
 const Utilities={
  formatDate:(date,tz)=>new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(date),
  computeHmacSha256Signature:(value,key)=>Array.from(crypto.createHmac('sha256',key).update(value,'utf8').digest()).map(b=>b>127?b-256:b),
+ computeDigest:(_,value)=>Array.from(crypto.createHash('sha256').update(value,'utf8').digest()),
+ DigestAlgorithm:{SHA_256:'sha256'},
  base64Decode:value=>Array.from(Buffer.from(value,'base64')),
  newBlob:(bytes,mimeType,name)=>({bytes:Array.from(bytes),mimeType,name}),
  Charset:{UTF_8:'utf8'},getUuid:()=>crypto.randomUUID()
@@ -74,6 +78,47 @@ function world({enabled=true,testMode=false,testRecipientEmail='',forbidRecipien
  return {ctx,props,sheets,mail,created,deleted,logs,H,setNow:iso=>{ctx.Date=class extends Date{constructor(...a){super(...(a.length?a:[iso]));}static now(){return new Date(iso).getTime();}};}};
 }
 const draft=o=>contentRow(Object.assign({TrangThai:'Nhap',NguoiDuyet:'',NgayDuyet:'',DauVanBanDuyet:''},o));
+
+// Synthetic TEST/PROD identities only; no credentials or network leave this process.
+function zaloWorld({env='TEST',contentOverrides={},response,enabled=true}={}){
+ const w=world({enabled,content:[draft({NotebookLM_URL:'',...contentOverrides})],forbidRecipientSheetRead:true});
+ const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
+ Object.assign(w.props,{THU_TUAN_TRANSPORT:'ZALO',THU_TUAN_TEST_MODE:String(env==='TEST'),THU_TUAN_ZALO_ENV:env});
+ for(const name of ['TEST','PROD']){
+  const p='THU_TUAN_ZALO_'+name+'_';
+  Object.assign(w.props,{
+   [p+'SCRIPT_ID']:'script-'+name,[p+'CONTENT_SHEET_ID']:name==='TEST'?'content-id':'prod-content-id',
+   [p+'PRIVATE_SHEET_ID']:name==='TEST'?'private-id':'prod-private-id',[p+'BOT_ID']:'bot-'+name,
+   [p+'CHAT_SHA256']:sha('synthetic-chat-'+name),[p+'GROUP_CONFIRMED']:'true'
+  });
+ }
+ const prefix='THU_TUAN_ZALO_'+env+'_';
+ w.props[prefix+'BOT_TOKEN']='synthetic-token-'+env;
+ w.props[prefix+'CHAT_ID']='synthetic-chat-'+env;
+ if(env==='PROD'){
+  w.props.THU_TUAN_CONTENT_SHEET_ID='prod-content-id';w.props.THU_TUAN_PRIVATE_SHEET_ID='prod-private-id';
+  for(const [key,sheet] of Object.entries({...w.sheets}))w.sheets[key.replace('content-id|','prod-content-id|').replace('private-id|','prod-private-id|')]=sheet;
+ }
+ const privateId=w.props.THU_TUAN_PRIVATE_SHEET_ID;
+ w.zaloLog=memSheet(w.H.ThuTuan_Zalo_NhatKyGui);
+ w.sheets[privateId+'|ThuTuan_Zalo_NhatKyGui']=w.zaloLog;
+ w.ctx.ScriptApp.getScriptId=()=> 'script-'+env;
+ w.ctx.MailApp=noIO;
+ w.requests=[];w.sendRequests=[];
+ w.ctx.UrlFetchApp={fetch(url,options){
+  const method=url.split('/').at(-1),payload=JSON.parse(options.payload);
+  const request={method,payload,url,options};w.requests.push(request);
+  if(method==='sendMessage')w.sendRequests.push(request);
+  const standard=method==='getMe'?{ok:true,result:{id:'bot-'+env,can_join_groups:true}}:{ok:true,result:{message_id:'receipt-'+w.sendRequests.length}};
+  const value=response?response({w,method,payload,standard}):standard;
+  if(value instanceof Error)throw value;
+  return {getResponseCode:()=>value?.http??200,getContentText:()=>typeof value==='string'?value:JSON.stringify(value)};
+ }};
+ w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
+ w.row=w.sheets[w.props.THU_TUAN_CONTENT_SHEET_ID+'|LoiDay_NoiDung'].data[1];
+ w.zaloEntries=()=>w.zaloLog.data.slice(1).map(row=>Object.fromEntries(w.H.ThuTuan_Zalo_NhatKyGui.map((key,i)=>[key,row[i]])));
+ return w;
+}
 
 // ---------- Week key ----------
 test('week key handles Vietnam midnight, ISO year boundary and week 53',()=>{
@@ -335,8 +380,9 @@ test('mail: disabled or unavailable hero falls back to valid HTML and plain text
   assert.match(message.body,/LỜI BÁC DẠY/);assert.match(message.body,/Fixture only/);
  }
 });
-test('runtime never calls AI or network services and exposes no web endpoint',()=>{
- for(const banned of [/UrlFetchApp/,/generativelanguage|gemini|openai/i,/function\s+doGet|function\s+doPost/,/\bbcc\s*:|\bcc\s*:/i])assert.doesNotMatch(CODE,banned);
+test('runtime never calls AI, exposes no web endpoint, and network I/O belongs only to Zalo',()=>{
+ for(const banned of [/generativelanguage|gemini|openai/i,/function\s+doGet|function\s+doPost/,/\bbcc\s*:|\bcc\s*:/i])assert.doesNotMatch(CODE,banned);
+ assert.doesNotMatch(fs.readFileSync(path.join(root,'services/thu-tuan/Code.gs'),'utf8'),/UrlFetchApp/);
 });
 
 // ---------- End-to-end through the real adapter and approval, on Sheets-like storage ----------
@@ -401,7 +447,7 @@ test('approval key is created once, never overwritten and never logged',()=>{
 test('manifest pins Asia/Ho_Chi_Minh, V8 and only the scopes the module needs',()=>{
  const m=JSON.parse(fs.readFileSync(path.join(root,'services/thu-tuan/appsscript.json'),'utf8'));
  assert.equal(m.timeZone,'Asia/Ho_Chi_Minh');assert.equal(m.runtimeVersion,'V8');assert.equal(m.webapp,undefined);
- assert.deepEqual(m.oauthScopes.slice().sort(),['https://www.googleapis.com/auth/script.scriptapp','https://www.googleapis.com/auth/script.send_mail','https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/userinfo.email']);
+ assert.deepEqual(m.oauthScopes.slice().sort(),['https://www.googleapis.com/auth/script.external_request','https://www.googleapis.com/auth/script.scriptapp','https://www.googleapis.com/auth/script.send_mail','https://www.googleapis.com/auth/spreadsheets','https://www.googleapis.com/auth/userinfo.email']);
 });
 
 // ---------- Corpus import tool ----------
@@ -424,4 +470,646 @@ test('corpus tool: reports gaps, duplicates and bad dates instead of inventing c
  assert.deepEqual(codes,['COUNT_MISMATCH','DUPLICATE_CODE','MISSING_FIELD','MISSING_WEEK']);
  assert.throws(()=>tool.mondayKeys('2026-10-06',1),/MONDAY/);assert.throws(()=>tool.mondayKeys('2026-02-30',1),/INVALID/);
  assert.equal(tool.isInside(path.join(root,'x.csv'),root),true);assert.equal(tool.isInside(path.join(os.tmpdir(),'x.csv'),root),false);
+});
+
+// ---------- Zalo renderer and Unicode ----------
+test('Zalo sends exactly the shared approved text, preserving markup, URLs, spacing and legacy exclusion',()=>{
+ const w=zaloWorld({contentOverrides:{NoiDungNguyenVan:'  **Nguyên văn** <b>giữ</b> 👩🏽‍🚒\r\nDòng 2  ',PhanTich:'https://example.test/a_b?q=*x*'}});
+ const expected=w.ctx.thuTuanRenderText_(w.ctx.thuTuanRows_(w.sheets['content-id|LoiDay_NoiDung'],'LoiDay_NoiDung')[0]);
+ assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
+ assert.equal(w.sendRequests.map(x=>x.payload.text).join(''),expected);
+ assert.ok(expected.includes('  **Nguyên văn** <b>giữ</b> 👩🏽‍🚒\r\nDòng 2  '));
+ assert.doesNotMatch(expected,/LEGACY_/);
+ for(const request of w.sendRequests){assert.deepEqual(Object.keys(request.payload).sort(),['chat_id','text']);assert.ok(request.payload.text.length<=1800);}
+ assert.equal(w.requests[0].method,'getMe');assert.equal(w.requests[0].options.method,'post');
+ assert.equal(w.requests[0].options.followRedirects,false);assert.equal(w.requests[0].options.validateHttpsCertificates,true);
+});
+test('split supports 1, 2 or 3 exact parts and rejects a fourth without truncation',()=>{
+ const ctx=weekly();
+ for(const size of [1,1799,1800,1801,3600,3601,5400]){
+  const source='x'.repeat(size),parts=[...ctx.thuTuanZaloSplit_(source)];
+  assert.equal(parts.join(''),source);assert.equal(parts.length,Math.ceil(size/1800));assert.ok(parts.every(x=>x.length<=1800));
+ }
+ for(const source of ['',null,'x'.repeat(5401),'a\uD800','\uDC00'])assert.throws(()=>ctx.thuTuanZaloSplit_(source),/ZALO_/);
+});
+test('splitting never breaks emoji, combining marks, flags, keycaps, variation selectors or CRLF (including GAS fallback)',()=>{
+ for(const useFallback of [false,true]){
+  const ctx=weekly(useFallback?{Intl:{}}:{});
+  for(const cluster of ['😀','👩🏽‍🚒','👨‍👩‍👧‍👦','🇻🇳','1️⃣','a\u0301','✈️','\r\n','🏴\u{E0067}\u{E0062}\u{E007F}']){
+   for(const offset of [1799,1798,1800]){
+    const text='x'.repeat(offset)+cluster+'z'.repeat(50),parts=[...ctx.thuTuanZaloSplit_(text)];
+    assert.equal(parts.join(''),text);assert.ok(parts.some(part=>part.includes(cluster)),JSON.stringify(cluster));
+    assert.ok(parts.every(part=>part.length<=1800));
+   }
+  }
+  assert.throws(()=>ctx.thuTuanZaloSplit_('a'+'\u0301'.repeat(1800)),/ZALO_TEXT_TOO_LONG/);
+ }
+});
+test('oversized approved content fails before preflight, writes, Gmail or Zalo delivery',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(5400)}});
+ assert.equal(w.ctx.guiThuTuan().reason,'ZALO_TEXT_TOO_LONG');assert.equal(w.requests.length,0);assert.equal(w.zaloLog.data.length,1);
+});
+test('preview and disabled sends are entirely offline and never write Zalo logs',()=>{
+ const w=zaloWorld({enabled:false});w.ctx.UrlFetchApp=noIO;
+ const p=w.ctx.xemTruocThuTuan();assert.equal(p.status,'PREVIEW');assert.equal(p.transport,'ZALO');assert.equal(p.environment,'TEST');assert.equal(p.quota,null);
+ assert.equal(w.ctx.guiThuTuan().status,'DISABLED');assert.equal(w.zaloLog.data.length,1);
+});
+
+// ---------- Strict response confirmation and stop policy ----------
+test('every uncertain send response produces UNKNOWN, stops later parts and is never automatically retried',()=>{
+ const cases=[{ok:false,description:'sensitive'}, {},{ok:'true',result:{message_id:'bad'}},{ok:true},{ok:true,result:{}},
+  {ok:true,result:{message_id:''}},{ok:true,result:{message_id:123}},{ok:true,result:{message_id:'unsafe\nreceipt'}},
+  {ok:true,result:{message_id:'valid'},http:302},{ok:true,result:{message_id:'valid'},http:500},
+  {ok:false,error_code:408},{ok:false,error_code:429},{http:408},{http:429},{http:403},
+  {ok:true,result:{message_id:'valid'},http:'200'},
+  {ok:true,result:{message_id:'synthetic-token-TEST'}},{ok:true,result:{message_id:'echo-synthetic-chat-TEST'}},
+  '<html>private error</html>',new Error('timeout token URL and full chat')];
+ for(const failure of cases){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({method,standard})=>method==='getMe'?standard:failure});
+  const result=w.ctx.guiThuTuan();assert.equal(result.status,'RECONCILIATION_REQUIRED',JSON.stringify(failure));assert.equal(result.sent,0);assert.equal(result.unknown,1);
+  assert.equal(w.sendRequests.length,1);assert.equal(w.zaloEntries()[0].TrangThai,'UNKNOWN');assert.equal(w.zaloEntries()[0].MaLoi,'SEND_OR_LOG_UNCERTAIN');
+  assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,1);
+  assert.equal(w.requests.length,2); // getMe + one send; rerun does not even preflight.
+ }
+});
+test('successful API receipts are persisted per part and reruns perform no fetch or send',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});
+ const result=w.ctx.guiThuTuan();assert.equal(result.status,'COMPLETE');assert.equal(result.sent,3);
+ const entries=w.zaloEntries();assert.equal(entries.length,3);
+ assert.deepEqual(entries.map(x=>x.Part),[1,2,3]);assert.deepEqual(entries.map(x=>x.MessageId),['receipt-1','receipt-2','receipt-3']);
+ assert.ok(entries.every(x=>x.TrangThai==='SENT'&&x.PartCount===3&&x.PlanHash===entries[0].PlanHash));
+ const again=w.ctx.guiThuTuan();assert.equal(again.sent,0);assert.equal(again.alreadySent,3);assert.equal(w.requests.length,4);
+});
+test('a timeout after confirmed part 1 holds part 2 UNKNOWN and never sends part 3',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({w,method,standard})=>method==='sendMessage'&&w.sendRequests.length===2?new Error('timeout'):standard});
+ assert.equal(w.ctx.guiThuTuan().sent,1);assert.deepEqual(w.zaloEntries().map(x=>x.TrangThai),['SENT','UNKNOWN']);
+ assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,2);
+});
+test('SENDING is durably flushed before calling Zalo; a failed initial write prevents the API request',()=>{
+ const w=zaloWorld({response:({w,method,standard})=>{
+  if(method==='sendMessage')assert.equal(w.zaloEntries().at(-1).TrangThai,'SENDING');return standard;
+ }});
+ assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
+ const failed=zaloWorld();failed.ctx.SpreadsheetApp.flush=()=>{throw Error('private spreadsheet failure');};
+ const blocked=failed.ctx.guiThuTuan();assert.equal(blocked.status,'RECONCILIATION_REQUIRED');assert.equal(blocked.reason,'PRE_SEND_LOG_UNCONFIRMED');assert.equal(blocked.attempted,0);assert.equal(failed.sendRequests.length,0);
+ assert.equal(failed.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(failed.sendRequests.length,0);
+});
+test('confirmed delivery with a failed SENT write is UNKNOWN; failed UNKNOWN write preserves SENDING',()=>{
+ for(const failUnknown of [false,true]){
+  const w=zaloWorld(),getRange=w.zaloLog.getRange;
+  w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues:values=>{
+   if(values[0][6]==='SENT'||(failUnknown&&values[0][6]==='UNKNOWN'))throw Error('private write error');range.setValues(values);
+  }};};
+  assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.zaloEntries()[0].TrangThai,failUnknown?'SENDING':'UNKNOWN');
+  assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,1);
+ }
+});
+test('operator-confirmed non-delivery resumes only the unresolved part; confirmed earlier parts are not repeated',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({w,method,standard})=>method==='sendMessage'&&w.sendRequests.length===2?new Error('timeout'):standard});
+ w.ctx.guiThuTuan();w.zaloLog.data[2][6]='PENDING';
+ const resumed=w.ctx.guiThuTuan();assert.equal(resumed.status,'COMPLETE');assert.equal(resumed.alreadySent,1);assert.equal(resumed.sent,2);
+ assert.equal(w.sendRequests.filter(x=>x.payload.text===w.sendRequests[0].payload.text).length,1);
+});
+test('lost execution, invalid status or an unresolved removed target never allows pending parts to continue',()=>{
+ for(const status of ['SENDING','UNKNOWN','','Sent']){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});w.ctx.guiThuTuan();w.zaloLog.data[1][6]=status;
+  assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,3);
+ }
+});
+test('duplicate rows, part gaps, wrong environment/target/plan and forged SENT without receipt fail closed',()=>{
+ for(const mutate of [
+  w=>w.zaloLog.data.push(w.zaloLog.data[1].slice()),w=>w.zaloLog.data.splice(1,1),
+  w=>w.zaloLog.data[1][10]='PROD',w=>w.zaloLog.data[1][11]='0'.repeat(64),w=>w.zaloLog.data[1][14]='0'.repeat(64),
+  w=>w.zaloLog.data[1][12]=0,w=>w.zaloLog.data[1][13]=2,w=>w.zaloLog.data[1][15]='',w=>w.zaloLog.data[1][0]='garbled'
+ ]){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});w.ctx.guiThuTuan();mutate(w);
+  assert.equal(w.ctx.guiThuTuan().status,'DUPLICATE_OR_INVALID_LOG');assert.equal(w.sendRequests.length,3);
+ }
+});
+test('renderer changes and target changes cannot create a second plan for the same week',()=>{
+ const w=zaloWorld();w.ctx.guiThuTuan();w.ctx.THU_TUAN_NOTEBOOK_NOTE+='changed';
+ // Optional NotebookLM is absent, so alter an actually rendered label by wrapping the renderer.
+ const render=w.ctx.thuTuanRenderText_;w.ctx.thuTuanRenderText_=content=>render(content)+' new footer';
+ assert.equal(w.ctx.guiThuTuan().status,'DUPLICATE_OR_INVALID_LOG');assert.equal(w.sendRequests.length,1);
+ const x=zaloWorld();x.ctx.guiThuTuan();x.props.THU_TUAN_ZALO_TEST_CHAT_ID='another-chat';x.props.THU_TUAN_ZALO_TEST_CHAT_SHA256=crypto.createHash('sha256').update('another-chat').digest('hex');
+ assert.equal(x.ctx.guiThuTuan().status,'DUPLICATE_OR_INVALID_LOG');assert.equal(x.sendRequests.length,1);
+});
+
+// ---------- Preflight and environment isolation ----------
+test('getMe mismatch, unavailable groups, malformed success, HTTP failure and timeout block all sends and log writes',()=>{
+ const cases=[{ok:true,result:{id:'another-bot',can_join_groups:true}},{ok:true,result:{id:123,can_join_groups:true}},
+  {ok:true,result:{id:'bot-TEST',can_join_groups:false}},{ok:true,result:{id:'bot-TEST',can_join_groups:'true'}},
+  {ok:true,result:{id:'bot-TEST'}},{ok:false},{ok:'true',result:{}},{ok:true,result:[]},'invalid',new Error('sensitive timeout'),{http:401}];
+ for(const body of cases){
+  const w=zaloWorld({response:()=>body});const result=w.ctx.guiThuTuan();assert.match(result.status,/^ZALO_(PREFLIGHT_UNCONFIRMED|BOT_MISMATCH|GROUP_UNAVAILABLE)$/);
+  assert.equal(w.requests.length,1);assert.equal(w.sendRequests.length,0);assert.equal(w.zaloLog.data.length,1);
+ }
+});
+test('explicit preflight performs only getMe even while disabled and never sends or writes',()=>{
+ const w=zaloWorld({enabled:false});assert.equal(w.ctx.kiemTraZaloThuTuan().status,'OK');
+ assert.equal(w.requests.length,1);assert.equal(w.sendRequests.length,0);assert.equal(w.zaloLog.data.length,1);
+});
+test('active environment binding is mandatory; a partial inactive profile and colliding complete profiles fail closed',()=>{
+ const required=['SCRIPT_ID','CONTENT_SHEET_ID','PRIVATE_SHEET_ID','BOT_ID','CHAT_SHA256'];
+ for(const env of ['TEST','PROD'])for(const key of required){
+  const w=zaloWorld({env});delete w.props['THU_TUAN_ZALO_'+env+'_'+key];assert.equal(w.ctx.guiThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(w.requests.length,0);
+ }
+ for(const env of ['TEST','PROD']){
+  const inactive=env==='TEST'?'PROD':'TEST', prefix='THU_TUAN_ZALO_'+inactive+'_';
+  const partial=zaloWorld({env});delete partial.props[prefix+'BOT_ID'];
+  assert.equal(partial.ctx.guiThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(partial.requests.length,0);
+ }
+ for(const key of ['SCRIPT_ID','BOT_ID','CHAT_SHA256']){
+  const w=zaloWorld();w.props['THU_TUAN_ZALO_PROD_'+key]=w.props['THU_TUAN_ZALO_TEST_'+key];assert.equal(w.ctx.guiThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(w.requests.length,0);
+ }
+ const w=zaloWorld();w.props.THU_TUAN_ZALO_PROD_PRIVATE_SHEET_ID='content-id';assert.equal(w.ctx.guiThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(w.requests.length,0);
+});
+test('TEST-only and PROD-only deployments can preflight without inventing an opposite-environment profile',()=>{
+ for(const env of ['TEST','PROD']){
+  const w=zaloWorld({env}), inactive=env==='TEST'?'PROD':'TEST', prefix='THU_TUAN_ZALO_'+inactive+'_';
+  Object.keys(w.props).filter(key=>key.startsWith(prefix)).forEach(key=>delete w.props[key]);
+  assert.equal(w.ctx.kiemTraZaloThuTuan().status,'OK');
+  assert.equal(w.requests.length,1);assert.equal(w.requests[0].method,'getMe');assert.equal(w.sendRequests.length,0);
+  w.props.THU_TUAN_ZALO_ENV=inactive;w.props.THU_TUAN_TEST_MODE=String(inactive==='TEST');
+  assert.equal(w.ctx.kiemTraZaloThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(w.sendRequests.length,0);
+ }
+});
+test('TEST and PROD swaps in mode, script, sheet, Bot and chat cannot send to the other environment',()=>{
+ for(const env of ['TEST','PROD']){
+  const other=env==='TEST'?'PROD':'TEST';
+  const isolated=zaloWorld({env});
+  assert.equal(isolated.ctx.guiThuTuan().status,'COMPLETE');
+  assert.ok(isolated.sendRequests.every(request=>request.payload.chat_id==='synthetic-chat-'+env));
+  assert.ok(isolated.requests.every(request=>request.url.includes('/botsynthetic-token-'+env+'/')));
+  assert.equal(isolated.props['THU_TUAN_ZALO_'+other+'_BOT_TOKEN'],undefined);
+  for(const mutate of [
+   w=>w.props.THU_TUAN_ZALO_ENV=other,w=>w.props.THU_TUAN_TEST_MODE=String(env!=='TEST'),
+   w=>w.ctx.ScriptApp.getScriptId=()=> 'script-'+other,w=>w.props.THU_TUAN_PRIVATE_SHEET_ID=w.props['THU_TUAN_ZALO_'+other+'_PRIVATE_SHEET_ID'],
+   w=>w.props['THU_TUAN_ZALO_'+env+'_CHAT_ID']='synthetic-chat-'+other
+  ]){
+   const w=zaloWorld({env});mutate(w);assert.equal(w.ctx.guiThuTuan().reason,'ZALO_ISOLATION_REQUIRED');assert.equal(w.requests.length,0);
+  }
+  const w=zaloWorld({env,response:({method,standard})=>method==='getMe'?{ok:true,result:{id:'bot-'+other,can_join_groups:true}}:standard});
+  assert.equal(w.ctx.guiThuTuan().status,'ZALO_BOT_MISMATCH');assert.equal(w.sendRequests.length,0);
+ }
+});
+test('missing token, invalid token URL segments, missing target and absent group confirmation block preflight',()=>{
+ for(const [field,value,reason] of [
+  ['BOT_TOKEN','','ZALO_TOKEN_REQUIRED'],['BOT_TOKEN','abc/evil?token','ZALO_TOKEN_REQUIRED'],['BOT_TOKEN',' token123 ','ZALO_TOKEN_REQUIRED'],
+  ['CHAT_ID','','ZALO_TARGET_REQUIRED'],['CHAT_ID','chat\nprivate','ZALO_TARGET_REQUIRED'],['GROUP_CONFIRMED','TRUE','ZALO_GROUP_CONFIRMATION_REQUIRED']
+ ]){
+  const w=zaloWorld();w.props['THU_TUAN_ZALO_TEST_'+field]=value;
+  assert.equal(w.ctx.guiThuTuan().reason,reason);assert.equal(w.requests.length,0);assert.equal(w.ctx.kiemTraZaloThuTuan().reason,reason);
+ }
+});
+test('TEST Zalo cannot schedule or send from trigger events; manual sending still requires ENABLED',()=>{
+ const w=zaloWorld();assert.throws(()=>w.ctx.caiLichThuTuan(),/TEST_MODE_CANNOT_SCHEDULE/);
+ assert.equal(w.ctx.guiThuTuan({triggerUid:'synthetic'}).status,'TEST_MODE_MANUAL_ONLY');assert.equal(w.requests.length,0);
+ w.props.THU_TUAN_ENABLED='false';assert.equal(w.ctx.guiThuTuan().status,'DISABLED');assert.equal(w.requests.length,0);
+});
+test('Zalo preserves approval, HMAC and lock gates',()=>{
+ for(const mutation of [w=>w.row[2]+='edit',w=>w.props.THU_TUAN_APPROVER_EMAILS='',w=>w.row[5]='Nhap']){
+  const w=zaloWorld();mutation(w);assert.equal(w.ctx.guiThuTuan().status,'CONTENT_NOT_APPROVED');assert.equal(w.requests.length,0);assert.equal(w.zaloLog.data.length,1);
+ }
+ const w=zaloWorld();w.ctx.LockService={getScriptLock:()=>({tryLock:()=>false,releaseLock(){throw Error('not acquired');}})};
+ assert.equal(w.ctx.guiThuTuan().status,'BUSY');assert.equal(w.requests.length,0);
+});
+test('canonical edits or approval withdrawal between parts stop later deliveries',()=>{
+ for(const mutate of [w=>w.row[2]+='changed',w=>w.row[5]='Nhap']){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({w,method,standard})=>{if(method==='sendMessage'&&w.sendRequests.length===1)mutate(w);return standard;}});
+  assert.equal(w.ctx.guiThuTuan().status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(w.sendRequests.length,1);
+ }
+});
+test('configuration changes during preflight or between parts stop before using a stale destination/token',()=>{
+ for(const phase of ['getMe','sendMessage'])for(const mutate of [
+  w=>w.props.THU_TUAN_ZALO_TEST_CHAT_ID='another-chat',w=>w.props.THU_TUAN_ZALO_TEST_BOT_TOKEN='another-token',
+  w=>w.props.THU_TUAN_ENABLED='false',w=>w.props.THU_TUAN_TRANSPORT='GMAIL',w=>w.props.THU_TUAN_APPROVER_EMAILS=''
+ ]){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({w,method,standard})=>{if(method===phase&&(phase==='getMe'||w.sendRequests.length===1))mutate(w);return standard;}});
+  const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_CONFIG_CHANGED');assert.equal(r.sent,phase==='getMe'?0:1);assert.equal(w.sendRequests.length,phase==='getMe'?0:1);
+ }
+});
+test('time budget defers unsent parts and the next manual run skips all confirmed parts',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)},response:({w,method,standard})=>{if(method==='sendMessage'&&w.sendRequests.length===1)w.setNow('2026-09-21T01:05:00Z');return standard;}});
+ assert.equal(w.ctx.guiThuTuan().status,'DEFERRED');assert.equal(w.sendRequests.length,1);
+ assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');assert.equal(w.sendRequests.length,3);
+});
+test('transport switching during an active week never invokes Gmail fallback or duplicates Zalo',()=>{
+ const w=zaloWorld();w.ctx.guiThuTuan();w.props.THU_TUAN_TRANSPORT='GMAIL';w.props.THU_TUAN_TEST_RECIPIENT_EMAIL='one@example.test';
+ w.ctx.MailApp=noIO;
+ assert.equal(w.ctx.guiThuTuan().status,'TRANSPORT_CHANGED_DURING_WEEK');assert.equal(w.sendRequests.length,1);
+ const x=zaloWorld();const mailLog=x.sheets['private-id|ThuTuan_NhatKyGui'];
+ mailLog.data.push(['2026-09-21|CB1','2026-09-21','CB1','LD-TEST-1','1',x.row[9],'UNKNOWN',new Date(),'']);
+ assert.equal(x.ctx.guiThuTuan().status,'TRANSPORT_CHANGED_DURING_WEEK');assert.equal(x.requests.length,0);
+});
+test('Gmail remains the default and malformed transport settings fail closed without a send',()=>{
+ const w=world({content:[draft({})],recipients:[{MaCB:'CB1',Email:'one@example.test',TrangThai:'DangNhan'}]});
+ w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');w.ctx.UrlFetchApp=noIO;
+ assert.equal(w.ctx.thuTuanConfig_().transport,'GMAIL');assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');assert.equal(w.mail.length,1);
+ for(const value of ['zalo',' ZALO','GMAIL ','unknown']){w.props.THU_TUAN_TRANSPORT=value;assert.throws(()=>w.ctx.guiThuTuan(),/INVALID_TRANSPORT/);assert.equal(w.mail.length,1);}
+});
+test('Zalo log, runner output and error reporting contain no token, chat ID, URL, raw error or body',()=>{
+ const sensitive='https://bot-api.zaloplatforms.com/botsynthetic-token-TEST/sendMessage synthetic-chat-TEST PRIVATE_ERROR_DETAILS';
+ for(const failure of [new Error(sensitive),{ok:false,description:sensitive},sensitive]){
+  const w=zaloWorld({response:({method,standard})=>method==='getMe'?standard:failure});
+  const result=w.ctx.guiThuTuan(),stored=JSON.stringify([result,w.logs,w.zaloEntries()]);
+  for(const value of ['synthetic-token-TEST','synthetic-chat-TEST','PRIVATE_ERROR_DETAILS','bot-api.zaloplatforms.com','Fixture'])assert.equal(stored.includes(value),false,value);
+ }
+ const w=zaloWorld();w.ctx.SpreadsheetApp.openById=()=>{throw Error(sensitive);};
+ const result=w.ctx.guiThuTuan();assert.equal(result.reason,'ZALO_IO_BLOCKED');assert.equal(JSON.stringify(w.logs).includes(sensitive),false);
+});
+test('config or approval changed during the SENDING flush prevents the actual API send',()=>{
+ for(const mutate of [w=>w.props.THU_TUAN_ZALO_TEST_CHAT_ID='another-chat',w=>w.row[2]+='edited',w=>w.row[5]='Nhap']){
+  const w=zaloWorld();w.ctx.SpreadsheetApp.flush=()=>mutate(w);
+  const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');assert.equal(r.unknown,0);assert.equal(r.attempted,0);assert.equal(w.sendRequests.length,0);assert.equal(w.zaloEntries()[0].TrangThai,'FAILED');
+ }
+});
+
+test('Zalo preserves prior delivery counts when a later SENDING write fails before the API',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}}),getRange=w.zaloLog.getRange;
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][12]===2&&values[0][6]==='SENDING')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');
+ assert.equal(r.sent,1);assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(r.unknown,0);
+ assert.deepEqual(w.zaloEntries().map(e=>e.TrangThai),['SENT','FAILED']);assert.equal(w.sendRequests.length,1);
+});
+
+test('a loop read failure after part one preserves counts and never reports a pre-send gate',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}}),adapter=w.ctx.thuTuanZaloAdapter_;
+ w.ctx.thuTuanZaloAdapter_=cfg=>{const io=adapter(cfg),content=io.content;return {...io,content(){
+  if(w.sendRequests.length)throw Error('private read failure');return content();
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_RUN_BLOCKED');assert.equal(r.sent,1);
+ assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(w.sendRequests.length,1);
+ assert.equal(JSON.stringify([r,w.logs]).includes('private read failure'),false);
+});
+
+test('valid API receipt followed by failed SENT write reports receipt separately and cannot retry',()=>{
+ const w=zaloWorld(),getRange=w.zaloLog.getRange;
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][6]==='SENT')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.sent,0);
+ assert.equal(r.confirmed,1);assert.equal(r.attempted,1);assert.equal(r.unknown,1);
+ assert.equal(w.ctx.guiThuTuan().attempted,0);assert.equal(w.sendRequests.length,1);
+});
+
+test('pre-send guard failure with an unconfirmed FAILED write holds the row without API invocation',()=>{
+ const w=zaloWorld(),getRange=w.zaloLog.getRange;
+ w.ctx.SpreadsheetApp.flush=()=>{w.props.THU_TUAN_ENABLED='false';};
+ w.zaloLog.getRange=(...args)=>{const range=getRange(...args);return {...range,setValues(values){
+  if(values[0][6]==='FAILED')throw Error('private log failure');range.setValues(values);
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.reason,'PRE_SEND_LOG_UNCONFIRMED');
+ assert.equal(r.attempted,0);assert.equal(r.confirmed,0);assert.equal(w.zaloEntries()[0].TrangThai,'SENDING');assert.equal(w.sendRequests.length,0);
+ w.props.THU_TUAN_ENABLED='true';assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,0);
+});
+
+test('a known non-send before a later SENT cannot replay multipart content out of order',()=>{
+ for(const state of ['FAILED','PENDING']){
+  const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});w.ctx.guiThuTuan();w.zaloLog.data[1][6]=state;
+  assert.equal(w.ctx.guiThuTuan().status,'DUPLICATE_OR_INVALID_LOG');assert.equal(w.sendRequests.length,3);
+ }
+});
+
+test('a guard blocking part two preserves part one and a later manual run resumes only unsent parts',()=>{
+ const w=zaloWorld({contentOverrides:{PhanTich:'x'.repeat(4000)}});
+ w.ctx.SpreadsheetApp.flush=()=>{if(w.zaloEntries().some(e=>e.Part===2&&e.TrangThai==='SENDING'))w.props.THU_TUAN_ENABLED='false';};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'ZALO_PRE_SEND_BLOCKED');assert.equal(r.sent,1);
+ assert.equal(r.attempted,1);assert.equal(r.confirmed,1);assert.equal(r.unknown,0);
+ w.ctx.SpreadsheetApp.flush=()=>{};w.props.THU_TUAN_ENABLED='true';
+ const resumed=w.ctx.guiThuTuan();assert.equal(resumed.status,'COMPLETE');assert.equal(resumed.alreadySent,1);assert.equal(resumed.sent,2);
+ assert.equal(w.sendRequests.length,3);assert.equal(w.sendRequests.filter(x=>x.payload.text===w.sendRequests[0].payload.text).length,1);
+});
+
+test('an unexpected error after API receipt remains held and keeps the receipt count',()=>{
+ const w=zaloWorld(),adapter=w.ctx.thuTuanZaloAdapter_;
+ w.ctx.thuTuanZaloAdapter_=cfg=>{const io=adapter(cfg),now=io.now;return {...io,now(){
+  if(w.sendRequests.length)throw Error('private clock failure');return now();
+ }};};
+ const r=w.ctx.guiThuTuan();assert.equal(r.status,'RECONCILIATION_REQUIRED');assert.equal(r.sent,0);
+ assert.equal(r.attempted,1);assert.equal(r.confirmed,1);assert.equal(r.unknown,1);assert.equal(w.zaloEntries()[0].TrangThai,'SENDING');
+ w.ctx.thuTuanZaloAdapter_=adapter;
+ assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.sendRequests.length,1);
+});
+
+test('configuration retains only active Zalo credentials and required isolation pins',()=>{
+ for(const env of ['TEST','PROD']){
+  const w=zaloWorld({env}),inactive=env==='TEST'?'PROD':'TEST';
+  w.props.UNRELATED_SECRET='unrelated-secret';w.props['THU_TUAN_ZALO_'+inactive+'_BOT_TOKEN']='inactive-secret';
+  w.props['THU_TUAN_ZALO_'+inactive+'_CHAT_ID']='inactive-chat';w.props.THU_TUAN_ZALO_TEST_ACCEPTANCE_PREVIEW='unrelated-seal';
+  const cfg=w.ctx.thuTuanConfig_(),p=cfg.zaloProperties;
+  assert.equal(p['THU_TUAN_ZALO_'+env+'_BOT_TOKEN'],'synthetic-token-'+env);
+  assert.equal(p['THU_TUAN_ZALO_'+inactive+'_SCRIPT_ID'],'script-'+inactive);
+  for(const key of ['UNRELATED_SECRET','THU_TUAN_APPROVAL_SECRET','THU_TUAN_ZALO_TEST_ACCEPTANCE_PREVIEW','THU_TUAN_ZALO_'+inactive+'_BOT_TOKEN','THU_TUAN_ZALO_'+inactive+'_CHAT_ID'])assert.equal(p[key],undefined);
+  w.props.THU_TUAN_TRANSPORT='GMAIL';assert.equal(Object.keys(w.ctx.thuTuanConfig_().zaloProperties).length,0);
+ }
+});
+test('a Zalo SENT log whose week was coerced to Date still prevents sending again',()=>{
+ const w=zaloWorld();w.ctx.guiThuTuan();w.zaloLog.data[1][1]=new Date('2026-09-21T00:00:00+07:00');
+ assert.equal(w.ctx.guiThuTuan().alreadySent,1);assert.equal(w.sendRequests.length,1);
+});
+test('Zalo headers and missing approval key fail closed without any fetch',()=>{
+ const w=zaloWorld();w.zaloLog.data[0].push('unexpected');assert.equal(w.ctx.guiThuTuan().reason,'INVALID_HEADERS');assert.equal(w.requests.length,0);
+ const x=zaloWorld();delete x.props.THU_TUAN_APPROVAL_SECRET;assert.equal(x.ctx.guiThuTuan().reason,'MISSING_APPROVAL_SECRET');assert.equal(x.requests.length,0);
+});
+
+// ---------- Manual TEST diagnostics and explicitly paired TEST target capture ----------
+function diagnosticSessionMarker(w){
+ return JSON.parse(w.logs.findLast(x=>JSON.parse(x).status==='TEST_RECEIVE_READY')).marker;
+}
+function diagnosticWorld(response){
+ const w=zaloWorld({enabled:false});
+ for(const field of ['CHAT_ID','CHAT_SHA256','GROUP_CONFIRMED'])delete w.props['THU_TUAN_ZALO_TEST_'+field];
+ w.requests=[];
+ w.ctx.UrlFetchApp={fetch(url,options){
+  const host=new URL(url).origin,method=url.split('/').at(-1);
+  w.requests.push({host,method,options});
+  const standard=method==='getMe'?{ok:true,result:{id:'bot-TEST',account_name:'bot.POyBVXga',display_name:'Bot Mô hình học tập lời Bác',can_join_groups:true}}:
+   method==='getWebhookInfo'?{ok:false,error_code:404}:{ok:false,error_code:408};
+  const value=response?response({w,host,method,standard}):standard;
+  if(value instanceof Error)throw value;
+  return {getResponseCode:()=>value?.http??200,getContentText:()=>typeof value==='string'?value:JSON.stringify(value)};
+ }};
+ w.ctx.MailApp=noIO;
+ w.pinWrites=[];
+ const originalProperties=w.ctx.PropertiesService.getScriptProperties;
+ w.ctx.PropertiesService.getScriptProperties=()=>({...originalProperties(),setProperties(values,deleteAllOthers){
+  assert.equal(deleteAllOthers,false);assert.deepEqual(Object.keys(values).sort(),['THU_TUAN_ZALO_TEST_CHAT_ID','THU_TUAN_ZALO_TEST_CHAT_SHA256']);
+  w.pinWrites.push({...values});
+  if(w.pinWriteHook)w.pinWriteHook(values);else Object.assign(w.props,values);
+ }});
+ w.propsBefore=JSON.stringify(w.props);
+ return w;
+}
+test('TEST diagnosis compares both official hosts without requiring target or changing cloud state',()=>{
+ const w=diagnosticWorld(),r=w.ctx.chanDoanZaloThuTuan();
+ assert.equal(r.status,'TEST_DIAGNOSTIC');assert.equal(r.hosts.length,2);
+ assert.deepEqual(w.requests.map(x=>x.method),['getMe','getWebhookInfo','getMe','getWebhookInfo']);
+ assert.deepEqual(w.requests.map(x=>x.host),['https://bot-api.zaloplatforms.com','https://bot-api.zaloplatforms.com','https://bot-api.zapps.me','https://bot-api.zapps.me']);
+ assert.ok(r.hosts.every(x=>x.getMe.botMatches&&x.getMe.canJoinGroups));
+ assert.ok(r.hosts.every(x=>x.getWebhookInfo.apiCode===404&&x.getWebhookInfo.webhookUrlPresent===null));
+ assert.equal(JSON.stringify(w.props),w.propsBefore);assert.equal(w.zaloLog.data.length,1);
+ for(const x of w.requests){assert.equal(x.options.followRedirects,false);assert.equal(x.options.validateHttpsCertificates,true);assert.equal(x.options.method,'post');}
+});
+test('diagnostic false flags, missing pins, script and Sheet swaps prevent every request',()=>{
+ for(const [key,value] of [
+  ['THU_TUAN_ENABLED','true'],['THU_TUAN_ENABLED',' false '],['THU_TUAN_ENABLED',undefined],
+  ['THU_TUAN_TEST_MODE','false'],['THU_TUAN_TEST_MODE',' true '],['THU_TUAN_TRANSPORT','GMAIL'],['THU_TUAN_ZALO_ENV','PROD'],
+  ['THU_TUAN_ZALO_TEST_SCRIPT_ID','script-PROD'],['THU_TUAN_ZALO_TEST_BOT_ID',123],['THU_TUAN_ZALO_TEST_BOT_ID',' bot-TEST'],
+  ['THU_TUAN_ZALO_TEST_CONTENT_SHEET_ID','other-sheet'],['THU_TUAN_ZALO_TEST_PRIVATE_SHEET_ID',undefined],
+  ['THU_TUAN_ZALO_TEST_BOT_TOKEN','bad/token?secret']
+ ]){
+  const w=diagnosticWorld();w.props[key]=value;
+  assert.equal(w.ctx.chanDoanZaloThuTuan().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(w.requests.length,0);
+  assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(w.requests.length,0);
+ }
+ const w=diagnosticWorld();w.ctx.ScriptApp.getScriptId=()=> 'script-PROD';
+ assert.equal(w.ctx.chanDoanZaloThuTuan().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(w.requests.length,0);
+});
+test('diagnostics reject trigger events and lock collision without API calls',()=>{
+ const w=diagnosticWorld();assert.equal(w.ctx.chanDoanZaloThuTuan({triggerUid:'synthetic'}).status,'TEST_DIAGNOSTIC_MANUAL_ONLY');
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest({triggerUid:'synthetic'}).status,'TEST_DIAGNOSTIC_MANUAL_ONLY');
+ w.ctx.LockService={getScriptLock:()=>({tryLock:()=>false,releaseLock(){throw Error('not owned');}})};
+ assert.equal(w.ctx.chanDoanZaloThuTuan().status,'BUSY');assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'BUSY');assert.equal(w.requests.length,0);
+});
+test('wrong Bot or malformed getMe never permits webhook lookup or receiving',()=>{
+ for(const body of [{ok:true,result:{id:123}},{ok:true,result:{id:'bot-PROD'}},{ok:'true',result:{id:'bot-TEST'}},{ok:true,result:[]}]){
+  const w=diagnosticWorld(()=>body);w.ctx.chanDoanZaloThuTuan();assert.equal(w.requests.length,2);assert.ok(w.requests.every(x=>x.method==='getMe'));
+  w.requests=[];assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_PREFLIGHT_BLOCKED');assert.equal(w.requests.length,1);
+ }
+});
+test('diagnostic host, method and payload allowlists prevent sends, webhook changes and URL injection',()=>{
+ const w=diagnosticWorld(),cfg=w.ctx.thuTuanZaloDiagnosticConfig_();
+ for(const [host,method,payload] of [
+  ['https://evil.example.test','getMe',{}],['http://bot-api.zapps.me','getMe',{}],
+  ['https://bot-api.zapps.me','sendMessage',{}],['https://bot-api.zapps.me','deleteWebhook',{}],
+  ['https://bot-api.zapps.me','setWebhook',{}],['https://bot-api.zapps.me','getMe',{token:'leak'}],
+  ['https://bot-api.zapps.me','getUpdates',{timeout:'300'}]
+ ])assert.throws(()=>w.ctx.thuTuanZaloDiagnosticRequest_(cfg,host,method,payload),/TEST_DIAGNOSTIC_METHOD_DENIED/);
+ assert.equal(w.requests.length,0);
+});
+test('config changes are rechecked before each diagnostic request and stop receiving',()=>{
+ const w=diagnosticWorld(({w,standard})=>{w.props.THU_TUAN_ENABLED='true';return standard;});
+ assert.equal(w.ctx.chanDoanZaloThuTuan().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(w.requests.length,1);
+ const x=diagnosticWorld(({w,method,standard})=>{if(method==='getUpdates')w.props.THU_TUAN_ZALO_TEST_BOT_TOKEN='changed-token';return standard;});
+ assert.equal(x.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(x.requests.filter(r=>r.method==='getUpdates').length,1);
+});
+test('redirects, invalid JSON and raw errors remain safe diagnostic summaries',()=>{
+ const sensitive='PRIVATE_ERROR synthetic-token-TEST synthetic-chat-TEST https://private.example.test/?token=raw';
+ for(const failure of [new Error(sensitive),sensitive,{http:302,ok:true,result:{id:'bot-TEST'}},{ok:false,error_code:404,description:sensitive,result:{url:sensitive}}]){
+  const w=diagnosticWorld(()=>failure),r=w.ctx.chanDoanZaloThuTuan(),stored=JSON.stringify([r,w.logs]);
+  for(const forbidden of ['PRIVATE_ERROR','synthetic-token-TEST','synthetic-chat-TEST','private.example.test','token=raw'])assert.equal(stored.includes(forbidden),false);
+  assert.ok(w.requests.every(x=>x.method==='getMe'));
+ }
+});
+test('confirmed webhook URL prevents polling without returning the URL',()=>{
+ const url='https://private.example.test/hook/secret';
+ const w=diagnosticWorld(({method,standard})=>method==='getWebhookInfo'?{ok:true,result:{url}}:standard);
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_WEBHOOK_PRESENT');
+ assert.equal(r.getWebhookInfo.webhookUrlPresent,true);assert.equal(w.requests.length,2);assert.equal(JSON.stringify([r,w.logs]).includes(url),false);
+});
+test('bounded TEST receiving uses only SDK host, four string timeout requests and safe READY evidence',()=>{
+ const w=diagnosticWorld(),r=w.ctx.nhanSuKienZaloThuTuanTest();
+ assert.equal(r.status,'TEST_RECEIVE_NO_VERIFIED_GROUP_MARKER');assert.equal(r.polls.length,4);
+ assert.ok(w.requests.every(x=>x.host==='https://bot-api.zapps.me'));
+ assert.ok(w.requests.filter(x=>x.method==='getUpdates').every(x=>x.options.payload==='{"timeout":"30"}'));
+ assert.ok(w.logs.some(x=>JSON.parse(x).status==='TEST_RECEIVE_READY'));assert.equal(JSON.stringify(w.props),w.propsBefore);
+});
+test('diagnostic singular GROUP event requires the marker, string ID and current timestamp; PRIVATE is never a group',()=>{
+ const start=Date.parse('2026-10-01T03:00:00Z'),now=start+10000;
+ const w=diagnosticWorld(),marker='THU_TUAN_ZALO_TEST_'+'a'.repeat(64);
+ const event=(chatType='GROUP',text=marker,date=start,id='synthetic-chat-TEST')=>({summary:{ok:true,resultKind:'OBJECT',httpStatus:200},result:{event_name:'message.text.received',message:{chat:{chat_type:chatType,id},text,date}}});
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now,marker).verifiedGroupMarker,true);
+ for(const e of [event('PRIVATE'),event('GROUP','wrong-marker'),event('GROUP',marker,start-1),event('GROUP',marker,now+1),event('GROUP',marker,String(start)),event('GROUP',marker,start/1000),event('GROUP',marker,start,123),event('GROUP',marker,start,'bad id')])
+  assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(e,start,now,marker).verifiedGroupMarker,false);
+ const array={summary:{ok:true,resultKind:'ARRAY'},result:[event().result]};assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(array,start,now,marker).chatType,'UNKNOWN');
+ assert.equal(JSON.stringify(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now,marker)).includes('synthetic-chat'),false);
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event(),start,now).verifiedGroupMarker,false);
+});
+test('fresh GROUP marker pins only the verified TEST target pair and leaves membership unconfirmed',()=>{
+ const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w):standard);
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');assert.equal(r.polls.length,1);
+ assert.equal(w.pinWrites.length,1);assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_ID,'synthetic-chat-TEST');
+ assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_SHA256,crypto.createHash('sha256').update('synthetic-chat-TEST').digest('hex'));
+ assert.equal(w.props.THU_TUAN_ZALO_TEST_GROUP_CONFIRMED,undefined);
+ const preserved={...w.props};delete preserved.THU_TUAN_ZALO_TEST_CHAT_ID;delete preserved.THU_TUAN_ZALO_TEST_CHAT_SHA256;
+ assert.equal(JSON.stringify(preserved),w.propsBefore);assert.equal(JSON.stringify([r,w.logs]).includes('synthetic-chat-TEST'),false);
+ assert.equal(w.ctx.kiemTraZaloThuTuan().reason,'ZALO_GROUP_CONFIRMATION_REQUIRED');
+});
+test('diagnostic Sheets metadata verifies both logs and approval without exposing text or writing',()=>{
+ const w=diagnosticWorld(),before=JSON.stringify(Object.values(w.sheets).map(x=>[x.data,x.formatCalls]));
+ const r=w.ctx.chanDoanZaloThuTuan();
+ assert.equal(r.sheets.status,'TEST_DIAGNOSTIC_SHEETS_VERIFIED');assert.equal(r.sheets.zaloHeaders,16);assert.equal(r.sheets.gmailHeaders,9);
+ assert.equal(r.sheets.zaloRows,0);assert.equal(r.sheets.gmailRows,0);assert.equal(r.sheets.currentContentRows,1);assert.equal(r.sheets.approvalProblem,'OK');
+ assert.ok(r.sheets.partLengths.length>=1&&r.sheets.partLengths.every(n=>Number.isInteger(n)&&n<=1800));
+ assert.equal(JSON.stringify(Object.values(w.sheets).map(x=>[x.data,x.formatCalls])),before);
+ const safe=JSON.stringify([r,w.logs]);for(const hidden of [SECRET,REVIEWER,'Fixture','content-id','private-id','bot-TEST'])assert.equal(safe.includes(hidden),false);
+ const x=diagnosticWorld();x.zaloLog.data[0].push('invalid');assert.equal(x.ctx.chanDoanZaloThuTuan().sheets.status,'TEST_DIAGNOSTIC_IO_BLOCKED');
+});
+test('bounded receiving stops on network failure and at its elapsed-time limit',()=>{
+ const w=diagnosticWorld(({method,standard})=>method==='getUpdates'?new Error('secret network exception'):standard);
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().polls.length,1);
+ const x=diagnosticWorld(({w,method,standard})=>{if(method==='getUpdates')w.setNow('2026-09-21T01:02:01Z');return standard;});
+ assert.equal(x.ctx.nhanSuKienZaloThuTuanTest().polls.length,1);
+});
+function diagnosticGroupEvent(w,overrides={}){
+ const chat={chat_type:'GROUP',id:'synthetic-chat-TEST',...(overrides.chat||{})};
+ return {ok:true,result:{event_name:'message.text.received',message:{chat,text:diagnosticSessionMarker(w),date:w.ctx.Date.now(),...overrides,chat}}};
+}
+test('paired receiver permits surrounding mentions but rejects duplicate or embedded marker tokens',()=>{
+ for(const makeText of [m=>m+' '+m,m=>'prefix'+m,m=>m+'suffix',m=>m+' prefix'+m]){
+  const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:makeText(diagnosticSessionMarker(w))}):standard);
+  const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.polls.length,4);assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ }
+ const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,{text:'@Bot '+diagnosticSessionMarker(w)+' xin chào'}):standard);
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_GROUP_TARGET_PINNED');assert.equal(w.pinWrites.length,1);
+});
+test('PRIVATE, stale and wrong-marker events cannot pin; valid unmatched events allow the later paired marker',()=>{
+ for(const override of [w=>({chat:{chat_type:'PRIVATE'}}),w=>({date:w.ctx.Date.now()-1}),w=>({text:'unmatched'})]){
+  const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,override(w)):standard);
+  assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().polls.length,4);assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ }
+ let count=0;const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w,++count===1?{text:'previous event'}:{}):standard);
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_GROUP_TARGET_PINNED');assert.equal(count,2);assert.equal(w.pinWrites.length,1);
+});
+test('malformed successful events stop the paired receiver without target writes',()=>{
+ const w=diagnosticWorld(({method,standard})=>method==='getUpdates'?{ok:true,result:{message:{chat:{chat_type:'GROUP',id:123}}}}:standard);
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_MALFORMED_EVENT');assert.equal(r.polls.length,1);assert.equal(w.pinWrites.length,0);
+});
+test('paired receiver refuses existing conflicting ID or hash and never replaces them',()=>{
+ for(const [key,value] of [['THU_TUAN_ZALO_TEST_CHAT_ID','previous-verified-group'],['THU_TUAN_ZALO_TEST_CHAT_SHA256','0'.repeat(64)]]){
+  const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w):standard);
+  w.props[key]=value;const before=JSON.stringify(w.props),r=w.ctx.nhanSuKienZaloThuTuanTest();
+  assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PIN_BLOCKED');assert.equal(r.pin.status,'TEST_TARGET_PIN_CONFLICT');
+  assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),before);
+ }
+});
+test('paired receiver verifies readback and reports uncertainty without fabricating or retrying a target',()=>{
+ const w=diagnosticWorld(({w,method,standard})=>method==='getUpdates'?diagnosticGroupEvent(w):standard);
+ w.pinWriteHook=values=>{w.props.THU_TUAN_ZALO_TEST_CHAT_ID=values.THU_TUAN_ZALO_TEST_CHAT_ID;};
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PIN_BLOCKED');assert.equal(r.pin.status,'TEST_TARGET_PIN_UNCONFIRMED');
+ assert.equal(w.pinWrites.length,1);assert.equal(r.polls.length,1);assert.equal(w.props.THU_TUAN_ZALO_TEST_GROUP_CONFIRMED,undefined);
+ assert.equal(JSON.stringify([r,w.logs]).includes('synthetic-chat-TEST'),false);
+});
+test('configuration changes during marker arrival prevent any pin write',()=>{
+ const w=diagnosticWorld(({w,method,standard})=>{
+  if(method!=='getUpdates')return standard;
+  const body=diagnosticGroupEvent(w);w.props.THU_TUAN_ENABLED='true';return body;
+ });
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PIN_BLOCKED');assert.equal(w.pinWrites.length,0);
+ assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_ID,undefined);assert.equal(w.props.THU_TUAN_ZALO_TEST_CHAT_SHA256,undefined);
+});
+test('GAS diagnostic failure categories use only fixed signatures and never expose sensitive error text',()=>{
+ const sensitive=' synthetic-token-TEST synthetic-chat-TEST https://private.example.test/?token=secret PRIVATE_ERROR';
+ for(const [message,category] of [
+  ['You do not have permission to call UrlFetchApp.fetch. Required permissions: script.external_request','AUTHORIZATION'],
+  ['Specified permissions are not sufficient to call UrlFetchApp.fetch. Required permissions: script.external_request','AUTHORIZATION'],
+  ['Exception: Authorization is required to perform that action.','AUTHORIZATION'],
+  ['SSL Error:','TLS_CERTIFICATE'],['Address unavailable:','DNS_ADDRESS'],['The request timed out','NETWORK_TIMEOUT'],
+  ['Service invoked too many times for one day: urlfetch.','QUOTA'],['Invalid argument: contentType','INVALID_ARGUMENT'],
+  ['Unexpected transport failure','FETCH_UNCLASSIFIED'],['private payload contains timeout DNS SSL authorization','FETCH_UNCLASSIFIED']
+ ]){
+  const w=diagnosticWorld(()=>new Error(message+sensitive)),r=w.ctx.chanDoanZaloThuTuan();
+  assert.ok(r.hosts.every(x=>x.getMe.phase==='FETCH'&&x.getMe.errorCategory===category&&x.getMe.httpStatus===null));
+  assert.ok(r.hosts.every(x=>Number.isInteger(x.getMe.elapsedMs)&&x.getMe.elapsedMs>=0));
+  const safe=JSON.stringify([r,w.logs]);for(const hidden of ['synthetic-token-TEST','synthetic-chat-TEST','private.example.test','PRIVATE_ERROR','script.external_request'])assert.equal(safe.includes(hidden),false);
+  assert.equal(w.pinWrites.length,0);
+ }
+});
+test('GAS diagnostics distinguish fetch, response reads, HTTP responses, malformed JSON and API errors',()=>{
+ for(const [body,phase,category,httpStatus] of [
+  [new Error('unexpected private failure'),'FETCH','FETCH_UNCLASSIFIED',null],
+  ['invalid private JSON','JSON_PARSE','JSON_INVALID',200],
+  [{http:302},'HTTP_STATUS',null,302],
+  [{http:500},'HTTP_STATUS',null,500],
+  [{ok:false,error_code:408},'COMPLETE',null,200]
+ ]){
+  const w=diagnosticWorld(()=>body),r=w.ctx.chanDoanZaloThuTuan();
+  assert.ok(r.hosts.every(x=>x.getMe.phase===phase&&x.getMe.errorCategory===category&&x.getMe.httpStatus===httpStatus));
+ }
+ for(const failurePhase of ['HTTP_STATUS','RESPONSE_BODY']){
+  const w=diagnosticWorld();w.ctx.UrlFetchApp.fetch=()=>({
+   getResponseCode(){if(failurePhase==='HTTP_STATUS')throw Error('secret status error');return 200;},
+   getContentText(){throw Error('secret response error');}
+  });
+  const r=w.ctx.chanDoanZaloThuTuan();assert.ok(r.hosts.every(x=>x.getMe.phase===failurePhase&&x.getMe.errorCategory==='RESPONSE_UNREADABLE'));
+  assert.equal(JSON.stringify([r,w.logs]).includes('secret'),false);
+ }
+});
+test('manual TEST scope helper requests only external_request and logs success after grant',()=>{
+ const w=diagnosticWorld(),calls=[];
+ w.ctx.ScriptApp.AuthMode={FULL:'FULL'};w.ctx.ScriptApp.requireScopes=(mode,scopes)=>calls.push({mode,scopes:[...scopes]});
+ w.ctx.UrlFetchApp=noIO;
+ const r=w.ctx.capQuyenZaloThuTuanTest();assert.equal(r.status,'TEST_EXTERNAL_REQUEST_SCOPE_GRANTED');
+ assert.deepEqual(calls,[{mode:'FULL',scopes:['https://www.googleapis.com/auth/script.external_request']}]);
+ assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ assert.equal(w.logs.at(-1),JSON.stringify(r));
+});
+test('TEST scope helper rejects trigger and isolation failures before requesting consent',()=>{
+ for(const mutate of [w=>w.props.THU_TUAN_ENABLED='true',w=>w.props.THU_TUAN_ZALO_ENV='PROD',w=>w.props.THU_TUAN_TEST_MODE='false',w=>w.ctx.ScriptApp.getScriptId=()=> 'script-PROD']){
+  const w=diagnosticWorld();w.ctx.ScriptApp.requireScopes=()=>{throw Error('scope method must not be called');};mutate(w);
+  assert.equal(w.ctx.capQuyenZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(w.logs.length,1); // only fixture approval log
+  assert.equal(w.pinWrites.length,0);assert.equal(w.requests.length,0);
+ }
+ const w=diagnosticWorld();w.ctx.ScriptApp.requireScopes=()=>{throw Error('scope method must not be called');};
+ assert.equal(w.ctx.capQuyenZaloThuTuanTest({triggerUid:'synthetic'}).status,'TEST_DIAGNOSTIC_MANUAL_ONLY');
+});
+test('TEST scope helper does not claim grant or suppress the native consent termination',()=>{
+ const w=diagnosticWorld(),before=w.logs.length;
+ w.ctx.ScriptApp.AuthMode={FULL:'FULL'};w.ctx.ScriptApp.requireScopes=()=>{throw Error('NATIVE_CONSENT_TERMINATION');};
+ assert.throws(()=>w.ctx.capQuyenZaloThuTuanTest(),/NATIVE_CONSENT_TERMINATION/);
+ assert.equal(w.logs.length,before);assert.equal(w.pinWrites.length,0);assert.equal(w.requests.length,0);
+});
+
+test('every receiver session uses a fresh challenge and a previous challenge cannot pin even with a fresh timestamp',()=>{
+ let previous='',updates=0;
+ const w=diagnosticWorld(({w,method,standard})=>{
+  if(method!=='getUpdates'||!previous)return standard;
+  return diagnosticGroupEvent(w,++updates===1?{text:previous}:{});
+ });
+ const nonces=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'];
+ w.ctx.Utilities={...w.ctx.Utilities,getUuid:()=>nonces.shift()};
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_NO_VERIFIED_GROUP_MARKER');
+ previous=diagnosticSessionMarker(w);assert.equal(w.pinWrites.length,0);
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.notEqual(diagnosticSessionMarker(w),previous);
+ assert.equal(r.polls[0].timestampInWindow,true);assert.equal(r.polls[0].markerMatched,false);
+ assert.equal(r.polls[1].verifiedGroupMarker,true);assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');
+ assert.equal(updates,2);assert.equal(w.pinWrites.length,1);
+});
+
+test('public receiver challenge is an opaque domain-separated HMAC and never reveals its nonce or secrets',()=>{
+ const w=diagnosticWorld(),nonce='11111111-1111-4111-8111-111111111111';
+ w.ctx.Utilities={...w.ctx.Utilities,getUuid:()=>nonce};
+ const now=w.ctx.Date.now(),r=w.ctx.nhanSuKienZaloThuTuanTest(),marker=diagnosticSessionMarker(w);
+ assert.match(marker,/^THU_TUAN_ZALO_TEST_[0-9a-f]{64}$/);
+ assert.equal(marker,'THU_TUAN_ZALO_TEST_'+crypto.createHmac('sha256',SECRET).update('THU_TUAN_ZALO_TEST_CHALLENGE\n'+nonce+'\n'+now).digest('hex'));
+ const safe=JSON.stringify([r,w.logs]);
+ for(const hidden of [SECRET,nonce,'synthetic-token-TEST','synthetic-chat-TEST','content-id','private-id','bot-TEST'])assert.equal(safe.includes(hidden),false);
+ assert.equal(JSON.stringify(r).includes(marker),false);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ const x=diagnosticWorld();x.ctx.Utilities={...x.ctx.Utilities,getUuid:()=>undefined};
+ assert.equal(x.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');
+ assert.equal(x.requests.filter(item=>item.method==='getUpdates').length,0);assert.equal(x.pinWrites.length,0);
+ assert.equal(x.logs.some(log=>JSON.parse(log).status==='TEST_RECEIVE_READY'),false);
+});
+
+test('diagnostics use the pinned Bot ID even when display name and account name change',()=>{
+ const renamed='RENAMED_DISPLAY_PRIVATE',account='RENAMED_ACCOUNT_PRIVATE';
+ const w=diagnosticWorld(({w,method,standard})=>method==='getMe'?{ok:true,result:{id:'bot-TEST',display_name:renamed,account_name:account,can_join_groups:true}}:
+  method==='getUpdates'?diagnosticGroupEvent(w):standard);
+ const initial=w.ctx.chanDoanZaloThuTuan();assert.ok(initial.hosts.every(host=>host.getMe.botMatches));
+ const r=w.ctx.nhanSuKienZaloThuTuanTest();assert.equal(r.status,'TEST_RECEIVE_GROUP_TARGET_PINNED');
+ assert.equal(w.pinWrites.length,1);const safe=JSON.stringify([initial,r,w.logs]);
+ for(const hidden of [renamed,account,'accountMatches','displayNameMatches'])assert.equal(safe.includes(hidden),false);
+});
+
+test('diagnostic Gmail counterpart log is optional while an existing malformed schema still blocks',()=>{
+ const w=diagnosticWorld();delete w.sheets['private-id|ThuTuan_NhatKyGui'];
+ const before=JSON.stringify(w.sheets),r=w.ctx.chanDoanZaloThuTuan();
+ assert.equal(r.sheets.status,'TEST_DIAGNOSTIC_SHEETS_VERIFIED');assert.equal(r.sheets.gmailPresent,false);
+ assert.equal(r.sheets.gmailHeaders,null);assert.equal(r.sheets.gmailRows,0);assert.equal(r.sheets.gmailCurrentWeekRows,0);
+ assert.equal(r.sheets.zaloHeaders,16);assert.equal(r.sheets.approvalProblem,'OK');assert.equal(JSON.stringify(w.sheets),before);
+ const x=diagnosticWorld();x.sheets['private-id|ThuTuan_NhatKyGui'].data[0][0]='bad-header';
+ assert.equal(x.ctx.chanDoanZaloThuTuan().sheets.status,'TEST_DIAGNOSTIC_IO_BLOCKED');assert.equal(x.pinWrites.length,0);
 });
