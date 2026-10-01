@@ -1,0 +1,38 @@
+name: Thu tuan
+
+# No `paths` filter: this job may become a required check, and a skipped required check blocks merging.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  thu-tuan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Node cannot `--check` a .gs extension; parse each Apps Script file as a V8 script instead.
+      - name: Syntax check Apps Script files
+        run: |
+          node -e '
+          const fs = require("fs"), vm = require("vm"), { execFileSync } = require("child_process");
+          const files = execFileSync("git", ["ls-files", "*.gs"], { encoding: "utf8" }).split("\n").filter(Boolean);
+          if (!files.length) throw new Error("No .gs files found");
+          for (const file of files) {
+            new vm.Script(fs.readFileSync(file, "utf8"), { filename: file });
+            console.log("OK " + file);
+          }
+          '
+
+      - name: Thu tuan tests
+        run: node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs

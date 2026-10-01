@@ -546,10 +546,23 @@ function thuTuanExecute_(dryRun) {
 
 /** Không gửi, không ghi: báo kỳ, mã lời dạy, lý do chặn (nếu có) và số người sẽ nhận. */
 function xemTruocThuTuan() { return thuTuanExecute_(true); }
+// A trigger run stays quiet only for a finished week (including alreadySent dedupe) or the deliberate kill switch.
+var THU_TUAN_TRIGGER_QUIET_STATUSES_ = ['COMPLETE','DISABLED'];
+
+/** Manual runs return as before. A trigger run surfaces every other status as a failed execution. */
+function thuTuanTriggerResult_(event, result) {
+  var status = result && result.status;
+  if (!event || THU_TUAN_TRIGGER_QUIET_STATUSES_.indexOf(status) >= 0) return result;
+  var code = typeof status === 'string' && /^[A-Z0-9_]{1,64}$/.test(status) ? status : 'UNRECOGNIZED';
+  // Runner has already logged its safe counts and released the lock; the error carries only a fixed code.
+  Logger.log(JSON.stringify({ status:'THU_TUAN_TRIGGER_ATTENTION', operationStatus:code }));
+  throw new Error('THU_TUAN_TRIGGER_ATTENTION:' + code);
+}
+
 /** Chỉ gửi khi THU_TUAN_ENABLED=true và nội dung kỳ này đã được duyệt hợp lệ. */
 function guiThuTuan(event) {
-  if (event && thuTuanConfig_().testMode) return { status:'TEST_MODE_MANUAL_ONLY', sent:0 };
-  return thuTuanExecute_(false);
+  if (event && thuTuanConfig_().testMode) return thuTuanTriggerResult_(event, { status:'TEST_MODE_MANUAL_ONLY', sent:0 });
+  return thuTuanTriggerResult_(event, thuTuanExecute_(false));
 }
 
 /** Run manually by an authorized reviewer with the actual week key, after source verification. */

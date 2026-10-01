@@ -1,5 +1,13 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
+
+- `ZaloDiagnostics.gs`: core receiver dùng chung `thuTuanZaloDiagnosticConfigFor_(env)`/`thuTuanZaloDiagnosticRun_(event,receive,env)`. Env do entrypoint cố định: `nhanSuKienZaloThuTuanTest`→TEST, `nhanSuKienZaloThuTuanProd`→PROD; `THU_TUAN_ZALO_ENV` chỉ phải khớp. PROD yêu cầu ENABLED=false, TEST_MODE=false, ZALO, ENV=PROD, pin script/hai Sheet/Bot PROD, không trùng project/Bot/Sheet TEST. Chẩn đoán host đọc (`chanDoanZaloThuTuan`) và helper scope vẫn TEST-only.
+- Marker theo domain môi trường `THU_TUAN_ZALO_<ENV>_CHALLENGE`; pin chỉ ghi cặp `<ENV>_CHAT_ID/CHAT_SHA256`. Nếu `<ENV>_GROUP_CONFIRMED` tồn tại (bất kỳ giá trị) thì từ chối trước mọi API call và recheck ngay trước ghi. Thứ tự vận hành: xóa xác nhận → pin → con người kiểm tra → GROUP_CONFIRMED=true.
+- `ZaloTransport.gs` thêm `kiemTraSanSangZaloProduction()` chỉ đọc: kiểm property/pin, `thuTuanZaloConfig_`, getMe qua `thuTuanZaloPreflight_`, preview qua `thuTuanExecute_(true)` (core tự lock), quét SENDING/UNKNOWN/trạng thái lạ toàn lịch sử hai log, đếm trigger của tài khoản chạy. Trả `READY_FOR_PRODUCTION_PILOT` hoặc `NOT_READY` + mã ngắn; không ID/token/hash/nội dung.
+- `Code.gs`: `guiThuTuan(event)` qua `thuTuanTriggerResult_`; chạy từ trigger mà status khác COMPLETE/DISABLED thì throw `THU_TUAN_TRIGGER_ATTENTION:<STATUS>` sau khi runner đã log và nhả lock. Chạy tay không đổi.
+- CI `.github/workflows/thu-tuan.yml`: PR/push `main`, Node 22, parse mọi `.gs` bằng `vm.Script`, chạy hai file test Thư tuần. Không thay đổi schema Sheets, renderer, kiến trúc Gmail hoặc API frontend/backend.
+
 ## Sau review PR #12 — state gửi và cấu hình (01/10/2026)
 
 - Core runner giữ tiến độ Zalo tại boundary: sent là SENT đã ghi bền vững, attempted là lần gọi send, confirmed là receipt hợp lệ trong lượt hiện tại. Lỗi loop I/O không mất số phần trước; lỗi sau send vẫn giữ đối soát. Gmail giữ behavior cũ, không API/schema mới.

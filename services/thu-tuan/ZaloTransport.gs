@@ -191,3 +191,93 @@ function kiemTraZaloThuTuan() {
   Logger.log(JSON.stringify(result));
   return result;
 }
+
+/** Whole-history state counts of both delivery logs. Unresolved rows of any week block a pilot. */
+function thuTuanZaloReadinessLogStates_(privateId) {
+  var counts = { SENDING:0, UNKNOWN:0, OTHER:0 };
+  ['ThuTuan_Zalo_NhatKyGui','ThuTuan_NhatKyGui'].forEach(function(name,i) {
+    // The Zalo log is mandatory; the Gmail counterpart is optional but schema-checked when present.
+    if (i && !SpreadsheetApp.openById(privateId).getSheetByName(name)) return;
+    thuTuanRows_(thuTuanSheet_(privateId,name),name).forEach(function(row) {
+      var state = row.TrangThai;
+      if (state === 'SENDING' || state === 'UNKNOWN') counts[state]++;
+      else if (state !== 'SENT' && state !== 'PENDING' && state !== 'FAILED') counts.OTHER++;
+    });
+  });
+  return counts;
+}
+
+/**
+ * Read-only Production pilot gate, run after content approval with sending still disabled.
+ * Only getMe touches the network; the preview core takes its own lock. Returns codes, booleans and counts only.
+ */
+function kiemTraSanSangZaloProduction() {
+  var failed = [], report = { status:'NOT_READY' };
+  function check(ok, code) { if (!ok) failed.push(code); return ok; }
+  function oneOf(value, allowed) { return value === undefined ? 'MISSING' : allowed.indexOf(value) >= 0 ? value : 'INVALID'; }
+  function count(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
+  function code(value) { var text = thuTuanText_(value); return /^[A-Za-z0-9._-]{1,64}$/.test(text) ? text : (text ? 'UNSAFE_FORMAT' : null); }
+  try {
+    var cfg = thuTuanConfig_(), p = PropertiesService.getScriptProperties().getProperties(), prefix = 'THU_TUAN_ZALO_PROD_';
+    function pin(key) { var v = p[prefix+key]; return typeof v === 'string' && v && v === v.trim() ? v : null; }
+    report.environment = oneOf(p.THU_TUAN_ZALO_ENV,['TEST','PROD']);
+    report.testMode = oneOf(p.THU_TUAN_TEST_MODE,['true','false']);
+    report.enabled = oneOf(p.THU_TUAN_ENABLED,['true','false']);
+    report.transport = oneOf(cfg.transport,['GMAIL','ZALO']);
+    check(report.transport === 'ZALO','TRANSPORT_NOT_ZALO');
+    check(report.environment === 'PROD','ENV_NOT_PROD');
+    check(report.testMode === 'false','TEST_MODE_NOT_FALSE');
+    check(report.enabled === 'false','ENABLED_NOT_FALSE');
+    report.scriptPinned = check(!!pin('SCRIPT_ID') && ScriptApp.getScriptId() === pin('SCRIPT_ID'),'SCRIPT_PIN');
+    report.sheetsPinned = check(!!pin('CONTENT_SHEET_ID') && !!pin('PRIVATE_SHEET_ID') && cfg.contentId !== cfg.privateId &&
+      cfg.contentId === pin('CONTENT_SHEET_ID') && cfg.privateId === pin('PRIVATE_SHEET_ID'),'SHEET_PIN');
+    var chat = p[prefix+'CHAT_ID'], hash = pin('CHAT_SHA256');
+    report.targetPinned = check(typeof chat === 'string' && !!chat && chat.length <= 256 && !/[\s\x00-\x1f\x7f]/.test(chat) &&
+      !!hash && /^[a-f0-9]{64}$/.test(hash) && thuTuanZaloHash_(chat) === hash,'TARGET_PIN');
+    report.groupConfirmed = check(p[prefix+'GROUP_CONFIRMED'] === 'true','GROUP_NOT_CONFIRMED');
+    var zalo = null;
+    if (report.transport === 'ZALO' && report.environment === 'PROD' && report.testMode === 'false') {
+      // Same gate as sending: active pins, token, target hash, membership and TEST/PROD separation.
+      try { zalo = thuTuanZaloConfig_(cfg); report.isolation = 'OK'; }
+      catch (error) { report.isolation = thuTuanZaloSafeReason_(error); }
+    } else report.isolation = 'NOT_CHECKED';
+    check(report.isolation === 'OK','ISOLATION');
+    report.bot = zalo ? thuTuanZaloPreflight_(zalo) : 'NOT_CHECKED';
+    check(report.bot === 'OK','BOT_IDENTITY');
+    report.key = thuTuanWeekKey_(new Date());
+    if (zalo) {
+      var preview = thuTuanExecute_(true);
+      report.preview = code(preview.status) || 'UNRECOGNIZED';
+      report.approval = preview.status === 'PREVIEW' ? 'OK' :
+        preview.status === 'CONTENT_NOT_APPROVED' ? code(preview.reason) || 'NOT_APPROVED' : 'NOT_CONFIRMED';
+      if (typeof preview.key === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(preview.key)) report.key = preview.key;
+      report.maLoiDay = code(preview.maLoiDay);
+      report.phienBan = code(preview.phienBan);
+      report.partCount = count(preview.total);
+      report.pending = count(preview.pending);
+      report.alreadySent = count(preview.alreadySent);
+      report.unknown = count(preview.unknown);
+      check(report.approval === 'OK','CONTENT_NOT_APPROVED');
+      if (check(preview.status === 'PREVIEW' && preview.transport === 'ZALO' && preview.environment === 'PROD','PREVIEW')) {
+        check(report.partCount >= 1 && report.partCount <= 3,'PART_COUNT');
+        check(report.pending > 0,'NO_PENDING');
+        check(report.alreadySent === 0,'ALREADY_SENT');
+        check(report.unknown === 0,'UNKNOWN_CURRENT_WEEK');
+      }
+    } else { report.preview = 'NOT_CHECKED'; report.approval = 'NOT_CHECKED'; failed.push('PREVIEW_NOT_CHECKED'); }
+    report.triggersOfThisAccount = thuTuanOwnTriggers_().length;
+    check(report.triggersOfThisAccount === 0,'TRIGGER_PRESENT');
+    if (report.sheetsPinned) {
+      try {
+        var states = thuTuanZaloReadinessLogStates_(cfg.privateId);
+        report.logSending = states.SENDING; report.logUnknown = states.UNKNOWN; report.logUnrecognized = states.OTHER;
+        check(states.SENDING === 0,'LOG_SENDING'); check(states.UNKNOWN === 0,'LOG_UNKNOWN');
+        check(states.OTHER === 0,'LOG_STATE_UNRECOGNIZED');
+      } catch (_) { failed.push('LOG_UNREADABLE'); }
+    } else failed.push('LOG_NOT_CHECKED');
+  } catch (_) { failed.push('READINESS_BLOCKED'); }
+  report.failed = failed;
+  report.status = failed.length ? 'NOT_READY' : 'READY_FOR_PRODUCTION_PILOT';
+  Logger.log(JSON.stringify(report));
+  return report;
+}

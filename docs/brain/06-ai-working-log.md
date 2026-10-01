@@ -1,5 +1,14 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-01, chuẩn bị pilot Production Thư tuần Zalo] B1/H1/H2 + CI
+
+- Phạm vi khóa theo yêu cầu user: B1 receiver PROD, H1 readiness, H2 trigger attention, test, CI, docs. Không tạo/chạy PROD, không gửi tin, không đổi credential, không mở rộng chức năng. Branch `claude/thu-tuan-prod-pilot-readiness` từ `main` 81e38bc.
+- Files: `services/thu-tuan/ZaloDiagnostics.gs` (core TEST/PROD, `nhanSuKienZaloThuTuanProd`, guard GROUP_CONFIRMED, marker domain theo env, kiểm trùng PROD/TEST), `services/thu-tuan/ZaloTransport.gs` (`kiemTraSanSangZaloProduction`, quét log toàn lịch sử), `services/thu-tuan/Code.gs` (`thuTuanTriggerResult_`), `tests/thu-tuan.test.cjs` (+13 test; 2 assertion cũ về `TEST_MODE_MANUAL_ONLY` từ trigger đổi sang kỳ vọng throw theo H2), `.github/workflows/thu-tuan.yml`, `services/thu-tuan/README.md`, brain 01/03/04/05/06.
+- Impact: grep/đọc toàn bộ module xác nhận các symbol chỉ dùng trong `services/thu-tuan` và tests; không frontend/backend route, không schema Sheets.
+- Rủi ro: TEST receiver giờ cũng từ chối khi `THU_TUAN_ZALO_TEST_GROUP_CONFIRMED` tồn tại (project TEST hiện có key này → muốn pin lại phải xóa trước). Trigger trả trạng thái bất thường giờ làm execution Failed (chủ đích). Số trigger readiness chỉ của tài khoản chạy. Bản GAS TEST trên cloud chưa được cập nhật source mới.
+- Test: `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs` 148/148; syntax 21 `.gs` qua `vm.Script`; mutation check 5 guard đều bị test bắt. Cách test thủ công khi có PROD: theo mục 12 “Pilot Production” README module (receiver → xác nhận người → GROUP_CONFIRMED → duyệt → readiness).
+- Verdict: `THU_TUAN_ZALO_READY_FOR_PRODUCTION_PILOT` (code/test). Không ghi PRODUCTION_ACCEPTANCE_PASS.
+
 ## [2026-10-01, chạy lại GAS TEST sau review PR #12] Preview và đối soát bản sửa đạt
 
 - Theo yêu cầu user (cho phép sửa code project TEST), Claude mở project `TEST - Thu Tuan Loi Bac Day` trong Chrome của owner. Trước khi sửa, hash 6 file cloud khớp source `226fd46` (appsscript.json chỉ khác định dạng editor). Thay nội dung 4 file `Mã.gs`(Code.gs), `ZaloTransport.gs`, `ZaloDiagnostics.gs`, `ZaloAcceptance.gs` bằng bản `5896c84`, lưu dự án, tải lại trang: hash cả 4 file khớp `5896c84`; manifest và EmailAssets.gs không đổi. Không deploy, không đổi Properties/trigger/Production.

@@ -322,7 +322,7 @@ test('TEST_MODE sends only to its explicit override, retains approval/HMAC, and 
 test('TEST_MODE cannot install a trigger and trigger events cannot send',()=>{
  const w=world({enabled:true,testMode:true,testRecipientEmail:'qa@example.test',recipients:[{MaCB:'CB1',Email:'qa@example.test',TrangThai:'DangNhan'}]});
  assert.throws(()=>w.ctx.caiLichThuTuan(),/TEST_MODE_CANNOT_SCHEDULE/);assert.equal(w.created.length,0);
- const result=w.ctx.guiThuTuan({triggerUid:'fixture'});assert.equal(result.status,'TEST_MODE_MANUAL_ONLY');assert.equal(result.sent,0);assert.equal(w.mail.length,0);
+ assert.throws(()=>w.ctx.guiThuTuan({triggerUid:'fixture'}),/^Error: THU_TUAN_TRIGGER_ATTENTION:TEST_MODE_MANUAL_ONLY$/);assert.equal(w.mail.length,0);
 });
 test('a leftover test address or misspelled TEST_MODE fails closed before normal recipients can send',()=>{
  for(const options of [{testRecipientEmail:'qa@example.test'},{testMode:true,testRecipientEmail:'qa@example.test'}]){
@@ -664,7 +664,7 @@ test('missing token, invalid token URL segments, missing target and absent group
 });
 test('TEST Zalo cannot schedule or send from trigger events; manual sending still requires ENABLED',()=>{
  const w=zaloWorld();assert.throws(()=>w.ctx.caiLichThuTuan(),/TEST_MODE_CANNOT_SCHEDULE/);
- assert.equal(w.ctx.guiThuTuan({triggerUid:'synthetic'}).status,'TEST_MODE_MANUAL_ONLY');assert.equal(w.requests.length,0);
+ assert.throws(()=>w.ctx.guiThuTuan({triggerUid:'synthetic'}),/THU_TUAN_TRIGGER_ATTENTION:TEST_MODE_MANUAL_ONLY/);assert.equal(w.requests.length,0);
  w.props.THU_TUAN_ENABLED='false';assert.equal(w.ctx.guiThuTuan().status,'DISABLED');assert.equal(w.requests.length,0);
 });
 test('Zalo preserves approval, HMAC and lock gates',()=>{
@@ -1112,4 +1112,260 @@ test('diagnostic Gmail counterpart log is optional while an existing malformed s
  assert.equal(r.sheets.zaloHeaders,16);assert.equal(r.sheets.approvalProblem,'OK');assert.equal(JSON.stringify(w.sheets),before);
  const x=diagnosticWorld();x.sheets['private-id|ThuTuan_NhatKyGui'].data[0][0]='bad-header';
  assert.equal(x.ctx.chanDoanZaloThuTuan().sheets.status,'TEST_DIAGNOSTIC_IO_BLOCKED');assert.equal(x.pinWrites.length,0);
+});
+
+// ---------- Production pilot readiness: PROD receiver, readiness gate and trigger attention (synthetic only) ----------
+const shaHex=value=>crypto.createHash('sha256').update(value).digest('hex');
+const plain=value=>JSON.parse(JSON.stringify(value));
+function receiverWorld(env,response){
+ const w=zaloWorld({env,enabled:false});
+ for(const field of ['CHAT_ID','CHAT_SHA256','GROUP_CONFIRMED'])delete w.props['THU_TUAN_ZALO_'+env+'_'+field];
+ w.requests=[];
+ w.ctx.UrlFetchApp={fetch(url,options){
+  const host=new URL(url).origin,method=url.split('/').at(-1);
+  w.requests.push({host,method,url,options});
+  const standard=method==='getMe'?{ok:true,result:{id:'bot-'+env,can_join_groups:true}}:
+   method==='getWebhookInfo'?{ok:false,error_code:404}:{ok:false,error_code:408};
+  const value=response?response({w,host,method,standard}):standard;
+  if(value instanceof Error)throw value;
+  return {getResponseCode:()=>value?.http??200,getContentText:()=>typeof value==='string'?value:JSON.stringify(value)};
+ }};
+ w.ctx.MailApp=noIO;w.pinWrites=[];
+ const original=w.ctx.PropertiesService.getScriptProperties;
+ w.ctx.PropertiesService.getScriptProperties=()=>({...original(),setProperties(values,deleteAllOthers){
+  w.pinWrites.push({keys:Object.keys(values).sort(),deleteAllOthers});
+  if(w.pinWriteHook)w.pinWriteHook(values);else Object.assign(w.props,values);
+ },setProperty(){throw Error('receiver must not call setProperty');},deleteProperty(){throw Error('receiver must not delete');}});
+ w.propsBefore=JSON.stringify(w.props);
+ return w;
+}
+function receiverMarker(w,env){return JSON.parse(w.logs.findLast(x=>JSON.parse(x).status===env+'_RECEIVE_READY')).marker;}
+function receiverGroupEvent(w,env,overrides={}){
+ const chat={chat_type:'GROUP',id:'synthetic-chat-'+env,...(overrides.chat||{})};
+ return {ok:true,result:{event_name:'message.text.received',message:{text:receiverMarker(w,env),date:w.ctx.Date.now(),...overrides,chat}}};
+}
+const pinEvent=env=>({w,method,standard})=>method==='getUpdates'?receiverGroupEvent(w,env):standard;
+const receiverFn=env=>env==='PROD'?'nhanSuKienZaloThuTuanProd':'nhanSuKienZaloThuTuanTest';
+
+test('PROD receiver pins only the PROD CHAT_ID/SHA256 pair from a fresh GROUP marker and never confirms membership',()=>{
+ const w=receiverWorld('PROD',pinEvent('PROD')),r=w.ctx.nhanSuKienZaloThuTuanProd();
+ assert.equal(r.status,'PROD_RECEIVE_GROUP_TARGET_PINNED');assert.equal(r.environment,'PROD');assert.equal(r.pin.status,'PROD_TARGET_PINNED');
+ assert.match(receiverMarker(w,'PROD'),/^THU_TUAN_ZALO_PROD_[0-9a-f]{64}$/);
+ assert.deepEqual(plain(w.pinWrites),[{keys:['THU_TUAN_ZALO_PROD_CHAT_ID','THU_TUAN_ZALO_PROD_CHAT_SHA256'],deleteAllOthers:false}]);
+ assert.equal(w.props.THU_TUAN_ZALO_PROD_CHAT_ID,'synthetic-chat-PROD');assert.equal(w.props.THU_TUAN_ZALO_PROD_CHAT_SHA256,shaHex('synthetic-chat-PROD'));
+ assert.equal(w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED,undefined);
+ const rest={...w.props};delete rest.THU_TUAN_ZALO_PROD_CHAT_ID;delete rest.THU_TUAN_ZALO_PROD_CHAT_SHA256;
+ assert.equal(JSON.stringify(rest),w.propsBefore);
+ assert.equal(w.ctx.kiemTraZaloThuTuan().reason,'ZALO_GROUP_CONFIRMATION_REQUIRED');
+});
+test('PROD receiver never sends, never returns token, chat, IDs or hash, and never touches TEST properties',()=>{
+ const w=receiverWorld('PROD',pinEvent('PROD'));
+ const testProps=()=>JSON.stringify(Object.entries(w.props).filter(([key])=>key.startsWith('THU_TUAN_ZALO_TEST_')));
+ const testBefore=testProps(),r=w.ctx.nhanSuKienZaloThuTuanProd();
+ assert.equal(r.status,'PROD_RECEIVE_GROUP_TARGET_PINNED');
+ assert.deepEqual(w.requests.map(x=>x.method),['getMe','getWebhookInfo','getUpdates']);
+ assert.ok(w.requests.every(x=>x.host==='https://bot-api.zapps.me'&&x.url.includes('/botsynthetic-token-PROD/')));
+ assert.equal(testProps(),testBefore);assert.equal(w.zaloLog.data.length,1);
+ const safe=JSON.stringify([r,w.logs]);
+ for(const hidden of ['synthetic-token-PROD','synthetic-chat-PROD',shaHex('synthetic-chat-PROD'),'script-PROD','prod-content-id','prod-private-id','bot-PROD',SECRET])
+  assert.equal(safe.includes(hidden),false,hidden);
+});
+test('PROD receiver is blocked before any request unless ENABLED, TEST_MODE, ENV, script, Sheet and Bot pins all hold',()=>{
+ for(const mutate of [
+  w=>w.props.THU_TUAN_ENABLED='true',w=>delete w.props.THU_TUAN_ENABLED,w=>w.props.THU_TUAN_ENABLED=' false',
+  w=>w.props.THU_TUAN_TEST_MODE='true',w=>delete w.props.THU_TUAN_TEST_MODE,w=>w.props.THU_TUAN_TEST_MODE='FALSE',
+  w=>w.props.THU_TUAN_ZALO_ENV='TEST',w=>delete w.props.THU_TUAN_ZALO_ENV,w=>w.props.THU_TUAN_TRANSPORT='GMAIL',
+  w=>w.ctx.ScriptApp.getScriptId=()=> 'script-TEST',w=>w.props.THU_TUAN_ZALO_PROD_SCRIPT_ID='script-other',
+  w=>w.props.THU_TUAN_CONTENT_SHEET_ID='content-id',w=>w.props.THU_TUAN_PRIVATE_SHEET_ID='private-id',
+  w=>w.props.THU_TUAN_ZALO_PROD_PRIVATE_SHEET_ID='other-private',w=>delete w.props.THU_TUAN_ZALO_PROD_BOT_ID,
+  w=>w.props.THU_TUAN_ZALO_PROD_BOT_ID='bot-TEST',w=>w.props.THU_TUAN_ZALO_TEST_SCRIPT_ID='script-PROD',
+  w=>w.props.THU_TUAN_ZALO_TEST_PRIVATE_SHEET_ID='prod-private-id',w=>w.props.THU_TUAN_ZALO_PROD_BOT_TOKEN='bad/token?x'
+ ]){
+  const w=receiverWorld('PROD',pinEvent('PROD'));mutate(w);const before=JSON.stringify(w.props);
+  assert.equal(w.ctx.nhanSuKienZaloThuTuanProd().status,'PROD_DIAGNOSTIC_BLOCKED');
+  assert.equal(w.requests.length,0);assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),before);
+ }
+ for(const body of [{ok:true,result:{id:'bot-TEST',can_join_groups:true}},{ok:true,result:{id:'bot-PROD',can_join_groups:false}},{ok:true,result:{id:123,can_join_groups:true}}]){
+  const w=receiverWorld('PROD',({method,standard})=>method==='getMe'?body:standard),r=w.ctx.nhanSuKienZaloThuTuanProd();
+  assert.equal(r.status,'PROD_RECEIVE_PREFLIGHT_BLOCKED');assert.deepEqual(w.requests.map(x=>x.method),['getMe']);assert.equal(w.pinWrites.length,0);
+ }
+ const t=receiverWorld('PROD',pinEvent('PROD'));
+ assert.equal(t.ctx.nhanSuKienZaloThuTuanProd({triggerUid:'synthetic'}).status,'PROD_DIAGNOSTIC_MANUAL_ONLY');
+ t.ctx.LockService={getScriptLock:()=>({tryLock:()=>false,releaseLock(){throw Error('not owned');}})};
+ assert.equal(t.ctx.nhanSuKienZaloThuTuanProd().status,'BUSY');
+ assert.equal(t.requests.length,0);assert.equal(t.pinWrites.length,0);assert.equal(JSON.stringify(t.props),t.propsBefore);
+});
+test('receiver entrypoints are isolated both ways: TEST with ENV=PROD and PROD with ENV=TEST are blocked',()=>{
+ const prod=receiverWorld('PROD',pinEvent('PROD'));
+ assert.equal(prod.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_DIAGNOSTIC_BLOCKED');assert.equal(prod.ctx.chanDoanZaloThuTuan().status,'TEST_DIAGNOSTIC_BLOCKED');
+ assert.equal(prod.requests.length,0);assert.equal(prod.pinWrites.length,0);assert.equal(JSON.stringify(prod.props),prod.propsBefore);
+ const testWorld=receiverWorld('TEST',pinEvent('TEST'));
+ const prodProps=()=>JSON.stringify(Object.entries(testWorld.props).filter(([key])=>key.startsWith('THU_TUAN_ZALO_PROD_'))),prodBefore=prodProps();
+ assert.equal(testWorld.ctx.nhanSuKienZaloThuTuanProd().status,'PROD_DIAGNOSTIC_BLOCKED');
+ assert.equal(testWorld.requests.length,0);assert.equal(testWorld.pinWrites.length,0);assert.equal(JSON.stringify(testWorld.props),testWorld.propsBefore);
+ // Flipping only the mode properties inside the TEST project still fails the PROD script and Sheet pins.
+ const flipped=receiverWorld('TEST',pinEvent('PROD'));flipped.props.THU_TUAN_ZALO_ENV='PROD';flipped.props.THU_TUAN_TEST_MODE='false';
+ flipped.props.THU_TUAN_ZALO_PROD_BOT_TOKEN='synthetic-token-PROD';
+ assert.equal(flipped.ctx.nhanSuKienZaloThuTuanProd().status,'PROD_DIAGNOSTIC_BLOCKED');assert.equal(flipped.requests.length,0);assert.equal(flipped.pinWrites.length,0);
+ assert.equal(testWorld.ctx.nhanSuKienZaloThuTuanTest().status,'TEST_RECEIVE_GROUP_TARGET_PINNED');
+ assert.deepEqual(plain(testWorld.pinWrites),[{keys:['THU_TUAN_ZALO_TEST_CHAT_ID','THU_TUAN_ZALO_TEST_CHAT_SHA256'],deleteAllOthers:false}]);
+ assert.equal(prodProps(),prodBefore);assert.equal(testWorld.props.THU_TUAN_ZALO_PROD_CHAT_ID,undefined);
+});
+test('an existing GROUP_CONFIRMED of any value blocks a new pin before any request and changes no property',()=>{
+ for(const env of ['PROD','TEST'])for(const value of ['true','false','','TRUE']){
+  const w=receiverWorld(env,pinEvent(env));w.props['THU_TUAN_ZALO_'+env+'_GROUP_CONFIRMED']=value;const before=JSON.stringify(w.props);
+  const r=w.ctx[receiverFn(env)]();assert.equal(r.status,env+'_RECEIVE_GROUP_CONFIRMATION_PRESENT',env+':'+value);
+  assert.equal(w.requests.length,0);assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),before);
+ }
+ // A confirmation written while the session waits for the marker is rechecked immediately before the write.
+ const w=receiverWorld('PROD',({w,method,standard})=>{
+  if(method!=='getUpdates')return standard;w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED='true';return receiverGroupEvent(w,'PROD');
+ });
+ const r=w.ctx.nhanSuKienZaloThuTuanProd();assert.equal(r.status,'PROD_RECEIVE_GROUP_TARGET_PIN_BLOCKED');
+ assert.equal(r.pin.status,'PROD_TARGET_PIN_GROUP_CONFIRMATION_PRESENT');assert.equal(w.pinWrites.length,0);
+ assert.equal(w.props.THU_TUAN_ZALO_PROD_CHAT_ID,undefined);assert.equal(w.props.THU_TUAN_ZALO_PROD_CHAT_SHA256,undefined);
+});
+test('PRIVATE, stale, wrong, TEST-domain, duplicated or previous-session markers never pin PROD',()=>{
+ for(const override of [w=>({chat:{chat_type:'PRIVATE'}}),w=>({date:w.ctx.Date.now()-1}),w=>({text:'unmatched'}),
+  w=>({text:receiverMarker(w,'PROD').replace('THU_TUAN_ZALO_PROD_','THU_TUAN_ZALO_TEST_')}),
+  w=>({text:receiverMarker(w,'PROD')+' '+receiverMarker(w,'PROD')})]){
+  const w=receiverWorld('PROD',({w,method,standard})=>method==='getUpdates'?receiverGroupEvent(w,'PROD',override(w)):standard);
+  const r=w.ctx.nhanSuKienZaloThuTuanProd();assert.equal(r.status,'PROD_RECEIVE_NO_VERIFIED_GROUP_MARKER');assert.equal(r.polls.length,4);
+  assert.equal(w.pinWrites.length,0);assert.equal(JSON.stringify(w.props),w.propsBefore);
+ }
+ let previous='',updates=0;
+ const w=receiverWorld('PROD',({w,method,standard})=>{
+  if(method!=='getUpdates'||!previous)return standard;updates++;return receiverGroupEvent(w,'PROD',{text:previous});
+ });
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanProd().status,'PROD_RECEIVE_NO_VERIFIED_GROUP_MARKER');previous=receiverMarker(w,'PROD');
+ assert.equal(w.ctx.nhanSuKienZaloThuTuanProd().status,'PROD_RECEIVE_NO_VERIFIED_GROUP_MARKER');assert.notEqual(receiverMarker(w,'PROD'),previous);
+ assert.equal(updates,4);assert.equal(w.pinWrites.length,0);
+ const start=w.ctx.Date.now(),testMarker='THU_TUAN_ZALO_TEST_'+'a'.repeat(64);
+ const event={summary:{ok:true,resultKind:'OBJECT'},result:{event_name:'message.text.received',message:{chat:{chat_type:'GROUP',id:'synthetic-chat-PROD'},text:testMarker,date:start}}};
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event,start,start,testMarker,'PROD').verifiedGroupMarker,false);
+ assert.equal(w.ctx.thuTuanZaloDiagnosticEvent_(event,start,start,testMarker,'TEST').verifiedGroupMarker,true);
+});
+
+function readinessWorld(options={}){
+ const w=zaloWorld({env:'PROD',enabled:false,...options});
+ w.writes=[];const original=w.ctx.PropertiesService.getScriptProperties;
+ w.ctx.PropertiesService.getScriptProperties=()=>({...original(),setProperty(){w.writes.push('setProperty');},
+  setProperties(){w.writes.push('setProperties');},deleteProperty(){w.writes.push('deleteProperty');}});
+ w.ctx.ScriptApp.deleteTrigger=()=>w.writes.push('deleteTrigger');
+ w.snapshot=()=>JSON.stringify([w.props,Object.entries(w.sheets).map(([key,sheet])=>[key,sheet.data,sheet.formatCalls]),w.created,w.deleted]);
+ w.gmailLog=w.sheets['prod-private-id|ThuTuan_NhatKyGui'];
+ return w;
+}
+const zaloLogRow=(w,values)=>w.H.ThuTuan_Zalo_NhatKyGui.map(key=>values[key]??'');
+test('Production readiness is READY only through getMe and an offline preview, with no send, write or trigger change',()=>{
+ const w=readinessWorld(),before=w.snapshot(),r=w.ctx.kiemTraSanSangZaloProduction();
+ assert.deepEqual(plain(r),{status:'READY_FOR_PRODUCTION_PILOT',environment:'PROD',testMode:'false',enabled:'false',transport:'ZALO',
+  scriptPinned:true,sheetsPinned:true,targetPinned:true,groupConfirmed:true,isolation:'OK',bot:'OK',key:'2026-09-21',
+  preview:'PREVIEW',approval:'OK',maLoiDay:'LD-TEST-1',phienBan:'1',partCount:1,pending:1,alreadySent:0,unknown:0,
+  triggersOfThisAccount:0,logSending:0,logUnknown:0,logUnrecognized:0,failed:[]});
+ assert.deepEqual(w.requests.map(x=>x.method),['getMe']);assert.equal(w.sendRequests.length,0);
+ assert.equal(w.snapshot(),before);assert.deepEqual(w.writes,[]);assert.equal(w.created.length,0);assert.equal(w.deleted.length,0);
+});
+test('Production readiness is NOT_READY with short codes for each failed gate and stays read-only',()=>{
+ const otherBot=({method,standard})=>method==='getMe'?{ok:true,result:{id:'bot-TEST',can_join_groups:true}}:standard;
+ for(const [code,mutate,options] of [
+  ['ENABLED_NOT_FALSE',w=>{w.props.THU_TUAN_ENABLED='true';}],
+  ['TRIGGER_PRESENT',w=>{w.ctx.ScriptApp.getProjectTriggers=()=>[{getHandlerFunction:()=>'guiThuTuan'}];}],
+  ['CONTENT_NOT_APPROVED',w=>{w.row[5]='Nhap';}],
+  ['LOG_UNKNOWN',w=>{w.zaloLog.data.push(zaloLogRow(w,{Khoa:'2026-09-14|ZALO_PROD_OLD_1_1',Ky:'2026-09-14',MaCB:'ZALO_PROD_OLD_1_1',TrangThai:'UNKNOWN'}));}],
+  ['LOG_SENDING',w=>{w.gmailLog.data.push(['2026-09-07|CB1','2026-09-07','CB1','LD-OLD','1','old','SENDING',new Date(0),'']);}],
+  ['LOG_STATE_UNRECOGNIZED',w=>{w.zaloLog.data.push(zaloLogRow(w,{Khoa:'2026-09-14|ZALO_PROD_OLD_1_1',Ky:'2026-09-14',TrangThai:'Sent'}));}],
+  ['ENV_NOT_PROD',w=>{w.props.THU_TUAN_ZALO_ENV='TEST';}],
+  ['TEST_MODE_NOT_FALSE',w=>{w.props.THU_TUAN_TEST_MODE='true';}],
+  ['BOT_IDENTITY',()=>{},{response:otherBot}],
+  ['GROUP_NOT_CONFIRMED',w=>{delete w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED;}],
+  ['SCRIPT_PIN',w=>{w.ctx.ScriptApp.getScriptId=()=> 'script-TEST';}],
+  ['TARGET_PIN',w=>{w.props.THU_TUAN_ZALO_PROD_CHAT_SHA256='0'.repeat(64);}],
+  ['NO_PENDING',w=>{w.props.THU_TUAN_ENABLED='true';w.ctx.guiThuTuan();w.props.THU_TUAN_ENABLED='false';}],
+  ['ALREADY_SENT',w=>{w.props.THU_TUAN_ENABLED='true';w.ctx.guiThuTuan();w.props.THU_TUAN_ENABLED='false';}]
+ ]){
+  const w=readinessWorld(options||{});mutate(w);const sends=w.sendRequests.length,before=w.snapshot();
+  const r=w.ctx.kiemTraSanSangZaloProduction();
+  assert.equal(r.status,'NOT_READY',code);assert.ok(r.failed.includes(code),code+' in '+r.failed.join(','));
+  assert.equal(w.sendRequests.length,sends,code);assert.ok(w.requests.slice(-1).every(x=>x.method==='getMe'||x.method==='sendMessage'),code);
+  assert.equal(w.snapshot(),before,code);assert.deepEqual(w.writes,[],code);assert.equal(w.created.length,0,code);
+ }
+ const test=receiverWorld('TEST');test.props.THU_TUAN_ZALO_TEST_CHAT_ID='synthetic-chat-TEST';test.props.THU_TUAN_ZALO_TEST_CHAT_SHA256=shaHex('synthetic-chat-TEST');
+ const r=test.ctx.kiemTraSanSangZaloProduction();assert.equal(r.status,'NOT_READY');assert.equal(r.environment,'TEST');
+ assert.equal(r.bot,'NOT_CHECKED');assert.equal(r.preview,'NOT_CHECKED');assert.equal(test.requests.length,0);
+});
+test('Production readiness output carries no token, chat ID, script/Sheet/Bot ID, hash, receipt or content',()=>{
+ const outputs=[];
+ for(const mutate of [()=>{},w=>{w.row[5]='Nhap';},w=>{w.props.THU_TUAN_ZALO_ENV='TEST';},w=>{w.props.THU_TUAN_ENABLED='true';w.ctx.guiThuTuan();w.props.THU_TUAN_ENABLED='false';}]){
+  const w=readinessWorld();mutate(w);outputs.push(w.ctx.kiemTraSanSangZaloProduction(),w.logs.at(-1),w.row[9]);
+ }
+ const digest=outputs.filter(x=>typeof x==='string'&&/^[0-9a-f]{64}$/.test(x));
+ const safe=JSON.stringify(outputs.filter(x=>!digest.includes(x)));
+ for(const hidden of ['synthetic-token-PROD','synthetic-chat-PROD','synthetic-chat-TEST',shaHex('synthetic-chat-PROD'),shaHex('synthetic-chat-TEST'),'script-PROD','script-TEST',
+  'prod-content-id','prod-private-id','bot-PROD','bot-TEST',SECRET,REVIEWER,'Fixture','receipt-',...digest])
+  assert.equal(safe.includes(hidden),false,hidden);
+});
+
+test('trigger attention: COMPLETE and DISABLED stay quiet, every other status throws one fixed code; manual returns unchanged',()=>{
+ const ctx=weekly();
+ for(const status of ['BUSY','CONTENT_NOT_APPROVED','CONTENT_MISSING_OR_DUPLICATE','DEFERRED','RECONCILIATION_REQUIRED','ZALO_GATE_BLOCKED',
+  'ZALO_BOT_MISMATCH','ZALO_PREFLIGHT_UNCONFIRMED','ZALO_GROUP_UNAVAILABLE','ZALO_CONFIG_CHANGED','ZALO_PRE_SEND_BLOCKED','ZALO_RUN_BLOCKED',
+  'ZALO_REPORT_BLOCKED','TRANSPORT_CHANGED_DURING_WEEK','DUPLICATE_OR_INVALID_LOG','CONTENT_CHANGED_DURING_WEEK','KY_NOT_PLAIN_TEXT',
+  'INVALID_RECIPIENT_LIST','QUOTA_DEFERRED','TEST_MODE_MANUAL_ONLY','PREVIEW']){
+  const result={status,sent:0};assert.equal(ctx.thuTuanTriggerResult_(undefined,result),result);
+  assert.throws(()=>ctx.thuTuanTriggerResult_({triggerUid:'synthetic'},result),error=>error.message==='THU_TUAN_TRIGGER_ATTENTION:'+status);
+ }
+ for(const result of [{status:'COMPLETE',sent:0,alreadySent:3},{status:'COMPLETE',sent:2},{status:'DISABLED',sent:0}])
+  assert.equal(ctx.thuTuanTriggerResult_({triggerUid:'synthetic'},result),result);
+ for(const result of [{status:'private https://x/botTOKEN chat'},{},null])
+  assert.throws(()=>ctx.thuTuanTriggerResult_({triggerUid:'synthetic'},result),error=>error.message==='THU_TUAN_TRIGGER_ATTENTION:UNRECOGNIZED');
+});
+test('trigger attention throws only after the runner logged and released its lock, with no sensitive data',()=>{
+ const failAfterGetMe=({method,standard})=>method==='getMe'?standard:new Error('timeout synthetic-token-PROD synthetic-chat-PROD');
+ for(const [status,options,mutate] of [
+  ['CONTENT_NOT_APPROVED',{},w=>{w.row[5]='Nhap';}],
+  ['CONTENT_MISSING_OR_DUPLICATE',{},w=>w.setNow('2026-09-28T01:00:00Z')],
+  ['RECONCILIATION_REQUIRED',{response:failAfterGetMe},()=>{}],
+  ['ZALO_BOT_MISMATCH',{response:({method,standard})=>method==='getMe'?{ok:true,result:{id:'bot-TEST',can_join_groups:true}}:standard},()=>{}],
+  ['ZALO_GATE_BLOCKED',{},w=>{delete w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED;}],
+  ['BUSY',{},w=>{w.busy=true;}]
+ ]){
+  const manual=zaloWorld({env:'PROD',...options});mutate(manual);if(manual.busy)manual.ctx.LockService={getScriptLock:()=>({tryLock:()=>false,releaseLock(){throw Error('not owned');}})};
+  assert.equal(manual.ctx.guiThuTuan().status,status,'manual '+status);
+  const w=zaloWorld({env:'PROD',...options});mutate(w);let held=0;
+  w.ctx.LockService={getScriptLock:()=>({tryLock(){if(w.busy)return false;held++;return true;},releaseLock(){held--;}})};
+  let error;assert.throws(()=>w.ctx.guiThuTuan({triggerUid:'synthetic'}),e=>{error=e;return e.message==='THU_TUAN_TRIGGER_ATTENTION:'+status;},status);
+  assert.equal(held,0,status);assert.equal(w.logs.at(-1),JSON.stringify({status:'THU_TUAN_TRIGGER_ATTENTION',operationStatus:status}));
+  if(status!=='BUSY')assert.equal(JSON.parse(w.logs.at(-2)).status,status);
+  if(status==='RECONCILIATION_REQUIRED'){assert.equal(w.zaloEntries()[0].TrangThai,'UNKNOWN');assert.equal(w.sendRequests.length,1);}
+  for(const hidden of ['synthetic-token-PROD','synthetic-chat-PROD','Fixture'])assert.equal((String(error)+w.logs.join('')).includes(hidden),false,hidden);
+ }
+ const g=world({content:[draft({})],recipients:[{MaCB:'CB1',Email:'one@example.test',TrangThai:'DangNhan'},{MaCB:'CB2',Email:'two@example.test',TrangThai:'DangNhan'}]});
+ g.setNow('2026-09-21T01:00:00Z');g.ctx.duyetNoiDungThuTuan('2026-09-21');g.ctx.MailApp={...g.ctx.MailApp,getRemainingDailyQuota:()=>1};
+ assert.equal(g.ctx.guiThuTuan().status,'QUOTA_DEFERRED');
+ assert.throws(()=>g.ctx.guiThuTuan({triggerUid:'synthetic'}),/THU_TUAN_TRIGGER_ATTENTION:QUOTA_DEFERRED/);assert.equal(g.mail.length,0);
+ const d=zaloWorld({env:'PROD',enabled:false});assert.equal(d.ctx.guiThuTuan({triggerUid:'synthetic'}).status,'DISABLED');assert.equal(d.requests.length,0);
+});
+test('caiLichThuTuan installs a Zalo PROD trigger only when every PROD gate passes',()=>{
+ const ok=zaloWorld({env:'PROD'});assert.equal(ok.ctx.caiLichThuTuan().status,'CREATED');
+ assert.deepEqual(plain(ok.created),[{tz:'Asia/Ho_Chi_Minh',day:'MONDAY',hour:7,every:1}]);assert.equal(ok.requests.length,0);
+ for(const mutate of [w=>w.props.THU_TUAN_ENABLED='false',w=>delete w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED,
+  w=>w.props.THU_TUAN_ZALO_PROD_GROUP_CONFIRMED='TRUE',w=>w.props.THU_TUAN_ZALO_PROD_CHAT_SHA256='0'.repeat(64),
+  w=>w.props.THU_TUAN_ZALO_PROD_CHAT_ID='another-chat',w=>delete w.props.THU_TUAN_ZALO_PROD_BOT_TOKEN,
+  w=>w.ctx.ScriptApp.getScriptId=()=> 'script-TEST',w=>w.props.THU_TUAN_PRIVATE_SHEET_ID='private-id',
+  w=>w.props.THU_TUAN_ZALO_ENV='TEST',w=>w.props.THU_TUAN_TEST_MODE='true',w=>w.props.THU_TUAN_TEST_MODE='TRUE',
+  w=>w.props.THU_TUAN_ZALO_PROD_BOT_ID='bot-TEST',w=>delete w.props.THU_TUAN_ZALO_PROD_SCRIPT_ID]){
+  const w=zaloWorld({env:'PROD'});mutate(w);
+  assert.throws(()=>w.ctx.caiLichThuTuan());assert.equal(w.created.length,0);assert.equal(w.requests.length,0);
+ }
+});
+test('PROD trigger sends the approved week exactly once; the next trigger is alreadySent and calls no API',()=>{
+ const w=zaloWorld({env:'PROD'});
+ const first=w.ctx.guiThuTuan({triggerUid:'synthetic'});
+ assert.equal(first.status,'COMPLETE');assert.equal(first.sent,1);assert.equal(first.environment,'PROD');
+ assert.equal(w.sendRequests.length,1);assert.equal(w.sendRequests[0].payload.chat_id,'synthetic-chat-PROD');
+ const requests=w.requests.length,second=w.ctx.guiThuTuan({triggerUid:'synthetic'});
+ assert.equal(second.status,'COMPLETE');assert.equal(second.sent,0);assert.equal(second.alreadySent,1);assert.equal(second.pending,0);
+ assert.equal(w.requests.length,requests);assert.equal(w.sendRequests.length,1);
+ assert.deepEqual(w.zaloEntries().map(entry=>entry.TrangThai),['SENT']);assert.equal(w.zaloEntries()[0].Environment,'PROD');
 });
