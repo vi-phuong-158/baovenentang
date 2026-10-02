@@ -1,5 +1,15 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Zalo một tin và nội dung biên tập v3 (02/10/2026)
+
+- Cập nhật TEST: code e0800d8 đã upload/readback khớp; tab Zalo_Nhap_51_Ky mới chỉ dành cho đọc duyệt, giữ 20 trường nháp cùng SoKyTuZalo/TinZaloXemTruoc. Sender chỉ đọc LoiDay_NoiDung, không đọc tab nháp; schema/dòng active và metadata duyệt giữ nguyên. Runtime mới còn chờ, PROD chưa cập nhật.
+
+- LoiDay_NoiDung nối BoiCanhZalo/YNgiaVanDungZalo/HanhDongTuanNayZalo ở cột 18–20; chấp nhận header cũ 17 hoặc mới đủ 20. Migration thủ công allowlist/ScriptLock/disabled/recheck/readback chỉ nối header. Log Gmail/Zalo và backend/frontend API không đổi.
+- Canonical copy giữ ba ô mới; mọi duyệt mới dùng HMAC payload v3, dấu v3:hex. Payload v2, dấu raw hex và renderer cũ giữ nguyên cho kỳ đã duyệt trước có ba ô mới trống. Prefix bảo vệ khi xóa cả ba; thay đổi ô mới làm dấu sai.
+- Approval PR16 history guard → kiểm canonical/Notebook → với ZALO require ba ô và render/split một phần <=1800 UTF-16 → ký v3 → write/readback. Sender v3 kiểm cùng cổng trước log/API, kể cả duyệt GMAIL rồi đổi transport. Email renderer không đổi.
+- thuTuanRenderZaloText_ dùng nguyên văn/nguồn và ba ô Zalo; sender, diagnostic, helper TEST, draft preview cùng renderer. v2 giữ PlanHash/receipt/multipart. Preview trả nội dung cho approver, không Logger. Export offline không Google/AI/HMAC, dữ liệu ngoài repo.
+- CodeGraph index ở worktree đúng PR16 với grammar JavaScript cho .gs qua hook local, không patch CLI/global. refs/impact approval/digest/renderer xác định Code.gs, ZaloTransport.gs, Diagnostics, Acceptance và tests; không route/API public bị ảnh hưởng.
+
 ## Chặn duyệt lại kỳ đã có nhật ký gửi (02/10/2026)
 
 - `thuTuanApproveContent_` (dùng chung cho `duyetNoiDungThuTuan`, `duyetKyThuTuan` và helper TEST) gọi `thuTuanWeekHasHistory_(privateId, ky)` trong ScriptLock, sau kiểm dòng kỳ duy nhất và trước khi ghi. Có bất kỳ dòng nào của kỳ trong `ThuTuan_NhatKyGui` hoặc `ThuTuan_Zalo_NhatKyGui` (khớp `Ky` hoặc tiền tố `Khoa`, mọi trạng thái) → `WEEK_HAS_DELIVERY_HISTORY`, không ghi dấu. Không có trang nhật ký nào → `MISSING_SHEET` (fail closed).

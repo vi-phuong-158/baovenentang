@@ -78,6 +78,7 @@ function world({enabled=true,testMode=false,testRecipientEmail='',forbidRecipien
  return {ctx,props,sheets,mail,created,deleted,logs,H,setNow:iso=>{ctx.Date=class extends Date{constructor(...a){super(...(a.length?a:[iso]));}static now(){return new Date(iso).getTime();}};}};
 }
 const draft=o=>contentRow(Object.assign({TrangThai:'Nhap',NguoiDuyet:'',NgayDuyet:'',DauVanBanDuyet:''},o));
+const zaloDraft=o=>draft({NotebookLM_URL:'',BoiCanhZalo:'Short context',YNgiaVanDungZalo:'Meaning connected to a concrete CAND application.',HanhDongTuanNayZalo:'Check one completed task this week.',...o});
 
 // Synthetic TEST/PROD identities only; no credentials or network leave this process.
 function zaloWorld({env='TEST',contentOverrides={},response,enabled=true}={}){
@@ -114,7 +115,11 @@ function zaloWorld({env='TEST',contentOverrides={},response,enabled=true}={}){
   if(value instanceof Error)throw value;
   return {getResponseCode:()=>value?.http??200,getContentText:()=>typeof value==='string'?value:JSON.stringify(value)};
  }};
- w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
+ // Legacy delivery tests simulate v2 approval before the new Zalo editorial gate.
+ w.setNow('2026-09-21T01:00:00Z');w.props.THU_TUAN_TRANSPORT='GMAIL';w.ctx.duyetNoiDungThuTuan('2026-09-21');w.props.THU_TUAN_TRANSPORT='ZALO';
+ const legacySheet=w.sheets[w.props.THU_TUAN_CONTENT_SHEET_ID+'|LoiDay_NoiDung'];
+ const legacy=Object.fromEntries(w.H.LoiDay_NoiDung.map((key,i)=>[key,legacySheet.data[1][i]]));legacy.DauVanBanDuyet='';
+ legacySheet.data[1][9]=w.ctx.thuTuanDigest_(legacy,SECRET);
  w.row=w.sheets[w.props.THU_TUAN_CONTENT_SHEET_ID+'|LoiDay_NoiDung'].data[1];
  w.zaloEntries=()=>w.zaloLog.data.slice(1).map(row=>Object.fromEntries(w.H.ThuTuan_Zalo_NhatKyGui.map((key,i)=>[key,row[i]])));
  return w;
@@ -391,7 +396,7 @@ test('E2E: approve → preview → send → rerun sends nothing, with Sheets dat
  w.setNow('2026-09-21T01:00:00.789Z');
  assert.equal(w.ctx.xemTruocThuTuan().reason,'NOT_APPROVED');
  const a=w.ctx.duyetNoiDungThuTuan('2026-09-21');assert.equal(a.status,'APPROVED');
- const row=w.sheets['content-id|LoiDay_NoiDung'].data[1];assert.equal(row[5],'DaDuyet');assert.equal(row[6],REVIEWER);assert.equal(row[7].getUTCMilliseconds(),0);assert.match(row[9],/^[0-9a-f]{64}$/);
+ const row=w.sheets['content-id|LoiDay_NoiDung'].data[1];assert.equal(row[5],'DaDuyet');assert.equal(row[6],REVIEWER);assert.equal(row[7].getUTCMilliseconds(),0);assert.match(row[9],/^v3:[0-9a-f]{64}$/);
  const p=w.ctx.xemTruocThuTuan();assert.equal(p.status,'PREVIEW');assert.equal(p.pending,2);assert.equal(w.mail.length,0);assert.equal(w.sheets['private-id|ThuTuan_NhatKyGui'].data.length,1);
  const s=w.ctx.guiThuTuan();assert.equal(s.status,'COMPLETE');assert.equal(s.sent,2);assert.equal(w.mail.length,2);
  const log=w.sheets['private-id|ThuTuan_NhatKyGui'];assert.equal(log.data[1][1],'2026-09-21');assert.ok(log.formatCalls.every(c=>c[1]===1&&c[3]===7&&c[4]==='@'));
@@ -492,7 +497,7 @@ test('history guard: any Zalo log state of the week (also by Khoa when Ky became
  }
  const w=zaloWorld({env:'PROD'});assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
  const sheet=w.sheets['prod-content-id|LoiDay_NoiDung'];
- sheet.data.push(w.H.LoiDay_NoiDung.map(h=>draft({Ky:'2026-09-28',NotebookLM_URL:''})[h]??''));
+ sheet.data.push(w.H.LoiDay_NoiDung.map(h=>draft({Ky:'2026-09-28',NotebookLM_URL:'',BoiCanhZalo:'Short context',YNgiaVanDungZalo:'Meaning and application',HanhDongTuanNayZalo:'One action'})[h]??''));
  const logBefore=JSON.stringify(w.zaloLog.data);
  w.props.THU_TUAN_APPROVAL_WEEK='2026-09-28';const result=w.ctx.duyetKyThuTuan();
  assert.equal(result.status,'APPROVED');assert.equal(result.key,'2026-09-28');assert.equal(JSON.stringify(w.zaloLog.data),logBefore);
@@ -1454,4 +1459,82 @@ test('PROD trigger sends the approved week exactly once; the next trigger is alr
  assert.equal(second.status,'COMPLETE');assert.equal(second.sent,0);assert.equal(second.alreadySent,1);assert.equal(second.pending,0);
  assert.equal(w.requests.length,requests);assert.equal(w.sendRequests.length,1);
  assert.deepEqual(w.zaloEntries().map(entry=>entry.TrangThai),['SENT']);assert.equal(w.zaloEntries()[0].Environment,'PROD');
+});
+// ---------- Single-message Zalo editorial approval ----------
+test('Zalo four-section renderer preserves approved text, merges meaning/application, and leaves email unchanged',()=>{
+ const ctx=weekly(),c=zaloDraft({Ky:'2026-10-12',NoiDungNguyenVan:'  Exact quote\r\nwith combining e\u0301 👨‍👩‍👧‍👦  ',NguonTrich:'Exact source *literal*',BoiCanhZalo:'  Exact context  '});
+ const text=ctx.thuTuanRenderZaloText_(c),email=ctx.thuTuanRenderText_(c);
+ assert.match(text,/Tuần từ 12\/10\/2026/);assert.ok(text.includes(c.NoiDungNguyenVan));assert.ok(text.includes(c.NguonTrich));assert.ok(text.includes(c.BoiCanhZalo));
+ assert.match(text,/Ý NGHĨA VÀ VẬN DỤNG/);for(const absent of [c.MaLoiDay,c.PhanTich,c.LienHeCAND,'Muốn dừng nhận thư','nội dung đã được kiểm duyệt'])assert.equal(text.includes(absent),false,absent);
+ const old={...c};for(const key of ctx.THU_TUAN_ZALO_FIELDS_)delete old[key];assert.equal(email,ctx.thuTuanRenderText_(old));
+ assert.ok(email.includes(c.PhanTich));assert.ok(email.includes(c.LienHeCAND));
+});
+test('Zalo approval boundary 1800 passes; 1801 rejects before any formatting, row or log write',()=>{
+ for(const length of [1800,1801]){
+  const ctx=weekly(),c=zaloDraft({HanhDongTuanNayZalo:'x'}),base=ctx.thuTuanRenderZaloText_(c).length;c.HanhDongTuanNayZalo='x'.repeat(1+length-base);
+  const w=world({content:[c]});w.props.THU_TUAN_TRANSPORT='ZALO';const sheet=w.sheets['content-id|LoiDay_NoiDung'],before=JSON.stringify(sheet.data);
+  if(length===1800){assert.equal(w.ctx.duyetNoiDungThuTuan(c.Ky).status,'APPROVED');assert.match(sheet.data[1][9],/^v3:/);}
+  else {assert.throws(()=>w.ctx.duyetNoiDungThuTuan(c.Ky),/ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE/);assert.equal(JSON.stringify(sheet.data),before);assert.equal(sheet.formatCalls.length,0);}
+  assert.equal(w.mail.length,0);assert.equal(w.sheets['private-id|ThuTuan_NhatKyGui'].data.length,1);
+ }
+});
+test('every Zalo editorial field is required at approval and signed; clearing all fields cannot restore a v2 approval',()=>{
+ for(const field of ['BoiCanhZalo','YNgiaVanDungZalo','HanhDongTuanNayZalo']){
+  const w=world({content:[zaloDraft({})]});w.props.THU_TUAN_TRANSPORT='ZALO';const row=w.sheets['content-id|LoiDay_NoiDung'].data[1],index=w.H.LoiDay_NoiDung.indexOf(field);
+  const saved=row[index];row[index]='';assert.throws(()=>w.ctx.duyetNoiDungThuTuan('2026-09-21'),/ZALO_CONTENT_REQUIRED/);row[index]=saved;
+  w.ctx.duyetNoiDungThuTuan('2026-09-21');row[index]+=' edit';const savedRow=w.ctx.thuTuanRows_(w.sheets['content-id|LoiDay_NoiDung'],'LoiDay_NoiDung')[0];assert.equal(w.ctx.thuTuanApprovalProblem_(savedRow,w.ctx.thuTuanDigest_(savedRow,SECRET),[REVIEWER]),'STAMP_MISMATCH');
+ }
+ const ctx=weekly(),c=stamp(ctx,zaloDraft({TrangThai:'DaDuyet',NguoiDuyet:REVIEWER,NgayDuyet:new Date()}));assert.match(c.DauVanBanDuyet,/^v3:/);
+ for(const key of ctx.THU_TUAN_ZALO_FIELDS_)c[key]='';assert.notEqual(ctx.thuTuanDigest_(c,SECRET),c.DauVanBanDuyet);
+});
+test('legacy v2 approval hash, renderer and multipart receipt dedupe remain identical with the extended schema',()=>{
+ const ctx=weekly(),c=stamp(ctx,contentRow({NotebookLM_URL:'',BoiCanh:'x'.repeat(2500)}));
+ const oldKeys=Array.from(ctx.THU_TUAN_CANONICAL_FIELDS_),values=[2,...oldKeys.map(key=>key==='NgayDuyet'?new Date(c[key]).toISOString():String(c[key]??''))];
+ assert.equal(c.DauVanBanDuyet,crypto.createHmac('sha256',SECRET).update(JSON.stringify(values)).digest('hex'));
+ assert.equal(ctx.thuTuanRenderZaloText_(c),ctx.thuTuanRenderText_(c));
+ const w=zaloWorld({contentOverrides:{BoiCanh:'x'.repeat(2500)}});assert.equal(w.ctx.guiThuTuan().sent,2);const before=w.requests.length;
+ assert.equal(w.ctx.guiThuTuan().alreadySent,2);assert.equal(w.requests.length,before);
+ const legacy=world({content:[c]});const sheet=legacy.sheets['content-id|LoiDay_NoiDung'];sheet.data.forEach(row=>row.splice(17));assert.equal(legacy.ctx.thuTuanSheet_('content-id','LoiDay_NoiDung'),sheet);
+ sheet.data[0][16]='Wrong header';assert.throws(()=>legacy.ctx.thuTuanSheet_('content-id','LoiDay_NoiDung'),/INVALID_HEADERS/);
+});
+test('a new Gmail approval cannot bypass the single-message gate after transport changes to Zalo',()=>{
+ for(const missing of [true,false]){
+  const w=zaloWorld();w.props.THU_TUAN_TRANSPORT='GMAIL';const row=w.row;
+  if(!missing)for(const [key,value] of Object.entries(zaloDraft({YNgiaVanDungZalo:'x'.repeat(1800)})))if(w.H.LoiDay_NoiDung.includes(key))row[w.H.LoiDay_NoiDung.indexOf(key)]=value;
+  w.ctx.duyetNoiDungThuTuan('2026-09-21');w.props.THU_TUAN_TRANSPORT='ZALO';const r=w.ctx.guiThuTuan();
+  assert.equal(r.status,'ZALO_RUN_BLOCKED');assert.equal(r.reason,missing?'ZALO_CONTENT_REQUIRED':'ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE');assert.equal(w.requests.length,0);assert.equal(w.zaloLog.data.length,1);
+ }
+});
+test('authorized draft preview shows exact text and counts before approval without logs, writes or network',()=>{
+ const w=world({content:[zaloDraft({})]}),before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);w.props.THU_TUAN_APPROVAL_WEEK='2026-09-21';
+ const p=w.ctx.xemTruocBanNhapZaloThuTuan();assert.equal(p.status,'ZALO_DRAFT_PREVIEW');assert.equal(p.utf16Length,p.text.length);assert.equal(p.partCount,1);assert.equal(p.fitsOneMessage,true);
+ assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);assert.equal(w.logs.length,0);assert.equal(w.mail.length,0);
+ const forbidden=world({actor:'intruder@example.test',content:[zaloDraft({})]});assert.throws(()=>forbidden.ctx.xemTruocNoiDungZaloThuTuan('2026-09-21'),/APPROVER_REQUIRED/);
+ w.props.THU_TUAN_APPROVAL_WEEK='';assert.throws(()=>w.ctx.xemTruocBanNhapZaloThuTuan(),/INVALID_WEEK/);
+});
+test('Unicode and optional NotebookLM are included in the actual single-message check',()=>{
+ const ctx=weekly(),c=zaloDraft({NotebookLM_URL:'https://notebooklm.google.com/notebook/test-link',YNgiaVanDungZalo:'👨‍👩‍👧‍👦 e\u0301'});
+ const text=ctx.thuTuanZaloOneMessage_(c);assert.ok(text.includes(c.NotebookLM_URL));assert.ok(text.includes(ctx.THU_TUAN_NOTEBOOK_NOTE));
+ c.YNgiaVanDungZalo='\uD800';assert.throws(()=>ctx.thuTuanZaloOneMessage_(c),/ZALO_INVALID_UNICODE/);
+ c.YNgiaVanDungZalo='x'.repeat(1600);assert.throws(()=>ctx.thuTuanZaloOneMessage_(c),/ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE/);
+});
+test('append-only schema upgrade preserves legacy approvals and rows, requires disabled sending and an authorized reviewer',()=>{
+ const ctx=weekly(),c=stamp(ctx,contentRow({})),w=world({enabled:false,content:[c]}),sheet=w.sheets['content-id|LoiDay_NoiDung'];sheet.data.forEach(row=>row.splice(17));sheet.getMaxColumns=()=>26;
+ const before=JSON.stringify(sheet.data[1]),oldHeaders=sheet.data[0].slice();
+ assert.equal(w.ctx.nangCapCotNoiDungZaloThuTuan().status,'ZALO_COLUMNS_ADDED');assert.equal(JSON.stringify(sheet.data[1]),before);assert.deepEqual(sheet.data[0].slice(0,17),oldHeaders);assert.equal(sheet.data[0].length,20);
+ const saved=w.ctx.thuTuanRows_(sheet,'LoiDay_NoiDung')[0];assert.equal(w.ctx.thuTuanDigest_(saved,SECRET),c.DauVanBanDuyet);assert.equal(w.ctx.nangCapCotNoiDungZaloThuTuan().status,'SCHEMA_ALREADY_CURRENT');
+ w.props.THU_TUAN_ENABLED='true';assert.throws(()=>w.ctx.nangCapCotNoiDungZaloThuTuan(),/DISABLE_BEFORE_SCHEMA_UPGRADE/);
+ const intruder=world({enabled:false,actor:'intruder@example.test'});assert.throws(()=>intruder.ctx.nangCapCotNoiDungZaloThuTuan(),/APPROVER_REQUIRED/);
+});
+test('local Zalo export round-trips CSV, preserves email fields and calendar, clears approval and refuses uncertain sources',()=>{
+ const tool=require('../services/thu-tuan/tools/zalo-content-to-sheet.cjs'),ctx=tool.runtime(),c=zaloDraft({Ky:'2026-10-12',MaLoiDay:'LD-047',NoiDungNguyenVan:'Quote "exact"\nline two',BoiCanh:'Full original email context.'}),headers=Array.from(ctx.THU_TUAN_HEADERS.LoiDay_NoiDung).slice(0,17);
+ const csv=require('../services/thu-tuan/tools/corpus-to-sheet.cjs').toCsv(headers,[headers.map(key=>c[key]??'')]);const schedule=tool.parseCsv(csv);
+ const r=tool.scheduleRows(schedule,[c],'2026-10-12',ctx)[0];assert.equal(r.Ky,c.Ky);assert.equal(r.NoiDungNguyenVan,c.NoiDungNguyenVan);assert.equal(r.NguonTrich,c.NguonTrich);assert.equal(r.BoiCanh,c.BoiCanh);assert.equal(r.TrangThai,'Nhap');assert.equal(r.DauVanBanDuyet,'');assert.equal(r.NguoiDuyet,'');
+ assert.equal(tool.auditDrafts([c],ctx)[0].partCount,1);assert.throws(()=>tool.auditDrafts([c,c],ctx),/INVALID_OR_DUPLICATE_CODE/);
+ assert.throws(()=>tool.scheduleRows(schedule,[{...c,sourceReviewRequired:true}],'2026-10-12',ctx),/NEEDS_SOURCE_REVIEW/);
+ assert.throws(()=>tool.scheduleRows({...schedule,rows:[{...c,Ky:'2026-02-30'}]},[c],'2026-01-01',ctx),/INVALID_OR_DUPLICATE_WEEK/);
+ assert.throws(()=>tool.scheduleRows({...schedule,rows:[c,c]},[c],'2026-10-12',ctx),/INVALID_OR_DUPLICATE_WEEK/);
+ assert.equal(tool.scheduleRows(schedule,[c],'2026-10-19',ctx).length,0);
+ assert.throws(()=>tool.main(['--input','missing.json','--report',__filename]),/OUTPUT_MUST_BE_OUTSIDE_REPOSITORY/);
+ assert.throws(()=>tool.main(['--input','missing.json','--report','report.json','--schedule-preview','preview.md']),/SCHEDULE_PREVIEW_REQUIRES_SCHEDULE/);
 });

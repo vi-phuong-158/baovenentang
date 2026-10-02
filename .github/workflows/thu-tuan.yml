@@ -3,7 +3,7 @@ name: Thu tuan
 # No `paths` filter: this job may become a required check, and a skipped required check blocks merging.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, claude/thu-tuan-approval-history-guard]
   push:
     branches: [main]
 

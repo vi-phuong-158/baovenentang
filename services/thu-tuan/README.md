@@ -1,5 +1,42 @@
 # Thư tuần “Lời Bác dạy”
 
+## Hiện hành 02/10/2026 — Zalo gọn trong một tin (phương án B)
+
+Nhánh `codex/thu-tuan-zalo-single-message`, PR #17 xếp chồng PR #16. Code e0800d8 đã cập nhật riêng Apps Script TEST, pull/readback bốn file khớp; manifest/EmailAssets/Properties/trigger/log giữ nguyên. Tab riêng `Zalo_Nhap_51_Ky` trong nội dung TEST có 51 kỳ Nhap từ 12/10, số ký tự và nguyên tin xem trước, đọc lại 1.144 ô khớp. Active LoiDay_NoiDung và dấu cũ giữ nguyên. Chưa nghiệm thu gửi mẫu mới; TEST lịch sử không chứng minh mẫu mới đã gửi thật. PROD đã backup và chuẩn bị gói local 5 file, không upload trước nghiệm thu lịch 05/10.
+
+Zalo mới giữ nguyên lời trích và nguồn, dùng bốn phần: **LỜI BÁC DẠY → BỐI CẢNH → Ý NGHĨA VÀ VẬN DỤNG → HÀNH ĐỘNG TUẦN NÀY**. Ý nghĩa và liên hệ CAND được biên tập thành một đoạn chung; hành động là một việc cụ thể. Không tự nối hai đoạn dài, tóm tắt hoặc cắt chữ lúc gửi. Email vẫn dùng các ô đầy đủ và mẫu hiện hữu.
+
+- Ba cột mới nối **sau 17 cột cũ**, đúng thứ tự: `BoiCanhZalo, YNgiaVanDungZalo, HanhDongTuanNayZalo`. Người duyệt đọc cả nguyên văn, nguồn và ba ô biên tập. Không nhập đè kỳ đã có nhật ký.
+- Mọi lần duyệt mới tạo dấu `v3:<64 hex>`, ký cả ba ô mới cùng payload cũ. Xóa/sửa bất kỳ ô mới nào làm dấu sai; xóa cả ba không hạ được xuống v2. Duyệt bằng Gmail cũng dùng v3; chuyển sang Zalo phải có đủ ba ô và vừa một tin.
+- Khi transport ZALO, thiếu ba ô → `ZALO_CONTENT_REQUIRED`; toàn bộ tin trên **1.800 đơn vị UTF-16** hoặc phải chia phần → `ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE`. Chặn trước mọi ghi dấu/metadata. Sender kiểm lại trước log/API. NotebookLM và lời nhắc (nếu có), xuống dòng, Unicode đều tính trong tin. Mốc 1.200–1.500 là gợi ý biên tập, không buộc kéo dài bài ngắn.
+- Bản đã duyệt v2 và cả ba ô mới trống vẫn dùng renderer, HMAC, PlanHash và chia phần cũ. Không điền ba ô vào kỳ 05/10 đã duyệt: sẽ làm dấu mất hiệu lực. Guard PR #16 vẫn chặn duyệt lại kỳ có lịch sử.
+- `xemTruocNoiDungZaloThuTuan(ky)` / `xemTruocBanNhapZaloThuTuan()` trả nguyên văn tin, `utf16Length`, `partCount` và `fitsOneMessage` cho tài khoản thuộc allowlist, không ghi/log nội dung hoặc gọi Zalo. Helper không đối số chọn `THU_TUAN_APPROVAL_WEEK` giống helper duyệt; xóa property sau khi dùng. Editor Run không tự hiển thị toàn bộ giá trị trả về; dùng bản xem trước offline hoặc caller đã xác thực, không thêm Logger cho nội dung.
+
+### Bản nháp và công cụ kiểm tra offline
+
+Bộ 100 bài nằm ở thư mục riêng `.work/thu-tuan-zalo-single-message` cạnh kho tài liệu nguồn, ngoài repo công khai. Có JSON nháp, `100-tin-zalo-xem-truoc.md`, `12-ky-Q4-xem-truoc.md`, `51-ky-xem-truoc.md`, CSV 20 cột và báo cáo độ dài. Ngày trong bản 100 bài chỉ minh họa; bản theo lịch dùng ngày thật. Kỳ **12/10 là LD-047**, LD-002 là ví dụ. **100/100 bài đã biên tập lại** bối cảnh, đoạn ý nghĩa-vận dụng và một hành động; vẫn chờ người duyệt. LD-071/072 giữ `NEEDS_SOURCE_REVIEW` vì nguyên bản không ghi ngày và đối tượng chưa chắc, bị chặn xuất lịch.
+
+Đo bằng renderer thật sau hoàn thiện: **100/100 một phần**, nhỏ nhất 913, trung vị **1.000**, lớn nhất **1.195** đơn vị UTF-16. CSV giữ lịch và các ô email/trích dẫn/nguồn gốc, thêm ba ô biên tập; Nhap, không có dấu. Xuất 12 kỳ Q4 và 51 kỳ năm từ 12/10, giữ 05/10 nguyên trạng. Bỏ dấu Markdown nguồn chỉ khi biên tập nháp và có người duyệt; sender giữ nguyên văn ô ký.
+
+Ví dụ PowerShell (đường dẫn ngoài repository, thư mục đích đã tồn tại):
+
+```powershell
+node services/thu-tuan/tools/zalo-content-to-sheet.cjs --input '<private>/100-loi-day-zalo-nhap.json' --report '<private>/do-dai.json' --preview '<private>/100-tin.md' --schedule '<private>/lich-goc.csv' --from 2026-10-12 --out '<private>/lich-ZALO-NHAP.csv' --schedule-preview '<private>/lich-xem-truoc.md'
+```
+
+Công cụ chỉ kiểm/ghép/export, không sinh nội dung, không gọi Google/AI, không tạo HMAC. Từ chối output trong repo hoặc đè input. Không nhập toàn bộ CSV bằng thao tác replace sheet.
+
+### Triển khai sau khi kỳ 05/10 đã nghiệm thu
+
+1. Review PR #16 rồi PR này; CI phải đạt. Sao lưu source và Sheets riêng tư, tắt gửi và xác nhận không có execution đang chạy; không xóa nhật ký để vượt guard.
+2. Upload đúng source từng project riêng, không dùng clasp backend. TEST có ZaloAcceptance.gs; PROD không có file TEST này. Đọc lại source/hash. Giữ token/approval secret hiện hữu; không tự rotate.
+3. Người duyệt chạy `nangCapCotNoiDungZaloThuTuan()` với ENABLED đúng `false`: chỉ nối header cột 18–20, không sửa các dòng/dấu cũ. Chạy lại trả SCHEMA_ALREADY_CURRENT. Header cũ đúng 17 cột vẫn đọc được; thiếu/thừa/đổi thứ tự một phần thì dừng.
+4. Trên TEST, dùng kỳ/Sheet thử chưa có nhật ký và nội dung mới được người duyệt chấp nhận; không ghi đè fixture nghiệm thu 05/10. Duyệt ZALO, preview partCount=1, gửi thủ công vào nhóm TEST đã pin, audit một SENT/receipt hợp lệ, chạy lại không thêm tin, cuối ENABLED=false. Helper fixed-week 05/10 chỉ dùng kiểm lịch sử, không tái sử dụng làm fixture mới. Không mở Web App/API executable để lách quyền chạy.
+5. Trên PROD, chỉ nhập ba ô mới cho các dòng Nhap từ 12/10 và tăng PhienBan; đối chiếu bản xem trước lịch, nguồn và nguyên văn, duyệt 12/10 sau cập nhật. Kiểm readiness, đối soát, bật gửi theo runbook hiện hữu. Những kỳ v2 có lịch sử tiếp tục nguyên trạng.
+6. Rollback: ưu tiên tắt gửi và sửa tiến tới. Source cũ không hiểu header 20 cột hoặc dấu v3; không chỉ đưa code cũ lên rồi bật gửi. Khôi phục backup đồng bộ chỉ sau đối soát mọi kỳ/dấu/nhật ký, không xóa cột đang dùng hay duyệt lại kỳ có lịch sử.
+
+Kiểm cục bộ **166/166**, parse 21 GS; mutation bỏ cổng duyệt làm 2 test fail, renderer email làm 4 fail, HMAC bỏ ba ô làm 1 fail. CI xanh trên base PR16. Lời gọi chỉ đọc `clasp run doiSoatFixtureZaloThuTuanTest` sau upload TEST vẫn storage NOT_FOUND; chưa gửi/receipt/dedupe runtime mẫu mới. Cần editor có quyền và người duyệt chấp nhận nội dung; không coi deployment/readback hay local PASS là runtime PASS. Tab nháp riêng không được sender đọc; sau disabled/migration, chỉ nhập các trường được chấp nhận vào kỳ active chưa có lịch sử.
+
 Module Apps Script **độc lập**, gửi nội dung đã được con người duyệt trong Google Sheets qua Gmail (mặc định) hoặc Zalo Bot (plain text).
 
 > **Chuẩn bị pilot Production (01/10/2026, chỉ code/test, chưa chạy PROD):** thêm receiver PROD `nhanSuKienZaloThuTuanProd` (chỉ pin `THU_TUAN_ZALO_PROD_CHAT_ID/CHAT_SHA256`), hàm chỉ đọc `kiemTraSanSangZaloProduction`, trigger báo lỗi `THU_TUAN_TRIGGER_ATTENTION:<STATUS>` và CI `.github/workflows/thu-tuan.yml`. Regression local **148/148**. Chưa tạo project/Bot PROD, chưa gửi Production. Quy trình bắt buộc ở mục 12 “Pilot Production”. `THU_TUAN_ZALO_TEST_RUNTIME_ACCEPTANCE_PASS` **không** phải nghiệm thu Production; `READY_FOR_PRODUCTION_PILOT` **không** phải `PRODUCTION_ACCEPTANCE_PASS`.
@@ -28,7 +65,7 @@ Module Apps Script **độc lập**, gửi nội dung đã được con người
 
 - **Không có AI khi gửi.** Thư chỉ ghép các ô đã duyệt, không tạo, tóm tắt hay sửa câu chữ.
 - **Chỉ gửi nội dung đã duyệt:** `NHÁP → kiểm tra nguồn → DUYỆT (khóa phiên bản) → được phép gửi`. Thiếu gì hoặc bị sửa sau duyệt thì **dừng, không gửi**.
-- **Cấu trúc thư canonical (giữ nguyên thứ tự):** tiêu đề · ảnh banner cố định (nếu khả dụng) · Tuần/Chủ đề/Mã lời dạy · trích dẫn Lời Bác dạy và nguồn · Bối cảnh · Phân tích / ý nghĩa · Liên hệ với Công an nhân dân · Hành động tuần này · phần kỹ thuật tùy chọn. Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài. Không có mục Liên hệ An ninh đối ngoại hoặc Gợi ý tự soi, tự liên hệ trong email.
+- **Cấu trúc email canonical (giữ nguyên thứ tự):** tiêu đề · ảnh banner cố định (nếu khả dụng) · Tuần/Chủ đề/Mã lời dạy · trích dẫn Lời Bác dạy và nguồn · Bối cảnh · Phân tích / ý nghĩa · Liên hệ với Công an nhân dân · Hành động tuần này · phần kỹ thuật tùy chọn. Cuối thư **có thể** có nút NotebookLM để tra cứu thêm, kèm lời nhắc: NotebookLM không phải nguồn chính thức, phải đối chiếu nguồn gốc. Ô NotebookLM để trống thì thư không có phần này. Email dùng table và inline style, co về chiều rộng màn hình, không tải font ngoài. Không có mục Liên hệ An ninh đối ngoại hoặc Gợi ý tự soi, tự liên hệ trong email.
 - **Ảnh banner cố định:** `EmailAssets.gs` giữ một JPEG nội tuyến dạng Base64. Khi gửi, Apps Script tạo Blob và ghép `inlineImages` với `cid:loi-bac-hero`; email không tải ảnh từ Drive, Sheet, URL công khai hoặc mạng, và không cần OAuth scope mới. Có thể tắt bằng `THU_TUAN_HERO_IMAGE_ENABLED_ = false`; nếu tắt hoặc không tạo được Blob, ảnh được bỏ qua còn HTML và plain-text vẫn gửi. Ảnh có `alt`; hiển thị trên mobile là best-effort và phụ thuộc email client.
 - **Gmail: mỗi người nhận một thư riêng**, không CC/BCC, không lộ địa chỉ người khác. Zalo gửi vào đúng nhóm đã pin theo mục 12. Không có đường dẫn theo dõi cá nhân.
 - **Không public:** không deploy Web App, không `doGet/doPost`, không copy vào `backend/`.
@@ -47,11 +84,11 @@ Tài khoản sở hữu project là tài khoản gửi thư. Chọn tài khoản
 
 | Bảng tính | Trang tính (tên chính xác) | Hàng 1 – tiêu đề, đúng thứ tự | Ai được sửa |
 |---|---|---|---|
-| **A – Nội dung** | `LoiDay_NoiDung` | `Ky, MaLoiDay, NoiDungNguyenVan, NguonTrich, GoiYLienHe, TrangThai, NguoiDuyet, NgayDuyet, PhienBan, DauVanBanDuyet, ChuDe, BoiCanh, PhanTich, LienHeCAND, LienHeAnNinhDoiNgoai, HanhDongTuanNay, NotebookLM_URL` | Người biên soạn, người duyệt |
+| **A – Nội dung** | `LoiDay_NoiDung` | `Ky, MaLoiDay, NoiDungNguyenVan, NguonTrich, GoiYLienHe, TrangThai, NguoiDuyet, NgayDuyet, PhienBan, DauVanBanDuyet, ChuDe, BoiCanh, PhanTich, LienHeCAND, LienHeAnNinhDoiNgoai, HanhDongTuanNay, NotebookLM_URL, BoiCanhZalo, YNgiaVanDungZalo, HanhDongTuanNayZalo` | Người biên soạn, người duyệt |
 | **B – Hạn chế** | `ThuTuan_NguoiNhan` | `MaCB, Email, TrangThai, NgayDangKy` | Chỉ người vận hành |
 | **B – Hạn chế** | `ThuTuan_NhatKyGui` | `Khoa, Ky, MaCB, MaLoiDay, PhienBan, DauVanBanDuyet, TrangThai, CapNhatLuc, MaLoi` | Chỉ script + người vận hành (khi đối soát) |
 
-- 10 cột đầu của LoiDay_NoiDung là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột sau được nối thêm. GoiYLienHe và LienHeAnNinhDoiNgoai được giữ lại chỉ để tương thích dữ liệu/cột cũ: **LEGACY INPUT ONLY — DO NOT RENDER**. Chúng không bắt buộc, không được xuất ra thư và không nằm trong HMAC canonical v2. Importer chấp nhận nhãn An ninh đối ngoại từ Markdown cũ nhưng bỏ giá trị đó; các cột legacy trong CSV nháp luôn để trống. Dấu duyệt phiên bản cũ không còn hợp lệ sau khi nâng lên v2; nội dung cần được duyệt lại qua hàm duyệt. Sai/thiếu/thừa tiêu đề → script báo INVALID_HEADERS và không làm gì.
+- 10 cột đầu của LoiDay_NoiDung là cấu trúc cũ, **không được đổi thứ tự hay ý nghĩa**; 7 cột nội dung đầy đủ và 3 cột biên tập Zalo được nối thêm. GoiYLienHe và LienHeAnNinhDoiNgoai được giữ lại chỉ để tương thích dữ liệu/cột cũ: **LEGACY INPUT ONLY — DO NOT RENDER**. Chúng không bắt buộc, không được xuất ra thư và không nằm trong HMAC canonical v2. Importer chấp nhận nhãn An ninh đối ngoại từ Markdown cũ nhưng bỏ giá trị đó; các cột legacy trong CSV nháp luôn để trống. Dấu duyệt phiên bản cũ không còn hợp lệ sau khi nâng lên v2; nội dung cần được duyệt lại qua hàm duyệt. Đọc được đúng bộ 17 cột cũ hoặc đủ 20 cột mới; bộ mới thiếu/thừa/sai thứ tự → INVALID_HEADERS.
 - **Trước khi nhập dữ liệu**, chọn cột `Ky` (bảng A) và cột `MaCB` (bảng B) → *Định dạng → Số → Văn bản thuần túy*. Nếu Sheets tự đổi `2026-10-05` thành ngày, script báo `KY_NOT_PLAIN_TEXT` và dừng. Nhật ký do script tự định dạng.
 - `Ky` = **ngày thứ Hai** mở đầu tuần, dạng `YYYY-MM-DD` (giờ Việt Nam).
 - Người nhận: `TrangThai` = `DangNhan` (đang nhận) hoặc `TamDung` (dừng nhận). `MaCB` là mã nội bộ, chỉ gồm chữ/số/`-`/`_`, **không trùng** trên toàn trang (kể cả dòng TamDung).

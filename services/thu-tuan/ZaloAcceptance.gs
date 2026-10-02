@@ -53,7 +53,7 @@ function thuTuanZaloAcceptanceFixture_(io) {
 function thuTuanZaloAcceptanceSeal_(state,io,content) {
   var digest = io.digest(content);
   if (thuTuanApprovalProblem_(content,digest,io.approvers)) throw new Error('TEST_ACCEPTANCE_CONTENT_BLOCKED');
-  var parts = thuTuanZaloSplit_(thuTuanRenderText_(content));
+  var parts = thuTuanZaloSplit_(thuTuanRenderZaloText_(content));
   return {key:THU_TUAN_ZALO_ACCEPTANCE_KEY_,environment:'TEST',
     bindingHash:thuTuanZaloHash_(JSON.stringify([ScriptApp.getScriptId(),state.cfg.contentId,state.cfg.privateId,state.zalo.botId])),
     targetHash:state.zalo.targetHash,approvalDigest:digest,
@@ -90,7 +90,7 @@ function thuTuanZaloAcceptancePrepare_(state,io) {
   var fixture = Object.assign(thuTuanCanonicalContent_(source[0]),{
     Ky:key,TrangThai:'Nhap',NguoiDuyet:'',NgayDuyet:'',DauVanBanDuyet:''
   });
-  var parts = thuTuanZaloSplit_(thuTuanRenderText_(fixture));
+  var parts = thuTuanZaloSplit_(thuTuanRenderZaloText_(fixture));
   if (!thuTuanZaloAcceptanceSameState_(thuTuanZaloAcceptanceGuard_(null,false),state))
     throw new Error('TEST_ACCEPTANCE_ISOLATION_REQUIRED');
   var sheet = thuTuanSheet_(state.cfg.contentId,'LoiDay_NoiDung'), row = sheet.getLastRow()+1;
@@ -122,7 +122,7 @@ function thuTuanZaloAcceptanceAudit_(io) {
     logRows:history.length,states:states,receipts:receipts,
     sentReceiptsDistinct:new Set(sentIds).size === sentIds.length,
     reconciliationClear:preview.status === 'PREVIEW' && preview.unknown === 0 &&
-      preview.pending === 0 && preview.alreadySent === thuTuanZaloSplit_(thuTuanRenderText_(content)).length};
+      preview.pending === 0 && preview.alreadySent === thuTuanZaloSplit_(thuTuanRenderZaloText_(content)).length};
 }
 
 function thuTuanZaloAcceptanceRun_(event,operation) {
@@ -178,7 +178,7 @@ function thuTuanZaloAcceptanceRun_(event,operation) {
           if (props.getProperty(THU_TUAN_ZALO_ACCEPTANCE_SEAL_) !== JSON.stringify(seal))
             throw new Error('TEST_ACCEPTANCE_PREVIEW_REQUIRED');
           result.partCount = seal.partCount;
-          result.partLengths = thuTuanZaloSplit_(thuTuanRenderText_(content)).map(function(part) { return part.length; });
+          result.partLengths = thuTuanZaloSplit_(thuTuanRenderZaloText_(content)).map(function(part) { return part.length; });
           result.previewSealed = true;
         }
       }
