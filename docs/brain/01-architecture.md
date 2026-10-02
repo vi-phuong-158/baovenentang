@@ -1,5 +1,10 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Duyệt kỳ hiện tại từ Apps Script editor (02/10/2026)
+
+- Entry point thủ công `duyetKyThuTuan` chọn thứ Hai hiện tại qua `thuTuanWeekKey_(new Date())` theo Asia/Ho_Chi_Minh rồi gọi `duyetNoiDungThuTuan`; không cần sửa source để truyền ngày trong editor.
+- Implementation identity/allow-list, completeness, ScriptLock, HMAC và readback không đổi. API có tham số vẫn cho reviewer chọn kỳ rõ ràng. Không gửi hoặc tạo trigger/schema/route mới.
+
 ## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
 
 - `ZaloDiagnostics.gs`: core receiver dùng chung `thuTuanZaloDiagnosticConfigFor_(env)`/`thuTuanZaloDiagnosticRun_(event,receive,env)`. Env do entrypoint cố định: `nhanSuKienZaloThuTuanTest`→TEST, `nhanSuKienZaloThuTuanProd`→PROD; `THU_TUAN_ZALO_ENV` chỉ phải khớp. PROD yêu cầu ENABLED=false, TEST_MODE=false, ZALO, ENV=PROD, pin script/hai Sheet/Bot PROD, không trùng project/Bot/Sheet TEST. Chẩn đoán host đọc (`chanDoanZaloThuTuan`) và helper scope vẫn TEST-only.
