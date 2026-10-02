@@ -418,6 +418,26 @@ test('approval: allow-list, Monday key, completeness, NotebookLM and missing cur
  assert.throws(()=>world({content:[draft({NotebookLM_URL:'https://evil.test'})]}).ctx.duyetNoiDungThuTuan('2026-09-21'),/INVALID_NOTEBOOKLM_URL/);
  const ok=world({content:[draft({NotebookLM_URL:''})]});ok.setNow('2026-09-20T01:00:00Z');assert.equal(ok.ctx.duyetNoiDungThuTuan('2026-09-21').status,'APPROVED');
 });
+test('editor approval can approve an explicit future week before its scheduled send without touching the current week',()=>{
+ const w=world({enabled:false,content:[draft({Ky:'2026-09-28',NotebookLM_URL:''}),draft({Ky:'2026-10-05',NotebookLM_URL:''})]});w.setNow('2026-10-02T01:00:00Z');w.props.THU_TUAN_APPROVAL_WEEK='2026-10-05';
+ const sheet=w.sheets['content-id|LoiDay_NoiDung'],currentBefore=JSON.stringify(sheet.data[1]);
+ const result=w.ctx.duyetKyThuTuan();assert.equal(result.status,'APPROVED');assert.equal(result.key,'2026-10-05');assert.equal(JSON.stringify(sheet.data[1]),currentBefore);
+ const future=w.ctx.thuTuanRows_(sheet,'LoiDay_NoiDung')[1];assert.equal(w.ctx.thuTuanApprovalProblem_(future,w.ctx.thuTuanDigest_(future,SECRET),[REVIEWER]),'');
+ assert.equal(w.ctx.xemTruocThuTuan().reason,'NOT_APPROVED');assert.equal(w.mail.length,0);assert.equal(w.created.length,0);assert.equal(w.props.THU_TUAN_ENABLED,'false');
+});
+test('an invalid explicit approval week fails closed even when a valid current-week draft exists',()=>{
+ for(const key of ['', ' ', 'YYYY-MM-DD', '2026-10-06', '2026-10-05 ', '2026-10-05']){
+  const w=world({enabled:false,content:[draft({Ky:'2026-09-28'})]});w.setNow('2026-10-02T01:00:00Z');w.props.THU_TUAN_APPROVAL_WEEK=key;const before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);
+  assert.throws(()=>w.ctx.duyetKyThuTuan(),/INVALID_WEEK/);assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);assert.equal(w.mail.length,0);
+ }
+});
+test('explicit future-week approval keeps reviewer and duplicate-row gates',()=>{
+ for(const [options,reason] of [[{actor:'intruder@example.test'},/APPROVER_REQUIRED/],[{content:[draft({Ky:'2026-10-05'}),draft({Ky:'2026-10-05'})]},/INVALID_WEEK/]]){
+  const w=world({enabled:false,content:[draft({Ky:'2026-10-05'})],...options});w.setNow('2026-10-02T01:00:00Z');w.props.THU_TUAN_APPROVAL_WEEK='2026-10-05';const before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);
+  assert.throws(()=>w.ctx.duyetKyThuTuan(),reason);assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);assert.equal(w.mail.length,0);assert.equal(w.created.length,0);
+ }
+});
+
 test('editor approval selects only the Vietnam current week at the Monday boundary and verifies its stamp',()=>{
  for(const [now,key,index] of [['2026-09-20T16:59:59Z','2026-09-14',1],['2026-09-20T17:00:00Z','2026-09-21',2]]){
   const w=world({enabled:false,content:['2026-09-14','2026-09-21','2026-09-28'].map(Ky=>draft({Ky,NotebookLM_URL:''}))});w.setNow(now);

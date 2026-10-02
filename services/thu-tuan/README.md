@@ -79,6 +79,10 @@ Khóa duyệt dùng để ký “dấu duyệt” (`DauVanBanDuyet`). Người c
 - Chạy xemTruocThuTuan và xác nhận total:1, valid:1, invalid:0, duplicate:0, pending:1, unknown:0 trước khi gửi. Chạy lại để xác nhận alreadySent:1, pending:0. Không dùng cơ chế này để thử lên cấu hình hoặc dữ liệu Production.
 - Sau thử nghiệm: đặt `THU_TUAN_ENABLED=false`, `THU_TUAN_TEST_MODE=false`, xóa `THU_TUAN_TEST_RECIPIENT_EMAIL`, xác nhận không có trigger và kiểm tra log không còn `SENDING/UNKNOWN`.
 
+### Chọn kỳ duyệt trước lịch gửi
+
+Apps Script editor không truyền đối số. Để duyệt trước một kỳ, đặt Script Property `THU_TUAN_APPROVAL_WEEK` thành ngày thứ Hai của đúng dòng đã đối chiếu nguồn (ví dụ `2026-10-05`), rồi chạy `duyetKyThuTuan`. Sau khi thấy APPROVED đúng key và readback, xóa property này. Khi key vắng, helper chọn tuần hiện tại theo giờ Việt Nam; key rỗng/sai ngày hoặc kỳ thiếu/đúp bị từ chối, không tự chuyển sang kỳ khác. Cấu hình này chỉ chọn dòng duyệt; preview, gửi và trigger vẫn dùng tuần hiện tại. Identity/allow-list/HMAC không đổi.
+
 ### 1.4. Quyền và danh tính người duyệt
 
 - Hàm duyệt đọc email người đang chạy (`Session.getActiveUser`). Google chỉ trả email khi người chạy là **chủ project** hoặc **cùng miền Google Workspace** với chủ project; trường hợp khác trả rỗng → `APPROVER_REQUIRED` (từ chối, an toàn). Hãy thử duyệt một kỳ nháp ở môi trường TEST trước.
@@ -109,7 +113,7 @@ Mỗi kỳ một dòng, `TrangThai` = `Nhap`. Không dán nội dung từ kết 
 | Bước | Ai | Làm gì | Kết quả mong đợi |
 |---|---|---|---|
 | 1. Kiểm nguồn | Người biên soạn/duyệt | Đối chiếu nguyên văn, tập, trang với Hồ Chí Minh Toàn tập; điền PhienBan (ví dụ 1) | Dòng đủ 8 trường canonical + phiên bản |
-| 2. Duyệt | Người duyệt | Đối chiếu nguồn và dòng kỳ hiện tại theo giờ Việt Nam, chọn `duyetKyThuTuan` → *Chạy*; hàm tự chọn thứ Hai của tuần hiện tại | Nhật ký: `{"status":"APPROVED",...}`; dòng có `DaDuyet`, người duyệt, ngày duyệt, dấu duyệt |
+| 2. Duyệt | Người duyệt | Đối chiếu nguồn và dòng kỳ, chọn `duyetKyThuTuan` → *Chạy*; dùng `THU_TUAN_APPROVAL_WEEK` cho kỳ tường minh, nếu key vắng thì chọn tuần hiện tại theo giờ Việt Nam | Nhật ký: `{"status":"APPROVED",...}`; dòng có `DaDuyet`, người duyệt, ngày duyệt, dấu duyệt |
 | 3. Xem trước | Người vận hành | Chạy xemTruocThuTuan (không gửi, không ghi) | PREVIEW, đúng key (thứ Hai tuần này), đúng maLoiDay; kiểm tra total/valid/invalid/duplicate của danh sách, cùng pending/alreadySent/unknown, và quota ≥ pending |
 | 4. Gửi | Lịch tự động hoặc chạy `guiThuTuan` | Chỉ gửi khi `THU_TUAN_ENABLED=true` | `COMPLETE`, `sent` = số thư gửi lần này |
 | 5. Đối soát | Người vận hành | *Executions* của project; trang `ThuTuan_NhatKyGui` | Không còn `SENDING/UNKNOWN`; xử lý mục 5 nếu có |
@@ -121,7 +125,7 @@ Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, ph
 | Thông báo | Ý nghĩa | Xử lý |
 |---|---|---|
 | `APPROVER_REQUIRED` | Người chạy không có trong danh sách hoặc Google không trả email | Kiểm tra `THU_TUAN_APPROVER_EMAILS`, tài khoản chạy (mục 1.4) |
-| `INVALID_WEEK` | Ngày truyền cho `duyetNoiDungThuTuan(ky)` không phải thứ Hai dạng `YYYY-MM-DD`, hoặc không có/đúp dòng kỳ đó | Kiểm tra cột `Ky`; `duyetKyThuTuan` chỉ chọn tuần hiện tại theo giờ Việt Nam |
+| `INVALID_WEEK` | Ngày truyền cho `duyetNoiDungThuTuan(ky)` không phải thứ Hai dạng `YYYY-MM-DD`, hoặc không có/đúp dòng kỳ đó | Kiểm tra cột `Ky`; Kiểm tra/xóa `THU_TUAN_APPROVAL_WEEK` nếu chọn kỳ tường minh; key vắng mới chọn tuần hiện tại theo giờ Việt Nam |
 | `INCOMPLETE_CONTENT` | Thiếu một trong 8 trường canonical hoặc `PhienBan` | Điền đủ |
 | `INVALID_NOTEBOOKLM_URL` | Ô NotebookLM có giá trị nhưng không phải `https://notebooklm.google.com/notebook/...` | Sửa hoặc để trống |
 | `MISSING_APPROVAL_SECRET` | Chưa tạo khóa duyệt | Chạy `taoKhoaDuyetThuTuan` |

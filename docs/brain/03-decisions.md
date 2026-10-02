@@ -1,5 +1,10 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 02/10/2026 — Duyệt trước hạn bằng kỳ tường minh
+
+- Lịch thứ Hai cần nội dung duyệt trước kỳ gửi, trong khi editor không truyền args. Một Script Property chọn kỳ giải quyết việc này qua API duyệt đã có; không hardcode tuần/clone fixture hoặc thêm batch-approval.
+- Missing key→current-week; present invalid/empty→fail-closed. Không dùng `ky || currentWeek` vì cấu hình sai không được âm thầm duyệt dòng khác. Luồng gửi vẫn chỉ chọn tuần hiện tại và giữ receipt/dedupe.
+
 ## Quyết định 02/10/2026 — Bỏ ngày mẫu khỏi helper duyệt editor
 
 - Apps Script editor không truyền đối số khi Run. Literal YYYY-MM-DD làm helper luôn INVALID_WEEK và buộc source cloud lệch main mỗi khi reviewer thay ngày. Chọn tuần hiện tại theo cùng timezone với luồng gửi; reviewer phải đối chiếu nguồn/dòng kỳ trước khi chạy tay.

@@ -1,5 +1,10 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Chọn kỳ duyệt qua cấu hình (02/10/2026)
+
+- `duyetKyThuTuan` đọc riêng `THU_TUAN_APPROVAL_WEEK` và truyền nguyên giá trị cho API duyệt. Chỉ null (key vắng) mới dùng tuần hiện tại; giá trị rỗng/sai vẫn bị core từ chối. Key không tham gia config sender/trigger, không chọn tuần gửi.
+- Luồng approval explicit-week, identity/HMAC/lock/readback và sender giữ nguyên. Reviewer có thể duyệt kỳ tương lai trước lịch thật mà không chỉnh source cloud. Xóa key sau duyệt để lần chạy tay kế tiếp trở lại tuần hiện tại.
+
 ## Duyệt kỳ hiện tại từ Apps Script editor (02/10/2026)
 
 - Entry point thủ công `duyetKyThuTuan` chọn thứ Hai hiện tại qua `thuTuanWeekKey_(new Date())` theo Asia/Ho_Chi_Minh rồi gọi `duyetNoiDungThuTuan`; không cần sửa source để truyền ngày trong editor.

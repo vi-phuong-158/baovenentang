@@ -602,8 +602,11 @@ function thuTuanApproveContent_(ky, verifyBeforeWrite) {
   } finally { lock.releaseLock(); }
 }
 
-/** Người duyệt chạy tay sau đối chiếu nguồn; chọn kỳ hiện tại theo giờ Việt Nam, không cần sửa source. */
-function duyetKyThuTuan() { return duyetNoiDungThuTuan(thuTuanWeekKey_(new Date())); }
+/** Chạy tay sau đối chiếu nguồn: kỳ cấu hình tường minh, hoặc tuần hiện tại khi key vắng. */
+function duyetKyThuTuan() {
+  var ky=PropertiesService.getScriptProperties().getProperty('THU_TUAN_APPROVAL_WEEK');
+  return duyetNoiDungThuTuan(ky===null ? thuTuanWeekKey_(new Date()) : ky);
+}
 
 /** Tạo khóa ký dấu duyệt một lần; không ghi đè, không in giá trị. Đổi khóa làm mọi dấu duyệt cũ mất hiệu lực. */
 function taoKhoaDuyetThuTuan() {
