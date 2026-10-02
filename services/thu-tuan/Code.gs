@@ -602,8 +602,8 @@ function thuTuanApproveContent_(ky, verifyBeforeWrite) {
   } finally { lock.releaseLock(); }
 }
 
-/** Người duyệt: sửa ngày trong dấu nháy thành thứ Hai của kỳ đã đối chiếu nguồn, lưu, rồi chạy hàm này. */
-function duyetKyThuTuan() { return duyetNoiDungThuTuan('YYYY-MM-DD'); }
+/** Người duyệt chạy tay sau đối chiếu nguồn; chọn kỳ hiện tại theo giờ Việt Nam, không cần sửa source. */
+function duyetKyThuTuan() { return duyetNoiDungThuTuan(thuTuanWeekKey_(new Date())); }
 
 /** Tạo khóa ký dấu duyệt một lần; không ghi đè, không in giá trị. Đổi khóa làm mọi dấu duyệt cũ mất hiệu lực. */
 function taoKhoaDuyetThuTuan() {

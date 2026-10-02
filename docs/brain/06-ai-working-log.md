@@ -1,5 +1,11 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-02] Helper duyệt editor chọn kỳ hiện tại
+
+- CodeGraph explore/impact: duyetKyThuTuan → duyetNoiDungThuTuan → thuTuanApproveContent_/thuTuanWeekKey_; entrypoint không có caller khác, không route backend/frontend. Sửa nhỏ literal YYYY-MM-DD thành current-week helper hiện hữu, không đổi approval core.
+- Files: services/thu-tuan/Code.gs, README.md; tests/thu-tuan.test.cjs; brain01/03/06. Rủi ro: chạy sát nửa đêm thứ Hai sẽ chọn kỳ mới; README yêu cầu kiểm dòng kỳ/nguồn trước chạy. API explicit-week giữ nguyên.
+- Validation local: 151/151 test Thư tuần, syntax 21 tracked GS và diff check đạt; rà soát diff không thay approval core/transport. CI vẫn cần đạt trước merge/cloud. Test mới kiểm biên Chủ nhật UTC/thứ Hai VN, HMAC readback, không duyệt dòng tuần khác, identity/completeness/missing secret/duplicate fail-closed, không mail/trigger/log gửi.
+
 ## [2026-10-01, chuẩn bị pilot Production Thư tuần Zalo] B1/H1/H2 + CI
 
 - Phạm vi khóa theo yêu cầu user: B1 receiver PROD, H1 readiness, H2 trigger attention, test, CI, docs. Không tạo/chạy PROD, không gửi tin, không đổi credential, không mở rộng chức năng. Branch `claude/thu-tuan-prod-pilot-readiness` từ `main` 81e38bc.

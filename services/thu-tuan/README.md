@@ -109,7 +109,7 @@ Mỗi kỳ một dòng, `TrangThai` = `Nhap`. Không dán nội dung từ kết 
 | Bước | Ai | Làm gì | Kết quả mong đợi |
 |---|---|---|---|
 | 1. Kiểm nguồn | Người biên soạn/duyệt | Đối chiếu nguyên văn, tập, trang với Hồ Chí Minh Toàn tập; điền PhienBan (ví dụ 1) | Dòng đủ 8 trường canonical + phiên bản |
-| 2. Duyệt | Người duyệt | Trong editor, sửa ngày trong hàm `duyetKyThuTuan` thành thứ Hai của kỳ, lưu, chọn hàm đó → *Chạy* | Nhật ký: `{"status":"APPROVED",...}`; dòng có `DaDuyet`, người duyệt, ngày duyệt, dấu duyệt |
+| 2. Duyệt | Người duyệt | Đối chiếu nguồn và dòng kỳ hiện tại theo giờ Việt Nam, chọn `duyetKyThuTuan` → *Chạy*; hàm tự chọn thứ Hai của tuần hiện tại | Nhật ký: `{"status":"APPROVED",...}`; dòng có `DaDuyet`, người duyệt, ngày duyệt, dấu duyệt |
 | 3. Xem trước | Người vận hành | Chạy xemTruocThuTuan (không gửi, không ghi) | PREVIEW, đúng key (thứ Hai tuần này), đúng maLoiDay; kiểm tra total/valid/invalid/duplicate của danh sách, cùng pending/alreadySent/unknown, và quota ≥ pending |
 | 4. Gửi | Lịch tự động hoặc chạy `guiThuTuan` | Chỉ gửi khi `THU_TUAN_ENABLED=true` | `COMPLETE`, `sent` = số thư gửi lần này |
 | 5. Đối soát | Người vận hành | *Executions* của project; trang `ThuTuan_NhatKyGui` | Không còn `SENDING/UNKNOWN`; xử lý mục 5 nếu có |
@@ -121,7 +121,7 @@ Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, ph
 | Thông báo | Ý nghĩa | Xử lý |
 |---|---|---|
 | `APPROVER_REQUIRED` | Người chạy không có trong danh sách hoặc Google không trả email | Kiểm tra `THU_TUAN_APPROVER_EMAILS`, tài khoản chạy (mục 1.4) |
-| `INVALID_WEEK` | Ngày không phải thứ Hai dạng `YYYY-MM-DD`, chưa sửa `YYYY-MM-DD` mẫu, hoặc không có/đúp dòng kỳ đó | Sửa ngày; kiểm tra cột `Ky` |
+| `INVALID_WEEK` | Ngày truyền cho `duyetNoiDungThuTuan(ky)` không phải thứ Hai dạng `YYYY-MM-DD`, hoặc không có/đúp dòng kỳ đó | Kiểm tra cột `Ky`; `duyetKyThuTuan` chỉ chọn tuần hiện tại theo giờ Việt Nam |
 | `INCOMPLETE_CONTENT` | Thiếu một trong 8 trường canonical hoặc `PhienBan` | Điền đủ |
 | `INVALID_NOTEBOOKLM_URL` | Ô NotebookLM có giá trị nhưng không phải `https://notebooklm.google.com/notebook/...` | Sửa hoặc để trống |
 | `MISSING_APPROVAL_SECRET` | Chưa tạo khóa duyệt | Chạy `taoKhoaDuyetThuTuan` |

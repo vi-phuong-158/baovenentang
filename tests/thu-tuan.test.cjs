@@ -404,13 +404,13 @@ test('E2E: without the plain-text guard the log would have lost its Ky, yet Khoa
  const log=w.sheets['private-id|ThuTuan_NhatKyGui'];log.data[1][1]=new Date('2026-09-21T00:00:00+07:00');
  assert.equal(w.ctx.guiThuTuan().sent,0);assert.equal(w.mail.length,1);
 });
-test('approval: allow-list, Monday key, completeness, NotebookLM and wrapper placeholder all fail closed',()=>{
+test('approval: allow-list, Monday key, completeness, NotebookLM and missing current week all fail closed',()=>{
  const base={content:[draft({})],recipients:[]};
  assert.throws(()=>world({...base,actor:'intruder@example.test'}).ctx.duyetNoiDungThuTuan('2026-09-21'),/APPROVER_REQUIRED/);
  assert.throws(()=>world({...base,actor:''}).ctx.duyetNoiDungThuTuan('2026-09-21'),/APPROVER_REQUIRED/);
  assert.throws(()=>world({...base,approvers:''}).ctx.duyetNoiDungThuTuan('2026-09-21'),/APPROVER_REQUIRED/);
  for(const ky of ['2026-09-22','21/09/2026','',undefined])assert.throws(()=>world(base).ctx.duyetNoiDungThuTuan(ky),/INVALID_WEEK/);
- assert.throws(()=>world(base).ctx.duyetKyThuTuan(),/INVALID_WEEK/);
+ const missingCurrent=world(base);missingCurrent.setNow('2026-09-28T01:00:00Z');assert.throws(()=>missingCurrent.ctx.duyetKyThuTuan(),/INVALID_WEEK/);
  assert.throws(()=>world(base).ctx.duyetNoiDungThuTuan('2026-09-28'),/INVALID_WEEK/);
  assert.throws(()=>world({...base,secret:''}).ctx.duyetNoiDungThuTuan('2026-09-21'),/MISSING_APPROVAL_SECRET/);
  assert.throws(()=>world({content:[draft({NguonTrich:''})]}).ctx.duyetNoiDungThuTuan('2026-09-21'),/INCOMPLETE_CONTENT/);
@@ -418,6 +418,28 @@ test('approval: allow-list, Monday key, completeness, NotebookLM and wrapper pla
  assert.throws(()=>world({content:[draft({NotebookLM_URL:'https://evil.test'})]}).ctx.duyetNoiDungThuTuan('2026-09-21'),/INVALID_NOTEBOOKLM_URL/);
  const ok=world({content:[draft({NotebookLM_URL:''})]});ok.setNow('2026-09-20T01:00:00Z');assert.equal(ok.ctx.duyetNoiDungThuTuan('2026-09-21').status,'APPROVED');
 });
+test('editor approval selects only the Vietnam current week at the Monday boundary and verifies its stamp',()=>{
+ for(const [now,key,index] of [['2026-09-20T16:59:59Z','2026-09-14',1],['2026-09-20T17:00:00Z','2026-09-21',2]]){
+  const w=world({enabled:false,content:['2026-09-14','2026-09-21','2026-09-28'].map(Ky=>draft({Ky,NotebookLM_URL:''}))});w.setNow(now);
+  const result=w.ctx.duyetKyThuTuan();assert.equal(result.status,'APPROVED');assert.equal(result.key,key);
+  const rows=w.sheets['content-id|LoiDay_NoiDung'].data;
+  for(let i=1;i<rows.length;i++){assert.equal(rows[i][5],i===index?'DaDuyet':'Nhap');assert.equal(rows[i][6],i===index?REVIEWER:'');assert.equal(!!rows[i][9],i===index);}
+  const saved=w.ctx.thuTuanRows_(w.sheets['content-id|LoiDay_NoiDung'],'LoiDay_NoiDung')[index-1];
+  assert.equal(w.ctx.thuTuanApprovalProblem_(saved,w.ctx.thuTuanDigest_(saved,SECRET),[REVIEWER]),'');
+  assert.equal(w.props.THU_TUAN_ENABLED,'false');assert.equal(w.mail.length,0);assert.equal(w.created.length,0);assert.equal(w.sheets['private-id|ThuTuan_NhatKyGui'].data.length,1);
+ }
+});
+test('editor approval keeps identity and completeness gates without writing or sending on rejection',()=>{
+ for(const [options,reason] of [[{actor:'intruder@example.test'},/APPROVER_REQUIRED/],[{actor:''},/APPROVER_REQUIRED/],[{secret:''},/MISSING_APPROVAL_SECRET/],[{content:[draft({NguonTrich:''})]},/INCOMPLETE_CONTENT/]]){
+  const w=world({enabled:false,content:[draft({})],...options});w.setNow('2026-09-21T01:00:00Z');const before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);
+  assert.throws(()=>w.ctx.duyetKyThuTuan(),reason);assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);assert.equal(w.mail.length,0);assert.equal(w.created.length,0);
+ }
+});
+test('editor approval rejects duplicate current-week rows without approving another week',()=>{
+ const w=world({enabled:false,content:[draft({}),draft({}),draft({Ky:'2026-09-28'})]});w.setNow('2026-09-21T01:00:00Z');const before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);
+ assert.throws(()=>w.ctx.duyetKyThuTuan(),/INVALID_WEEK/);assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);assert.equal(w.mail.length,0);
+});
+
 test('approval is verified by reading back; a stamp that does not survive Sheets is reported',()=>{
  const w=world({content:[draft({})]});w.setNow('2026-09-21T01:00:00Z');const sheet=w.sheets['content-id|LoiDay_NoiDung'];
  const orig=sheet.getRange;sheet.getRange=(r,c,nr,nc)=>{const g=orig(r,c,nr,nc);if(r===2&&c===6)return{...g,setValues:v=>g.setValues([[v[0][0],v[0][1],new Date(v[0][2].getTime()+3600e3),v[0][3],v[0][4]]])};return g;};

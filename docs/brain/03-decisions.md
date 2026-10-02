@@ -1,5 +1,10 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 02/10/2026 — Bỏ ngày mẫu khỏi helper duyệt editor
+
+- Apps Script editor không truyền đối số khi Run. Literal YYYY-MM-DD làm helper luôn INVALID_WEEK và buộc source cloud lệch main mỗi khi reviewer thay ngày. Chọn tuần hiện tại theo cùng timezone với luồng gửi; reviewer phải đối chiếu nguồn/dòng kỳ trước khi chạy tay.
+- Giữ `duyetNoiDungThuTuan(ky)` có tham số và toàn bộ approval guard. Không hardcode kỳ pilot, không wrapper cloud hoặc fixture PROD. Duyệt kỳ khác cần gọi API có tham số một cách tường minh.
+
 ## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
 
 - Receiver PROD dùng chung core TEST thay vì nhân bản; môi trường là hằng số của entrypoint để property không thể đổi hành vi entrypoint. Thêm kiểm trùng pin PROD với TEST. Không thêm preview seal/acceptance wrapper PROD, webhook, retry, fallback Gmail, telemetry hay cột log.
