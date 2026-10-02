@@ -2,7 +2,7 @@
 
 ## Hiện hành 02/10/2026 — Zalo gọn trong một tin (phương án B)
 
-Nhánh `codex/thu-tuan-zalo-single-message` xếp chồng PR #16. Code và dữ liệu nháp đã kiểm cục bộ; chưa cập nhật cloud, Sheets, Properties hoặc trigger. Nghiệm thu TEST lịch sử không chứng minh mẫu mới đã gửi thật. Không lưu source PROD trước khi nghiệm thu lịch 05/10.
+Nhánh `codex/thu-tuan-zalo-single-message`, PR #17 xếp chồng PR #16. Code e0800d8 đã cập nhật riêng Apps Script TEST, pull/readback bốn file khớp; manifest/EmailAssets/Properties/trigger/log giữ nguyên. Tab riêng `Zalo_Nhap_51_Ky` trong nội dung TEST có 51 kỳ Nhap từ 12/10, số ký tự và nguyên tin xem trước, đọc lại 1.144 ô khớp. Active LoiDay_NoiDung và dấu cũ giữ nguyên. Chưa nghiệm thu gửi mẫu mới; TEST lịch sử không chứng minh mẫu mới đã gửi thật. PROD đã backup và chuẩn bị gói local 5 file, không upload trước nghiệm thu lịch 05/10.
 
 Zalo mới giữ nguyên lời trích và nguồn, dùng bốn phần: **LỜI BÁC DẠY → BỐI CẢNH → Ý NGHĨA VÀ VẬN DỤNG → HÀNH ĐỘNG TUẦN NÀY**. Ý nghĩa và liên hệ CAND được biên tập thành một đoạn chung; hành động là một việc cụ thể. Không tự nối hai đoạn dài, tóm tắt hoặc cắt chữ lúc gửi. Email vẫn dùng các ô đầy đủ và mẫu hiện hữu.
 
@@ -14,9 +14,9 @@ Zalo mới giữ nguyên lời trích và nguồn, dùng bốn phần: **LỜI B
 
 ### Bản nháp và công cụ kiểm tra offline
 
-Bộ 100 bài nằm ở thư mục riêng `.work/thu-tuan-zalo-single-message` cạnh kho tài liệu nguồn, ngoài repo công khai. Có JSON nháp, `100-tin-zalo-xem-truoc.md`, `12-ky-Q4-xem-truoc.md`, `51-ky-xem-truoc.md`, CSV 20 cột và báo cáo độ dài. Ngày trong bản 100 bài chỉ minh họa; bản theo lịch dùng ngày thật. Kỳ **12/10 là LD-047**, LD-002 là ví dụ. 14 bài được biên tập lại (LD-001, LD-002, 12 kỳ quý IV còn lại); 86 bài chọn câu hoàn chỉnh từ nguồn và cần đọc biên tập. LD-071/072 có `NEEDS_SOURCE_REVIEW`, bị công cụ chặn khi xuất lịch.
+Bộ 100 bài nằm ở thư mục riêng `.work/thu-tuan-zalo-single-message` cạnh kho tài liệu nguồn, ngoài repo công khai. Có JSON nháp, `100-tin-zalo-xem-truoc.md`, `12-ky-Q4-xem-truoc.md`, `51-ky-xem-truoc.md`, CSV 20 cột và báo cáo độ dài. Ngày trong bản 100 bài chỉ minh họa; bản theo lịch dùng ngày thật. Kỳ **12/10 là LD-047**, LD-002 là ví dụ. **100/100 bài đã biên tập lại** bối cảnh, đoạn ý nghĩa-vận dụng và một hành động; vẫn chờ người duyệt. LD-071/072 giữ `NEEDS_SOURCE_REVIEW` vì nguyên bản không ghi ngày và đối tượng chưa chắc, bị chặn xuất lịch.
 
-Đo bằng renderer thật: **100/100 một phần**, trung vị **1.087,5**, lớn nhất **1.317** đơn vị UTF-16. CSV giữ nguyên lịch và các ô email/trích dẫn/nguồn của CSV gốc, chỉ thêm ba ô biên tập; trạng thái Nhap, không có dấu. Xuất 12 kỳ quý IV và 51 kỳ năm từ 12/10, giữ kỳ 05/10 nguyên trạng. Bỏ dấu Markdown nguồn chỉ khi biên tập nháp và có người duyệt; sender giữ nguyên văn ô được ký.
+Đo bằng renderer thật sau hoàn thiện: **100/100 một phần**, nhỏ nhất 913, trung vị **1.000**, lớn nhất **1.195** đơn vị UTF-16. CSV giữ lịch và các ô email/trích dẫn/nguồn gốc, thêm ba ô biên tập; Nhap, không có dấu. Xuất 12 kỳ Q4 và 51 kỳ năm từ 12/10, giữ 05/10 nguyên trạng. Bỏ dấu Markdown nguồn chỉ khi biên tập nháp và có người duyệt; sender giữ nguyên văn ô ký.
 
 Ví dụ PowerShell (đường dẫn ngoài repository, thư mục đích đã tồn tại):
 
@@ -35,7 +35,7 @@ Công cụ chỉ kiểm/ghép/export, không sinh nội dung, không gọi Googl
 5. Trên PROD, chỉ nhập ba ô mới cho các dòng Nhap từ 12/10 và tăng PhienBan; đối chiếu bản xem trước lịch, nguồn và nguyên văn, duyệt 12/10 sau cập nhật. Kiểm readiness, đối soát, bật gửi theo runbook hiện hữu. Những kỳ v2 có lịch sử tiếp tục nguyên trạng.
 6. Rollback: ưu tiên tắt gửi và sửa tiến tới. Source cũ không hiểu header 20 cột hoặc dấu v3; không chỉ đưa code cũ lên rồi bật gửi. Khôi phục backup đồng bộ chỉ sau đối soát mọi kỳ/dấu/nhật ký, không xóa cột đang dùng hay duyệt lại kỳ có lịch sử.
 
-Kiểm cục bộ **166/166**, parse 21 GS; mutation bỏ cổng duyệt làm 2 test fail, dùng lại renderer email làm 4 fail, bỏ ba ô khỏi HMAC làm 1 fail. CI mở cho base PR #16. Lời gọi chỉ đọc `clasp run doiSoatFixtureZaloThuTuanTest` trên TEST trả storage NOT_FOUND; chưa cập nhật TEST hoặc gửi thử mẫu mới. Cần chạy bằng phiên Apps Script editor có quyền sau review; không coi local PASS là runtime PASS.
+Kiểm cục bộ **166/166**, parse 21 GS; mutation bỏ cổng duyệt làm 2 test fail, renderer email làm 4 fail, HMAC bỏ ba ô làm 1 fail. CI xanh trên base PR16. Lời gọi chỉ đọc `clasp run doiSoatFixtureZaloThuTuanTest` sau upload TEST vẫn storage NOT_FOUND; chưa gửi/receipt/dedupe runtime mẫu mới. Cần editor có quyền và người duyệt chấp nhận nội dung; không coi deployment/readback hay local PASS là runtime PASS. Tab nháp riêng không được sender đọc; sau disabled/migration, chỉ nhập các trường được chấp nhận vào kỳ active chưa có lịch sử.
 
 Module Apps Script **độc lập**, gửi nội dung đã được con người duyệt trong Google Sheets qua Gmail (mặc định) hoặc Zalo Bot (plain text).
 

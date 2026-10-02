@@ -1,5 +1,14 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-02] Hoàn thiện 100 bản biên tập và cập nhật GAS TEST
+
+- User yêu cầu cập nhật/hoàn thiện tiếp. Biên tập lại 86 bài còn lại trong bộ riêng tư: đủ 100/100 bài có bối cảnh ngắn, ý nghĩa-vận dụng chung, một hành động cụ thể. So sánh với backup xác nhận nguyên văn/nguồn/chủ đề/ô email không đổi. Đo renderer thật: min913, median1000, max1195 UTF-16; CSV12Q4/51kỳ từ 12/10 đều một phần. LD071/072 tiếp tục chờ nguồn: nguyên bản không ghi ngày, đối tượng không chắc, không tự gán mốc và không xuất lịch. Các file chỉ ở .work, không commit nội dung.
+- Read source TEST mới trước ghi khớp bản backup; cập nhật bốn file Code/Mã, ZaloTransport, ZaloDiagnostics, ZaloAcceptance bằng code e0800d8; pull/readback cả bốn khớp sau chuẩn hóa CRLF/LF. Manifest và EmailAssets giữ nguyên; không thay Properties, credential, trigger hay lịch sử. Có backup source trước cập nhật ngoài tracked files. Không upload code TEST vào PROD.
+- Google Drive/Sheets metadata xác định đúng TEST/PROD. TEST đã có fixture05/10 SENT; PROD có pilot28/9 và dòng05/10 đã duyệt, chưa có lịch sử05/10. Chỉ tạo tab Zalo_Nhap_51_Ky trong bảng nội dung TEST: 51 kỳ Nhap, 20 trường cùng số ký tự/nguyên tin xem trước. Đọc lại 1144ô khớp, wrap/header/freeze/filter đúng; LoiDay_NoiDung A1:T4 gồm mọi dòng cũ và metadata/format giữ nguyên. Không nhập vào bảng active, không tạo dấu duyệt. Native browser không sẵn, QA format qua Sheets API.
+- Runtime: thử lại clasp run đối soát TEST sau upload vẫn storage NOT_FOUND, chưa gửi mẫu mới/receipt/dedupe runtime và chưa duyệt thay người. TEST code deployment/readback không phải runtime acceptance PASS. Chrome có chạy nhưng không CDP/plugin điều khiển, không lấy cookie hoặc thêm API executable để chạy vòng quyền.
+- Đọc/sao lưu source PROD và chuẩn bị gói local 5 file, không ZaloAcceptance; chưa push vì mốc05/10 theo runbook/PR16. Rủi ro/source compatibility và rollback giữ như mục trước. Docs README/brain04/05/06 cập nhật bằng chứng mới; code/test không thay so với e0800d8 (166/166 và CI đã đạt). PR17 chuyển ready để review; không merge khi gate05/10 còn chờ.
+- Kiểm ngược dữ liệu PROD thật với renderer/splitter source cloud trước cập nhật: pilot28/9 có PlanHash khớp nhật ký, kỳ 05/10 giữ nguyên render/chia hai phần. Thêm mô tả tab đọc duyệt vào brain01/03. Không lưu ID/token/approval rows vào docs công khai.
+
 ## [2026-10-02] Phương án B — Zalo một tin, gộp ý nghĩa và vận dụng
 
 - User phê duyệt triển khai; tạo worktree sạch/nhánh codex/thu-tuan-zalo-single-message từ PR16 d576967; main có WIP khác giữ nguyên. Không thấy bản Claude chưa commit nên triển khai trên PR16. Đọc toàn bộ brain; CodeGraph index .gs bằng hook local, refs/impact approval/digest/render (14 symbols), phạm vi module độc lập, không public API.
@@ -7,8 +16,8 @@
 - Lý do: ba ô biên tập Zalo, đoạn ý nghĩa-vận dụng chung/một hành động; ký v3, kiểm <=1800 lúc duyệt và sender; giữ email và v2 HMAC/render/PlanHash/dedupe. Migration append-only disabled/allowlist; preview trả fulltext/count cho reviewer, không log. CI chạy stackedPR. Export offline/outside repo, giữ lịch/email/quote/source, không approval.
 - Dữ liệu ngoài repo: .work/thu-tuan-zalo-single-message có100JSON/preview, CSV12Q4 và51tuần, báo cáo/preview lịch; 14 bài biên tập lại LD001/002+12Q4, 86 chọn câu hoàn chỉnh cần đọc biên tập. LD071/072 chờ nguồn, tool chặn lịch. 12/10 dùngLD047. Đo100/100<=1317, median1087.5UTF16; lịch12/51 một phần.
 - Rủi ro: mọi approval mới v3, Gmail→Zalo cần ba ô/one-message; chạm ô mới kỳv2 làm stamp sai. Code cũ không đọc20header/v3stamp; rollback cần backup đồng bộ, không xóa cột/log hoặc duyệt lại kỳ có lịch sử. Nháp cần kiểm nguồn/duyệt người. Không sửa nguồnMD, mainWIP, credential hoặc cloud.
-- Validation:166/166local, parse21GS/toolCJS/diff; mutation bỏapprovegate→2fail, rendereremail→4fail, HMACbỏ3ô→1fail; khôi phục source và rerun. Harness approval GMAIL rồi dựng dấu v2 mô phỏng đúng bản đã duyệt trước, gate mới có test riêng.
-- Runtime evidence: clasp list/clone TEST chỉ đọc; clasp run doiSoatFixtureZaloThuTuanTest trả storage NOT_FOUND, không verdict mới. Không upload/source/Properties/Sheet/send/trigger. Không thêm APIexec/WebApp. Sau review chạy TEST editor freshfixtureapproved→preview1/send1/receipt1/rerun0/disabled; PRODchờ lịch05/10, merge16→PRnày rồi upload/readback/migrate/nháp/approve12/10.
+- Validation:166/166local, parse 21 GS/toolCJS/diff; mutation bỏapprovegate→2fail, rendereremail→4fail, HMACbỏ3ô→1fail; khôi phục source và rerun. Harness approval GMAIL rồi dựng dấu v2 mô phỏng đúng bản đã duyệt trước, gate mới có test riêng.
+- Runtime evidence: clasp list/clone TEST chỉ đọc; clasp run doiSoatFixtureZaloThuTuanTest trả storage NOT_FOUND, không verdict mới. Không upload/source/Properties/Sheet/send/trigger. Không thêm APIexec/WebApp. Sau review chạy TEST editor freshfixtureapproved→preview1/send1/receipt1/rerun0/disabled; PRODchờ lịch 05/10, merge16→PRnày rồi upload/readback/migrate/nháp/approve12/10.
 
 ## [2026-10-02] Review độc lập PROD Zalo và guard duyệt lại kỳ đã gửi
 

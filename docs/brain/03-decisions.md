@@ -2,6 +2,8 @@
 
 ## Quyết định 02/10/2026 — Biên tập riêng Zalo, gộp ý nghĩa với vận dụng CAND
 
+- Theo yêu cầu hoàn thiện tiếp, cập nhật riêng code TEST trước mốc PROD và đưa 51 kỳ vào tab đọc duyệt riêng. Không bypass migration/approval/history guard hoặc đổi cấu hình gửi. Source và header active vẫn tương thích v2; đối chiếu dữ liệu thật pilot cho PlanHash khớp và kỳ 05/10 giữ cùng hai phần. PROD tiếp tục chờ nghiệm thu lịch 05/10; chưa merge16/17.
+
 - Người dùng chọn phương án B: một tin cho nhóm Zalo, giữ trích dẫn/nguồn, bối cảnh ngắn, một đoạn ý nghĩa-vận dụng và một hành động cụ thể. Giữ ô đầy đủ cho email; không nối hai đoạn dài hoặc dùng AI/cắt ký tự lúc gửi. Ba ô riêng được người duyệt xem và ký.
 - HMAC v3 có prefix cho mọi duyệt mới; v2 tương thích bản duyệt cũ, không đổi renderer/PlanHash kỳ 05/10. Bảo vệ việc xóa mọi ô mới hoặc duyệt GMAIL rồi chuyển ZALO. Gate 1800 ở duyệt và sender; gợi ý 1200–1500 không phải minimum.
 - Không đổi stack/schema nhật ký. Migration append-only 17→20 lúc tắt gửi; không xóa dữ liệu/lịch sử. Code cũ không hiểu schema/dấu mới, rollback phải đồng bộ và đối soát, ưu tiên fix forward.

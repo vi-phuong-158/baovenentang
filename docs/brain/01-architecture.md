@@ -2,6 +2,8 @@
 
 ## Zalo một tin và nội dung biên tập v3 (02/10/2026)
 
+- Cập nhật TEST: code e0800d8 đã upload/readback khớp; tab Zalo_Nhap_51_Ky mới chỉ dành cho đọc duyệt, giữ 20 trường nháp cùng SoKyTuZalo/TinZaloXemTruoc. Sender chỉ đọc LoiDay_NoiDung, không đọc tab nháp; schema/dòng active và metadata duyệt giữ nguyên. Runtime mới còn chờ, PROD chưa cập nhật.
+
 - LoiDay_NoiDung nối BoiCanhZalo/YNgiaVanDungZalo/HanhDongTuanNayZalo ở cột 18–20; chấp nhận header cũ 17 hoặc mới đủ 20. Migration thủ công allowlist/ScriptLock/disabled/recheck/readback chỉ nối header. Log Gmail/Zalo và backend/frontend API không đổi.
 - Canonical copy giữ ba ô mới; mọi duyệt mới dùng HMAC payload v3, dấu v3:hex. Payload v2, dấu raw hex và renderer cũ giữ nguyên cho kỳ đã duyệt trước có ba ô mới trống. Prefix bảo vệ khi xóa cả ba; thay đổi ô mới làm dấu sai.
 - Approval PR16 history guard → kiểm canonical/Notebook → với ZALO require ba ô và render/split một phần <=1800 UTF-16 → ký v3 → write/readback. Sender v3 kiểm cùng cổng trước log/API, kể cả duyệt GMAIL rồi đổi transport. Email renderer không đổi.

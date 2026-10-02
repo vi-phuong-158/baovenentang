@@ -1,10 +1,16 @@
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
+## Hoàn thiện mẫu một tin — cập nhật TEST (02/10/2026)
+
+- Đủ100 bài đã biên tập lại, max1195/median1000 UTF-16; 12Q4/51kỳ từ 12/10 một phần. LD071/072 vẫn chờ nguồn do bản gốc không ghi ngày/đối tượng chưa chắc.
+- Source TEST đã cập nhật bốn file code e0800d8, pull/readback khớp; manifest/EmailAssets/Properties/trigger/log giữ nguyên. Tab Zalo_Nhap_51_Ky ở nội dung TEST có51 kỳ Nhap, count/full preview;1144ô khớp, active rows/dấu cũ nguyên trạng.
+- Chưa nghiệm thu runtime mới: API scripts.run trả storage NOT_FOUND; cần editor có quyền, review/approval, send1/receipt1/rerun0/disabled. Chưa sửa PROD; đã backup và chuẩn bị gói5file local. Mốc triển khai sau nghiệm thu lịch 05/10 vẫn giữ. PR17 ready cho review, xếp PR16; không merge trước gate.
+
 ## Zalo một tin — phương án B (02/10/2026)
 
 - Code, preview/export, schema/HMAC v3, gate một tin, compatibility v2 và docs trên nhánh codex/thu-tuan-zalo-single-message xếp PR16. Local166/166; mutation3/3 bị bắt.
-- Có100 nháp bên .work (14 biên tập lại, còn lại chọn câu), 12 kỳQ4 và51 kỳ theo lịch từ12/10; tất cả một phần. LD071/072 chờ nguồn. Chưa import/duyệt.
-- Còn nghiệm thu mẫu mới trên GAS TEST/editor và đọc biên tập nội dung. APIexecutionTEST trả NOT_FOUND, cloud giữ nguyên. PRODchờ kết quả lịch05/10; dùng mẫu mới từ12/10 sau merge/upload/schema/readback/approval.
+- Có100 nháp bên .work (14 biên tập lại, còn lại chọn câu), 12 kỳQ4 và51 kỳ theo lịch từ 12/10; tất cả một phần. LD071/072 chờ nguồn. Chưa import/duyệt.
+- Còn nghiệm thu mẫu mới trên GAS TEST/editor và đọc biên tập nội dung. APIexecutionTEST trả NOT_FOUND, cloud giữ nguyên. PRODchờ kết quả lịch 05/10; dùng mẫu mới từ 12/10 sau merge/upload/schema/readback/approval.
 
 ## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
 
