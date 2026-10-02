@@ -1,5 +1,13 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 02/10/2026 — Biên tập riêng Zalo, gộp ý nghĩa với vận dụng CAND
+
+- Người dùng chọn phương án B: một tin cho nhóm Zalo, giữ trích dẫn/nguồn, bối cảnh ngắn, một đoạn ý nghĩa-vận dụng và một hành động cụ thể. Giữ ô đầy đủ cho email; không nối hai đoạn dài hoặc dùng AI/cắt ký tự lúc gửi. Ba ô riêng được người duyệt xem và ký.
+- HMAC v3 có prefix cho mọi duyệt mới; v2 tương thích bản duyệt cũ, không đổi renderer/PlanHash kỳ 05/10. Bảo vệ việc xóa mọi ô mới hoặc duyệt GMAIL rồi chuyển ZALO. Gate 1800 ở duyệt và sender; gợi ý 1200–1500 không phải minimum.
+- Không đổi stack/schema nhật ký. Migration append-only 17→20 lúc tắt gửi; không xóa dữ liệu/lịch sử. Code cũ không hiểu schema/dấu mới, rollback phải đồng bộ và đối soát, ưu tiên fix forward.
+- Nháp ngoài repo công khai. LD-071/072 chờ nguồn, cấm xuất lịch. 100 nháp vừa một tin bằng hàm thật nhưng cần người duyệt; 14 bài biên tập lại, 86 bài chọn câu hoàn chỉnh. Giữ lịch hiện hữu (12/10 LD-047).
+- Nhánh xếp PR16; CI thêm đúng base đó. Chưa cập nhật cloud; không thay PROD trước nghiệm thu lịch 05/10. API chạy hàm TEST trả NOT_FOUND; không thêm executable/Web App để chạy thử. Runtime mẫu mới chờ phiên editor có quyền.
+
 ## Quyết định 02/10/2026 — Hàm duyệt từ chối kỳ đã có nhật ký gửi
 
 - Review độc lập sau pilot PROD: helper mặc định tuần hiện tại khiến lỡ chạy duyệt trong tuần đã gửi sẽ ký lại dòng, làm cả kỳ `CONTENT_CHANGED_DURING_WEEK` (mất phần đang đối soát) trong khi kỳ sau vẫn chưa duyệt. README vốn cấm duyệt lại kỳ đã gửi; nay core enforce thay vì dựa vào thao tác người.

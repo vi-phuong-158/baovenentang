@@ -1,5 +1,14 @@
 # 05-testing-and-deploy.md - Kiểm thử và Triển khai
 
+## Kiểm thử Zalo một tin v3 (02/10/2026)
+
+- Chạy `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: 166/166. Parse 21 tracked GS bằng vm.Script, kiểm cú pháp tool CJS, git diff --check. CI Node22 chạy cả hai và base PR16.
+- Coverage: 1800 approve/1801 reject trước writes; thiếu/sửa/xóa ba ô và HMAC; v2 hash/render/multipart/dedupe; v3 GMAIL→ZALO không bypass; Unicode/Notebook; authorized no-I/O draft preview; migration không đổi dòng/dấu; export giữ email/calendar/reset approval/source hold/output protection.
+- Mutation ba lượt rồi khôi phục: bỏ approval gate →2 fail; Zalo renderer quay email →4 fail; bỏ ô editorial khỏi HMAC →1 fail. Chạy lại kết quả bình thường sau khôi phục.
+- Offline: tool services/thu-tuan/tools/zalo-content-to-sheet.cjs với JSON nháp, CSV lịch gốc và --from 2026-10-12; --report/--preview/--out/--schedule-preview ngoài repo. 100 bài <=1317 UTF-16, 12/51 kỳ một phần. Không biến Nhap thành APPROVED bằng import.
+- Runtime: clasp đọc source TEST được nhưng API đối soát trả NOT_FOUND, chưa chạy mẫu mới. Chưa upload/nhập Sheets/gửi; cần TEST editor có quyền: fresh week/data →human approval→preview1→send1→receipt SENT1→rerun0/alreadySent1→disabled. Không ghi đè fixture05/10 có lịch sử. Xem runbook đầu README module.
+- PROD: chờ lịch05/10 nghiệm thu rồi merge16→PR này, backup/disabled/upload/readback/migrate; nhập ba ô cho Nhap từ12/10, review nguồn và approve sau cập nhật, readiness/reconciliation trước bật gửi. Không dùng backend clasp hoặc deploy Web App.
+
 ## Validation chuẩn bị pilot Production Thư tuần (01/10/2026)
 
 - `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: **148/148** (132 module + 16 acceptance), local/synthetic, không network. 13 test mới: receiver PROD chỉ ghi cặp PROD, không send/không lộ dữ liệu/không ghi TEST, chặn từng gate, cô lập entrypoint hai chiều, GROUP_CONFIRMED hiện có/race, marker cũ/PRIVATE/sai/domain TEST, readiness READY chỉ getMe + không mutation, NOT_READY theo mã, privacy output, trigger attention, `caiLichThuTuan` PROD, trigger PROD gửi một lần rồi alreadySent.

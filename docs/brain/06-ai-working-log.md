@@ -1,5 +1,15 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-02] Phương án B — Zalo một tin, gộp ý nghĩa và vận dụng
+
+- User phê duyệt triển khai; tạo worktree sạch/nhánh codex/thu-tuan-zalo-single-message từ PR16 d576967; main có WIP khác giữ nguyên. Không thấy bản Claude chưa commit nên triển khai trên PR16. Đọc toàn bộ brain; CodeGraph index .gs bằng hook local, refs/impact approval/digest/render (14 symbols), phạm vi module độc lập, không public API.
+- Files code: services/thu-tuan/{Code.gs,ZaloTransport.gs,ZaloDiagnostics.gs,ZaloAcceptance.gs,tools/zalo-content-to-sheet.cjs}, tests/{thu-tuan.test.cjs,thu-tuan-acceptance.test.cjs}, .github/workflows/thu-tuan.yml. Docs: README root/module, brain01/03/04/05/06.
+- Lý do: ba ô biên tập Zalo, đoạn ý nghĩa-vận dụng chung/một hành động; ký v3, kiểm <=1800 lúc duyệt và sender; giữ email và v2 HMAC/render/PlanHash/dedupe. Migration append-only disabled/allowlist; preview trả fulltext/count cho reviewer, không log. CI chạy stackedPR. Export offline/outside repo, giữ lịch/email/quote/source, không approval.
+- Dữ liệu ngoài repo: .work/thu-tuan-zalo-single-message có100JSON/preview, CSV12Q4 và51tuần, báo cáo/preview lịch; 14 bài biên tập lại LD001/002+12Q4, 86 chọn câu hoàn chỉnh cần đọc biên tập. LD071/072 chờ nguồn, tool chặn lịch. 12/10 dùngLD047. Đo100/100<=1317, median1087.5UTF16; lịch12/51 một phần.
+- Rủi ro: mọi approval mới v3, Gmail→Zalo cần ba ô/one-message; chạm ô mới kỳv2 làm stamp sai. Code cũ không đọc20header/v3stamp; rollback cần backup đồng bộ, không xóa cột/log hoặc duyệt lại kỳ có lịch sử. Nháp cần kiểm nguồn/duyệt người. Không sửa nguồnMD, mainWIP, credential hoặc cloud.
+- Validation:166/166local, parse21GS/toolCJS/diff; mutation bỏapprovegate→2fail, rendereremail→4fail, HMACbỏ3ô→1fail; khôi phục source và rerun. Harness approval GMAIL rồi dựng dấu v2 mô phỏng đúng bản đã duyệt trước, gate mới có test riêng.
+- Runtime evidence: clasp list/clone TEST chỉ đọc; clasp run doiSoatFixtureZaloThuTuanTest trả storage NOT_FOUND, không verdict mới. Không upload/source/Properties/Sheet/send/trigger. Không thêm APIexec/WebApp. Sau review chạy TEST editor freshfixtureapproved→preview1/send1/receipt1/rerun0/disabled; PRODchờ lịch05/10, merge16→PRnày rồi upload/readback/migrate/nháp/approve12/10.
+
 ## [2026-10-02] Review độc lập PROD Zalo và guard duyệt lại kỳ đã gửi
 
 - Review chỉ đọc source `4bb781c`/evidence PROD (pilot ghi trên `126e738`, cloud sau PR #15 khớp `4bb781c`, luồng gửi không đổi giữa hai bản). Verdict giữ `THU_TUAN_ZALO_PRODUCTION_PILOT_PASS_AUTOMATION_PENDING`. Không P0; P1 token Bot dùng chung (owner tự xử lý); lặp LD-001 owner chấp nhận (05/10 là kỳ đầu). Sửa P2 duyệt lại kỳ đã gửi và bổ sung runbook kiểm sau lịch. CodeGraph (index checkout cũ) + grep: chỉ `duyetNoiDungThuTuan` và `duyetFixtureZaloThuTuanTest` gọi `thuTuanApproveContent_`; luồng gửi không đổi.

@@ -1,5 +1,11 @@
 # 04-current-tasks.md - Nhật ký công việc hiện tại
 
+## Zalo một tin — phương án B (02/10/2026)
+
+- Code, preview/export, schema/HMAC v3, gate một tin, compatibility v2 và docs trên nhánh codex/thu-tuan-zalo-single-message xếp PR16. Local166/166; mutation3/3 bị bắt.
+- Có100 nháp bên .work (14 biên tập lại, còn lại chọn câu), 12 kỳQ4 và51 kỳ theo lịch từ12/10; tất cả một phần. LD071/072 chờ nguồn. Chưa import/duyệt.
+- Còn nghiệm thu mẫu mới trên GAS TEST/editor và đọc biên tập nội dung. APIexecutionTEST trả NOT_FOUND, cloud giữ nguyên. PRODchờ kết quả lịch05/10; dùng mẫu mới từ12/10 sau merge/upload/schema/readback/approval.
+
 ## Chuẩn bị pilot Production Thư tuần Zalo (01/10/2026)
 
 - Hoàn tất code/test/CI/docs: receiver PROD, readiness chỉ đọc, trigger attention, guard GROUP_CONFIRMED, CI. Regression local **148/148**; syntax 21 file `.gs`. Branch `claude/thu-tuan-prod-pilot-readiness`, chưa commit/push/PR khi ghi mục này.

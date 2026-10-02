@@ -172,7 +172,7 @@ function thuTuanZaloDiagnosticSheets_(cfg) {
     else if (current.length === 1) {
       summary.approvalProblem = thuTuanApprovalProblem_(current[0],thuTuanDigest_(current[0],config.secret),config.approvers) || 'OK';
       if (summary.approvalProblem === 'OK') {
-        var parts = thuTuanZaloSplit_(thuTuanRenderText_(current[0]));
+        var parts = thuTuanZaloSplit_(thuTuanRenderZaloText_(current[0]));
         summary.partLengths = parts.map(function(part) { return part.length; });
       }
     }

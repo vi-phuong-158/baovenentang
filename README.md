@@ -1,5 +1,7 @@
 # Trợ lý 35 - Bảo vệ nền tảng tư tưởng
 
+> **Thư tuần Zalo — 02/10/2026:** thêm bản biên tập riêng bốn phần, gộp ý nghĩa và vận dụng CAND, HMAC v3 và kiểm tối đa một tin lúc duyệt/gửi. 166/166 test cục bộ; 100 nháp offline đều một phần. Xem [runbook](services/thu-tuan/README.md). Chưa cập nhật cloud/gửi mẫu mới; PROD chờ nghiệm thu lịch 05/10.
+
 Hệ thống hỗ trợ công tác bảo vệ nền tảng tư tưởng trên môi trường số, gồm ứng dụng web React, backend Google Apps Script, cơ sở dữ liệu Google Sheets, tích hợp Gemini AI, Pinecone RAG, Telegram và Brevo Email.
 
 > Dự án phục vụ nghiệp vụ nội bộ. Không commit khóa API, mã truy cập, token Telegram, token Vercel hoặc nội dung nhạy cảm vào repository.

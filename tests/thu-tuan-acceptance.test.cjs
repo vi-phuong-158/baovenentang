@@ -45,7 +45,7 @@ function world(){
  vm.runInContext(source,ctx);w.ctx=ctx;
  const H=ctx.THU_TUAN_HEADERS;
  const row={Ky:'2026-09-28',MaLoiDay:'LD-TEST-SOURCE',ChuDe:'TEST canonical clone',NoiDungNguyenVan:'TEST synthetic quote',NguonTrich:'TEST synthetic source',
-  BoiCanh:'TEST context',PhanTich:'TEST analysis',LienHeCAND:'TEST connection',HanhDongTuanNay:'TEST action',NotebookLM_URL:'',
+  BoiCanhZalo:'TEST short context',YNgiaVanDungZalo:'TEST meaning and application',HanhDongTuanNayZalo:'TEST weekly action',BoiCanh:'TEST context',PhanTich:'TEST analysis',LienHeCAND:'TEST connection',HanhDongTuanNay:'TEST action',NotebookLM_URL:'',
   TrangThai:'DaDuyet',NguoiDuyet:reviewer,NgayDuyet:new Date('2026-09-28T01:00:00Z'),PhienBan:'1',GoiYLienHe:'legacy excluded',LienHeAnNinhDoiNgoai:'legacy excluded'};
  row.DauVanBanDuyet=ctx.thuTuanDigest_(row,secret);
  w.content=sheet(H.LoiDay_NoiDung,[H.LoiDay_NoiDung.map(key=>row[key]??'')]);
@@ -73,7 +73,7 @@ test('manual fixture workflow uses real core receipts, disables sending, dedupes
  for(const forbidden of ['synthetic-script','synthetic-bot','synthetic-group','synthetic-token',secret,'TEST synthetic quote'])assert.equal(JSON.stringify(seal).includes(forbidden),false);
  w.props.THU_TUAN_ENABLED='true';const sent=w.ctx.guiFixtureZaloThuTuanTest();assert.equal(sent.status,'COMPLETE');assert.equal(sent.sent,1);assert.equal(w.props.THU_TUAN_ENABLED,'false');
  assert.deepEqual(w.requests,['getMe','sendMessage']);assert.equal(w.deliveries.length,1);assert.equal(w.zalo.data[1][6],'SENT');assert.equal(w.zalo.data[1][15],'synthetic-receipt-1');
- const expected=w.ctx.thuTuanRenderText_(Object.fromEntries(w.ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map((key,i)=>[key,approved[i]])));
+ const expected=w.ctx.thuTuanRenderZaloText_(Object.fromEntries(w.ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map((key,i)=>[key,approved[i]])));
  assert.equal(w.deliveries[0].text,expected);
  w.props.THU_TUAN_ENABLED='true';const rerun=w.ctx.guiFixtureZaloThuTuanTest();assert.equal(rerun.sent,0);assert.equal(rerun.alreadySent,1);assert.equal(w.requests.length,2);assert.equal(w.props.THU_TUAN_ENABLED,'false');
  const before=JSON.stringify([w.content.data,w.gmail.data,w.zalo.data,w.props]),audit=w.ctx.doiSoatFixtureZaloThuTuanTest();
