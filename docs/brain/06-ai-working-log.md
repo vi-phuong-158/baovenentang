@@ -1,5 +1,11 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-02] Chọn kỳ duyệt trước lịch thật
+
+- CodeGraph flow/impact helper và core từ vòng PR14 giữ nguyên; index checkout gốc còn baseline trướcPR14, đọc đúng helper hiện tại trong managed checkout main126e738 trước sửa. Thêm riêng getter Properties cho explicit week, không sửa identity/HMAC/sender hoặc schema Sheets.
+- Files: Code.gs/README service, tests thu-tuan, brain01/03/06. Rủi ro: property còn lưu có thể chọn lại kỳ cũ khi reviewer chạy tay; runbook yêu cầu kiểm APPROVED key rồi xóa. Invalid/empty key fail-closed, không fallback âm thầm.
+- Local validation:154/154test hai file Thư tuần, syntax21GS/diff đạt; rà diff helper chỉ thêm getter, truyền nguyên key để core kiểm. CI phải đạt trước merge/cloud. Ba test mới kiểm future approval không chạm current/send/trigger, empty/invalid/missing future row từ chối, reviewer/duplicate gate; test default/timezone/HMAC cũ tiếp tục.
+
 ## [2026-10-02] Helper duyệt editor chọn kỳ hiện tại
 
 - CodeGraph explore/impact: duyetKyThuTuan → duyetNoiDungThuTuan → thuTuanApproveContent_/thuTuanWeekKey_; entrypoint không có caller khác, không route backend/frontend. Sửa nhỏ literal YYYY-MM-DD thành current-week helper hiện hữu, không đổi approval core.
