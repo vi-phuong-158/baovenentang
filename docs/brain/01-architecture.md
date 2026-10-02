@@ -1,5 +1,10 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Chặn duyệt lại kỳ đã có nhật ký gửi (02/10/2026)
+
+- `thuTuanApproveContent_` (dùng chung cho `duyetNoiDungThuTuan`, `duyetKyThuTuan` và helper TEST) gọi `thuTuanWeekHasHistory_(privateId, ky)` trong ScriptLock, sau kiểm dòng kỳ duy nhất và trước khi ghi. Có bất kỳ dòng nào của kỳ trong `ThuTuan_NhatKyGui` hoặc `ThuTuan_Zalo_NhatKyGui` (khớp `Ky` hoặc tiền tố `Khoa`, mọi trạng thái) → `WEEK_HAS_DELIVERY_HISTORY`, không ghi dấu. Không có trang nhật ký nào → `MISSING_SHEET` (fail closed).
+- Luồng gửi/preview/trigger, schema Sheets, HMAC và routes không đổi. Duyệt nay đọc thêm bảng B (private) ngoài bảng nội dung.
+
 ## Chọn kỳ duyệt qua cấu hình (02/10/2026)
 
 - `duyetKyThuTuan` đọc riêng `THU_TUAN_APPROVAL_WEEK` và truyền nguyên giá trị cho API duyệt. Chỉ null (key vắng) mới dùng tuần hiện tại; giá trị rỗng/sai vẫn bị core từ chối. Key không tham gia config sender/trigger, không chọn tuần gửi.

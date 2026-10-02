@@ -118,7 +118,7 @@ Mỗi kỳ một dòng, `TrangThai` = `Nhap`. Không dán nội dung từ kết 
 | 4. Gửi | Lịch tự động hoặc chạy `guiThuTuan` | Chỉ gửi khi `THU_TUAN_ENABLED=true` | `COMPLETE`, `sent` = số thư gửi lần này |
 | 5. Đối soát | Người vận hành | *Executions* của project; trang `ThuTuan_NhatKyGui` | Không còn `SENDING/UNKNOWN`; xử lý mục 5 nếu có |
 
-Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, phiên bản, người/ngày duyệt) → dấu duyệt không khớp → không gửi được kỳ này; sửa nội dung, tăng phiên bản và duyệt lại. Hai trường legacy có thể thay đổi mà không ảnh hưởng thư hoặc dấu v2. **Không sửa hoặc duyệt lại kỳ đã bắt đầu gửi** – script sẽ dừng cả kỳ (CONTENT_CHANGED_DURING_WEEK) để không trộn hai phiên bản.
+Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, phiên bản, người/ngày duyệt) → dấu duyệt không khớp → không gửi được kỳ này; sửa nội dung, tăng phiên bản và duyệt lại. Hai trường legacy có thể thay đổi mà không ảnh hưởng thư hoặc dấu v2. **Không sửa hoặc duyệt lại kỳ đã bắt đầu gửi** – script sẽ dừng cả kỳ (CONTENT_CHANGED_DURING_WEEK) để không trộn hai phiên bản. Hàm duyệt tự từ chối (`WEEK_HAS_DELIVERY_HISTORY`) khi kỳ đã có bất kỳ dòng nhật ký Gmail/Zalo nào, ở mọi trạng thái, nên lỡ chạy `duyetKyThuTuan` trong tuần đã gửi (key vắng → tuần hiện tại) không còn ký lại dòng đó.
 
 ### Lỗi khi duyệt
 
@@ -129,6 +129,8 @@ Sửa bất kỳ trường canonical nào đã duyệt (kể cả NotebookLM, ph
 | `INCOMPLETE_CONTENT` | Thiếu một trong 8 trường canonical hoặc `PhienBan` | Điền đủ |
 | `INVALID_NOTEBOOKLM_URL` | Ô NotebookLM có giá trị nhưng không phải `https://notebooklm.google.com/notebook/...` | Sửa hoặc để trống |
 | `MISSING_APPROVAL_SECRET` | Chưa tạo khóa duyệt | Chạy `taoKhoaDuyetThuTuan` |
+| `WEEK_HAS_DELIVERY_HISTORY` | Kỳ được chọn đã có nhật ký gửi (bất kỳ trạng thái). Dòng nội dung **không** bị ghi | Kiểm tra key trong thông báo: nếu định duyệt kỳ sau thì đặt `THU_TUAN_APPROVAL_WEEK` đúng thứ Hai đó. Không xóa nhật ký để vượt chặn; kỳ đang đối soát xử lý theo mục 5 |
+| `MISSING_SHEET` / `MISSING_SHEET_CONFIG` | Không đọc được bảng B hoặc không có trang nhật ký nào để kiểm lịch sử | Kiểm tra `THU_TUAN_PRIVATE_SHEET_ID` và trang nhật ký |
 | `APPROVAL_NOT_VERIFIED:...` | Đọc lại sau khi ghi không khớp | Không gửi được kỳ này; báo kỹ thuật |
 
 ## 4. Đọc kết quả chạy
@@ -182,6 +184,31 @@ Giới hạn: MailApp và Sheets là hai dịch vụ tách biệt nên **không 
 | Bàn giao | Người cũ chạy `goLichThuTuan` → người mới chạy `caiLichThuTuan` | Nếu người cũ không còn truy cập: đặt `false`, nhờ quản trị Workspace gỡ, hoặc tạo project mới. Khóa script chống chạy song song trong cùng project; nhật ký chống gửi trùng. |
 
 Không có trigger tự thử lại. Lỗi/`DEFERRED` do người vận hành xử lý. Module không tự gửi email cảnh báo; mọi trạng thái bất thường từ trigger làm execution thất bại với `THU_TUAN_TRIGGER_ATTENTION:<STATUS>` để thông báo lỗi trigger mặc định của Google (theo cài đặt thông báo của trigger) báo cho chủ trigger. Người vận hành vẫn cần xem *Executions* sáng thứ Hai.
+
+### Kiểm tra sau mỗi cửa sổ lịch (thứ Hai, sau 08:00)
+
+Google **không** báo khi: trigger không chạy, kết quả `DISABLED` (kể cả khi `THU_TUAN_ENABLED` bị sửa nhầm), hoặc `COMPLETE` dedupe vì đã có lượt chạy tay trước đó. Vì vậy mỗi thứ Hai cần một người kiểm thủ công, chỉ đọc:
+
+1. *Executions*: có đúng một lượt `guiThuTuan` loại **Theo thời gian** trong 07:00–08:00, trạng thái hoàn tất; không có lượt `guiThuTuan` chạy tay nào cho cùng kỳ trước đó.
+2. Nhật ký của lượt đó: `status:"COMPLETE"`, `key` = thứ Hai tuần này, đúng `maLoiDay`; Zalo: `sent` = `attempted` = `confirmed` = số phần, `alreadySent:0`, `unknown:0`.
+3. Trang nhật ký Zalo: đúng số dòng của kỳ, tất cả `SENT`, `Part` 1..N, cùng `PartCount`/`PlanHash`, `TargetHash` **bằng** các kỳ trước, `MessageId` có và khác nhau; không `SENDING/UNKNOWN`.
+4. Trigger chạy mã **Phần đầu (Head)**, tức bản vừa lưu gần nhất trong editor. Trước và sau cửa sổ, đối chiếu hash mã cloud với **SHA đã được chấp thuận cho lần chạy này** (ghi trong checkpoint vận hành), không phải main mới nhất. Không lưu/sửa mã trên editor trong tuần có lịch cho tới khi nghiệm thu xong.
+5. Người trong nhóm xác nhận nhận đủ, đúng thứ tự, không trùng, **nêu đúng tên nhóm**.
+
+**Phân loại khi bất thường.** Luôn làm ba bước trước, không xóa/sửa nhật ký để vượt chặn:
+
+1. Đặt `THU_TUAN_ENABLED=false` và đọc lại.
+2. Xác nhận trong *Executions* không còn lượt `guiThuTuan` nào đang chạy.
+3. Đọc **toàn bộ lịch sử của kỳ** trong cả hai trang nhật ký (Gmail và Zalo), mọi trạng thái. `attempted`/`sent` chỉ mô tả lượt vừa chạy, **không** đủ để kết luận kỳ chưa từng gửi.
+
+| Tình huống | Dấu hiệu | Xử lý |
+|---|---|---|
+| A. Kỳ **chưa có dòng nhật ký nào** và lượt bị chặn trước khi gửi | Không có dòng nào của kỳ ở cả hai nhật ký; status như `ZALO_PREFLIGHT_UNCONFIRMED`, `BUSY`, `ZALO_GATE_BLOCKED`, `CONTENT_NOT_APPROVED`, `CONTENT_MISSING_OR_DUPLICATE` | Sửa nguyên nhân (nếu cần thì đối chiếu nguồn và duyệt, được phép vì kỳ chưa có lịch sử). `xemTruocThuTuan` phải ra `PREVIEW`, `alreadySent:0`, `unknown:0`, `pending` = số phần dự kiến. Người phụ trách cho phép, bật lại, chạy tay `guiThuTuan` **một lần trong cùng tuần**. Đây là khôi phục, không phải gửi lại; lượt này không dùng làm bằng chứng nghiệm thu lịch tự động |
+| B. Kỳ **đã có dòng nhật ký** (bất kỳ trạng thái, kể cả `SENT` hoặc `FAILED`/`PRE_SEND_BLOCKED`) và bị chặn | Ví dụ `CONTENT_NOT_APPROVED`/`STAMP_MISMATCH`, `CONTENT_CHANGED_DURING_WEEK`, `ZALO_PRE_SEND_BLOCKED`, `ZALO_RUN_BLOCKED` | **Không duyệt lại** (hàm duyệt sẽ từ chối `WEEK_HAS_DELIVERY_HISTORY`; không tìm cách vượt). Nếu nội dung/dấu duyệt bị sửa: chỉ khôi phục đúng nguyên giá trị canonical và dấu duyệt gốc từ lịch sử phiên bản của Sheets (không tự tạo dấu mới), xác minh bằng preview ra `PREVIEW` với dấu khớp `DauVanBanDuyet` của các dòng nhật ký. Không khôi phục được chính xác → dừng, kỳ để thiếu, người phụ trách quyết định. Chỉ khi preview ra `PREVIEW`, `unknown:0` và `pending` đúng bằng các phần `PENDING`/`FAILED` đã xác minh chưa gửi, mới được chạy tay một lần để tiếp tục **các phần đủ điều kiện**; phần `SENT` được bỏ qua |
+| C. Đã gọi API nhưng chưa chắc | `RECONCILIATION_REQUIRED`, có dòng `SENDING/UNKNOWN` | Chỉ đối soát theo mục 5/mục 12 cho từng phần; không chạy lại khi chưa xác minh |
+| D. Không có lượt Theo thời gian | Executions trống trong cửa sổ | Kiểm tra trigger (`kiemTraLichThuTuan`, đúng tài khoản), quyền OAuth; không tự cài thêm trigger khi chưa biết nguyên nhân |
+| E. Kỳ tiếp theo chưa có nội dung đã duyệt | Sẽ báo `CONTENT_MISSING_OR_DUPLICATE`/`CONTENT_NOT_APPROVED` | Nhập, đối chiếu nguồn và duyệt kỳ đó trước thứ Hai, hoặc đặt `THU_TUAN_ENABLED=false` cho tới khi sẵn sàng |
+
 `caiLichThuTuan` luôn từ chối khi `THU_TUAN_TEST_MODE=true`; event trigger cũng không gửi trong chế độ này.
 
 ## 7. Hạn mức và thời gian
