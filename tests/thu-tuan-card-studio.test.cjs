@@ -93,16 +93,19 @@ test('CLI resolves a symlinked/junction output folder into Git and accepts BOM-p
 function renderer({ rows = [fixture()], portraitSize = [600, 800] } = {}) {
   const template = fs.readFileSync(path.join(__dirname, '../services/thu-tuan/tools/card-studio/template.html'), 'utf8');
   const source = template.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
-  const draws = [];
+  const draws = [], images = [];
   const ctx = { font: '', measureText(text) {
     const size = Number(/(\d+)px/.exec(this.font)[1]), width = text.length * size * .46;
     return { width, actualBoundingBoxLeft: 1, actualBoundingBoxRight: width - 1,
       actualBoundingBoxAscent: size * .7, actualBoundingBoxDescent: size * .2 };
   }, fillText() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, save() {}, restore() {},
-    clip() {}, arc() {}, ellipse() {}, closePath() {}, drawImage(img, x, y, w, h) { draws.push({ x, y, w, h }); } };
+    clip() {}, arc() {}, ellipse() {}, closePath() {}, rect() {}, fill() {}, putImageData() {},
+    createLinearGradient: () => ({ addColorStop() {} }),
+    getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4).fill(255).map((v, i) => i % 4 === 3 ? 255 : 0) }),
+    drawImage(img, ...args) { const [x, y, w, h] = args.length === 8 ? args.slice(4) : args; draws.push({ img, x, y, w, h }); } };
   const prepared = prepareRows(rows);
   const longest = prepared.reduce((a, b) => a.NoiDungNguyenVan.length >= b.NoiDungNguyenVan.length ? a : b);
-  const data = JSON.stringify({ rows: prepared, portrait: 'data:image/png;base64,', longest, portraitSha256: '0'.repeat(64) });
+  const data = JSON.stringify({ rows: prepared, portrait: 'data:image/png;base64,', longest, portraitSha256: '0'.repeat(64), drum: 'data:image/webp;base64,', drumSha256: '1'.repeat(64) });
   const elements = new Map(), anchors = [], blobs = new Map(), revoked = [];
   const element = () => ({ textContent: '', style: {}, append() {}, after(a) { anchors.unshift(a); }, remove() { this.removed = true; } });
   const document = { getElementById(id) {
@@ -112,10 +115,11 @@ function renderer({ rows = [fixture()], portraitSize = [600, 800] } = {}) {
     ? { getContext: () => ctx, toBlob(cb) { cb(new Blob([png])); } }
     : element() };
   const URL = { createObjectURL(blob) { const url = 'blob:' + blobs.size; blobs.set(url, blob); return url; }, revokeObjectURL(url) { revoked.push(url); } };
-  const sandbox = vm.createContext({ document, TextEncoder, Blob, URL, crypto: globalThis.crypto, setTimeout,
-    Image: class { constructor() { [this.naturalWidth, this.naturalHeight] = portraitSize; } } });
+  // The template creates the portrait first, then the drum artwork.
+  const Image = class { constructor() { [this.naturalWidth, this.naturalHeight] = images.length ? [40, 40] : portraitSize; images.push(this); } };
+  const sandbox = vm.createContext({ document, TextEncoder, Blob, URL, crypto: globalThis.crypto, setTimeout, Image });
   new vm.Script(source).runInContext(sandbox);
-  return Object.assign(sandbox, { draws, anchors, blobs, revoked });
+  return Object.assign(sandbox, { ctx, draws, anchors, blobs, revoked, portraitImage: images[0] });
 }
 
 // Minimal independent reader for the stored (uncompressed) ZIP the page builds.
@@ -138,86 +142,92 @@ function readZip(buf) {
 }
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 
-test('Both layouts center theme ink on both axes and reject removed layout A', () => {
+test('D aligns theme ink left beside the portrait, F centres it; both keep model/motto on one line and reject other layouts', () => {
   const sandbox = renderer(), row = prepareRows([fixture()])[0];
-  for (const layout of ['B', 'C']) {
-    const report = sandbox.card(row, layout).report;
-    const ink = report.blocks.theme.inkBounds;
-    assert.ok(Math.abs(ink.x + ink.w / 2 - 800) < .001);
-    assert.ok(Math.abs(ink.y + ink.h / 2 - 468) < .001);
+  const d = sandbox.card(row, 'D').report, f = sandbox.card(row, 'F').report;
+  assert.deepEqual([d.width, d.height, f.width, f.height], [1600, 1200, 1080, 1350]);
+  const dInk = d.blocks.theme.inkBounds, fInk = f.blocks.theme.inkBounds;
+  assert.ok(Math.abs(dInk.x - 384) < .001 && Math.abs(dInk.y + dInk.h / 2 - 368) < .001);
+  assert.ok(Math.abs(fInk.x + fInk.w / 2 - 540) < .001 && Math.abs(fInk.y + fInk.h / 2 - 252) < .001);
+  for (const report of [d, f]) {
     assert.equal(report.blocks.model.lines.length, 1); assert.equal(report.blocks.motto.lines.length, 1);
     assert.equal(report.blocks.motto.original, report.blocks.motto.original.toLocaleUpperCase('vi'));
   }
-  assert.throws(() => sandbox.card(row, 'A'), /Mẫu không hợp lệ/);
+  for (const layout of ['A', 'B', 'C', 'toString']) assert.throws(() => sandbox.card(row, layout), /Mẫu không hợp lệ/);
 });
 
-test('Long quote fallback preserves words, fits bounds and avoids a one-word last line', () => {
+test('Long quotes keep every word, fit their box and avoid a one-word last line in both layouts', () => {
   const sandbox = renderer();
   const row = prepareRows([{ ...fixture(), NoiDungNguyenVan: 'Nội dung giả lập có dấu tiếng Việt để kiểm tra bố cục. '.repeat(5).trim() }])[0];
-  const result = sandbox.choose(row, 0).report;
-  assert.equal(result.template, 'C');
-  const block = result.blocks.quote;
-  assert.equal(block.lines.join(' ').replace(/\s+/g, ' '), row.NoiDungNguyenVan.replace(/\s+/g, ' '));
-  assert.ok(block.usedHeight <= block.box.h); assert.ok(block.maxLineWidth <= block.box.w);
-  assert.ok(block.lines.at(-1).split(' ').length > 1);
+  for (const layout of ['D', 'F']) {
+    const block = sandbox.card(row, layout).report.blocks.quote;
+    assert.equal(block.lines.join(' ').replace(/\s+/g, ' '), row.NoiDungNguyenVan.replace(/\s+/g, ' '));
+    assert.ok(block.usedHeight <= block.box.h); assert.ok(block.maxLineWidth <= block.box.w);
+    assert.ok(block.lines.at(-1).split(' ').length > 1);
+  }
 });
 
-test('Content that cannot fit is rejected without truncation; short C quote stays one line', () => {
+test('Content that cannot fit is rejected without truncation', () => {
+  const sandbox = renderer(), row = prepareRows([fixture()])[0];
+  for (const layout of ['D', 'F']) {
+    assert.throws(() => sandbox.card({ ...row, ChuDe: 'W'.repeat(1000) }, layout), /theme/);
+    assert.throws(() => sandbox.card({ ...row, NoiDungNguyenVan: 'Quá dài '.repeat(400).trim() }, layout), /quote/);
+  }
+});
+
+test('Source shows the author without a dash, stays verbatim and never splits protected phrases', () => {
   const sandbox = renderer();
-  const row = prepareRows([{ ...fixture(), NoiDungNguyenVan: 'Câu thử ngắn để xem mẫu.' }])[0];
-  assert.equal(sandbox.card(row, 'C').report.blocks.quote.lines.length, 1);
-  row.ChuDe = 'W'.repeat(1000);
-  assert.throws(() => sandbox.choose(row, 0), /theme/);
+  const NguonTrich = 'Hồ Chí Minh, “Bài nói giả lập”, Ngày 1/1/1966, Toàn tập, Tập 15, NXB Thử nghiệm, Hà Nội, 2011, tr. 170.';
+  const row = prepareRows([{ ...fixture(), NguonTrich }])[0];
+  for (const layout of ['D', 'F']) {
+    const { sourceAuthor, sourceRest } = sandbox.card(row, layout).report.blocks;
+    assert.equal(sourceAuthor.original, 'Hồ Chí Minh');
+    assert.equal(sourceAuthor.original + ', ' + sourceRest.original, NguonTrich);
+  }
+  sandbox.ctx.font = '400 10px Arial';
+  assert.deepEqual([...sandbox.wrap(sandbox.ctx, 'aaaa Hà Nội', 40)], ['aaaa', 'Hà Nội']);
+  assert.deepEqual([...sandbox.wrap(sandbox.ctx, 'aaaa tr. 170', 40)], ['aaaa', 'tr. 170']);
 });
 
-test('Portrait always covers its arch/circle clip box for tall, square and landscape images', () => {
+test('Portrait always covers its circle for tall, square and landscape images', () => {
   const row = prepareRows([fixture()])[0];
   for (const portraitSize of [[600, 800], [800, 800], [1000, 700], [400, 2000]]) {
-    for (const layout of ['B', 'C']) {
+    for (const [layout, box] of [['D', { y: 240, h: 228 }], ['F', { y: 346, h: 250 }]]) {
       const sandbox = renderer({ portraitSize });
       sandbox.card(row, layout);
-      const box = layout === 'B' ? { y: 545, h: 590 } : { y: 551, h: 220 };
-      const draw = sandbox.draws.at(-1);
+      const draw = sandbox.draws.filter(d => d.img === sandbox.portraitImage).at(-1);
       assert.ok(draw.y <= box.y + 1e-9 && draw.y + draw.h >= box.y + box.h - 1e-9, `${layout} ${portraitSize}`);
     }
   }
 });
 
-test('Layout preference follows the week, not the position of the row in the batch', () => {
-  const weeks = ['2026-10-12', '2026-10-19', '2026-10-26'];
-  const rows = weeks.map((Ky, i) => ({ ...fixture(), Ky, MaLoiDay: 'LD-99' + i }));
-  const all = renderer({ rows }), withoutFirst = renderer({ rows: rows.slice(1) });
-  const layouts = sandbox => JSON.parse(sandbox.document.getElementById('data').textContent)
-    .rows.map(row => [row.Ky, sandbox.choose(row).report.template]);
-  assert.deepEqual(layouts(all).map(x => x[1]), ['B', 'C', 'B']);
-  assert.deepEqual(layouts(withoutFirst), layouts(all).slice(1));
-});
-
-test('Batch ZIP is complete, CRC-valid and hashes the exact caption bytes it ships', async () => {
+test('Batch ZIP has D and F per week, is CRC-valid and hashes the exact caption bytes it ships', async () => {
   const rows = ['2026-10-12', '2026-10-19'].map((Ky, i) => ({ ...fixture(), Ky, MaLoiDay: 'LD-90' + i, BoiCanhZalo: '</script> $& 😀' }));
   const sandbox = renderer({ rows });
   await sandbox.exportBatch('batch');
   const entries = readZip(Buffer.from(await sandbox.blobs.get(sandbox.anchors[0].href).arrayBuffer()));
-  assert.equal(entries.length, rows.length * 3 + 1);
+  assert.equal(entries.length, rows.length * 4 + 1);
   assert.equal(new Set(entries.map(e => e.name)).size, entries.length);
   const top = JSON.parse(entries.find(e => e.name === 'manifest.json').bytes);
-  assert.equal(top.count, 2); assert.equal(top.status, 'DRAFT_NOT_APPROVED');
-  for (const card of top.cards) {
-    const base = card.image.replace(/\.png$/, '');
-    const caption = entries.find(e => e.name === base + '-caption.txt').bytes;
-    assert.equal(card.captionFileSha256, sha256(caption));
-    assert.equal(caption.toString('utf8'), prepareRows(rows).find(r => r.Ky === card.week).caption + '\n');
-    assert.equal(card.imageSha256, sha256(entries.find(e => e.name === card.image).bytes));
+  assert.equal(top.count, 2); assert.equal(top.imageCount, 4); assert.equal(top.status, 'DRAFT_NOT_APPROVED');
+  for (const week of top.weeks) {
+    const caption = entries.find(e => e.name === week.caption).bytes;
+    assert.equal(week.captionFileSha256, sha256(caption));
+    assert.equal(caption.toString('utf8'), prepareRows(rows).find(r => r.Ky === week.week).caption + '\n');
+    assert.deepEqual(week.images.map(i => i.template), ['D', 'F']);
+    for (const image of week.images) assert.equal(image.imageSha256, sha256(entries.find(e => e.name === image.image).bytes));
+    assert.equal(JSON.stringify(JSON.parse(entries.find(e => e.name === week.caption.replace('-caption.txt', '-manifest.json')).bytes)), JSON.stringify(week));
   }
 });
 
-test('Samples export never duplicates a card and a re-export replaces its link and revokes the old URL', async () => {
+test('Samples export never duplicates a week and a re-export replaces its link and revokes the old URL', async () => {
   const sandbox = renderer();
   await sandbox.exportBatch('samples');
   const first = sandbox.anchors[0];
   const entries = readZip(Buffer.from(await sandbox.blobs.get(first.href).arrayBuffer()));
   assert.equal(new Set(entries.map(e => e.name)).size, entries.length);
-  assert.equal(JSON.parse(entries.find(e => e.name === 'manifest.json').bytes).count, 2);
+  const top = JSON.parse(entries.find(e => e.name === 'manifest.json').bytes);
+  assert.equal(top.count, 1); assert.equal(top.imageCount, 2);
   await sandbox.exportBatch('samples');
   assert.ok(first.removed); assert.deepEqual(sandbox.revoked, [first.href]);
 });

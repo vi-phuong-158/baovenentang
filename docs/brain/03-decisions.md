@@ -135,3 +135,9 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
 - Chỉ giữ B/C và tâm nét chữ chính giữa; dùng Canvas/font hệ thống/ZIP native, không đổi stack. Đầu ra chứa dữ liệu thật nên chặn ghi vào Git checkout, giải quyết symlink thư mục và không ghi đè file hiện có. JSON chỉ lấy trường nội dung cho phép, escape dấu < để tránh đóng script.
 - Caption giới hạn 1.800 UTF-16 và luôn draft; không thay approval/receipt/sender. Chưa tích hợp NotebookLM trong formatter này nên link không rỗng bị chặn. Không cập nhật 51 ảnh/Drive khi mới xem trước.
 - Sau review độc lập PR18: nguồn chỉ qua khi sourceReviewRequired === false và có “Tập N”/“tr. N” (đóng an toàn khi thiếu cờ); mẫu B/C ưu tiên theo số tuần từ 1970-01-05 thay cho vị trí trong mảng để thêm/bớt kỳ không đổi ảnh các kỳ khác (giữ nguyên phân bổ 51 kỳ hiện có); manifest đổi sang captionFileSha256 băm đúng byte tệp caption.
+
+## [2026-10-03] Chốt mẫu D/F cho ảnh Thư tuần
+
+- Người dùng chốt D (ngang) và F (dọc 4:5) sau khi so sánh B2/C2/D/E/F trên bài thật; bỏ B/C. Mỗi kỳ luôn có cả hai khổ để chọn khổ gửi chính, không cần chọn mẫu theo tuần.
+- Hình trống đồng do người dùng cung cấp và xác nhận được phép công bố, nên lưu trong repo như asset của công cụ; chân dung và dữ liệu thật vẫn ngoài Git.
+- Bỏ vân giấy vì làm PNG nặng gấp đôi (D ~2,3 MB → ~1 MB) mà khó thấy. Nguồn tách “Hồ Chí Minh” (đậm, không gạch đầu dòng) và phần còn lại; ghép lại phải đúng nguyên văn. “Hà Nội”, “Tập N”, “tr. N” không bị ngắt dòng.

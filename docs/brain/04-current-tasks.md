@@ -112,3 +112,8 @@
 
 - Mã template B/C, builder offline và kiểm thử được đưa vào nhánh review riêng; dữ liệu/ảnh thật giữ ngoài Git.
 - Chờ review PR và phản hồi mẫu B/C trước thay đồng loạt bộ 51 ảnh. Không dùng merge PR thiết kế làm tín hiệu triển khai PROD hoặc thay approval media.
+
+## Card Studio D/F (2026-10-03)
+
+- Nhánh claude/thu-tuan-card-df (tách từ PR18) đưa mẫu D/F vào Card Studio kèm test. Bộ 102 ảnh D/F của 51 kỳ đã xuất ngoài Git để người dùng duyệt.
+- Chưa thay ảnh/Drive đang dùng; việc thay bộ ảnh và tích hợp sender cần duyệt riêng.
