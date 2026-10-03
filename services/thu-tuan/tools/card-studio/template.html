@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bộ tạo ảnh Thư tuần — 2 mẫu</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3eee5;color:#392c27;font:16px/1.5 Arial,sans-serif}main{max-width:1260px;margin:36px auto;padding:0 24px}h1{font:700 34px "Times New Roman",serif;color:#7d191b;margin:0 0 12px}p{max-width:900px}button{font:700 15px Arial;border:1px solid #7d191b;background:#7d191b;color:#fff;border-radius:6px;padding:13px 20px;cursor:pointer;margin:5px 10px 5px 0}button:disabled{opacity:.45;cursor:wait}.secondary{background:transparent;color:#7d191b}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin:25px 0}.tile{background:#fffdf7;border:1px solid #ddcfb7;padding:12px}.tile img{display:block;width:100%;height:auto}.tile p{margin:10px 0 0;font-size:14px}#progress{padding:14px 0;color:#7d191b;font-weight:bold}#status{white-space:pre-wrap}.note{font-size:14px;color:#66564b}@media(max-width:800px){.grid{grid-template-columns:1fr}h1{font-size:28px}}
+</style>
+<main>
+<h1>Bộ tạo ảnh Thư tuần</h1>
+<p>Hai bố cục dùng chung tên mô hình, khẩu hiệu và ảnh Bác. Lời dạy, nguồn và ngày được lấy nguyên văn từ dữ liệu. Bộ ảnh là bản thiết kế để duyệt, chưa tự gửi vào nhóm.</p>
+<button id="export">Xuất ảnh PNG và nội dung kèm</button><button class="secondary" id="samples">Xuất bộ mẫu và kiểm tra câu dài</button>
+<div id="progress" role="status">Đang chuẩn bị bản xem trước…</div>
+<div id="gallery" class="grid"></div><div id="long-gallery" class="grid"></div><pre id="status"></pre>
+<p class="note">Ảnh bìa chứa lời dạy và nguồn; toàn bộ bài nằm trong tệp nội dung kèm. Những bài chưa duyệt vẫn cần được người phụ trách duyệt trước khi đưa vào lịch gửi.</p>
+</main>
+<script id="data" type="application/json">__CARD_DATA__</script>
+<script>
+'use strict';
+const DATA=JSON.parse(document.getElementById('data').textContent);
+const W=1600,H=1200,CREAM='#f8f3e9',RED='#7b1519',GOLD='#a98038',INK='#302824';
+const SERIF='"Times New Roman", serif',SANS='Arial, sans-serif';
+const MODEL='Mô hình học tập, thực hiện Sáu điều Bác Hồ dạy Công an nhân dân';
+const MOTTO='TUYỆT ĐỐI TRUNG THÀNH - CHỦ ĐỘNG, SÁNG TẠO';
+const enc=new TextEncoder();
+const portrait=new Image();
+document.querySelectorAll('button').forEach(b=>b.disabled=true);
+const blobOf=(canvas)=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Không xuất được ảnh')),'image/png'));
+const clean=s=>s.replace(/\s+/gu,' ').trim();
+const dateVI=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);if(!m)throw Error('Ngày không hợp lệ');return `${m[3]}/${m[2]}/${m[1]}`};
+function wrap(ctx,text,width){
+  const lines=[];for(const paragraph of text.split(/\r?\n/u)){
+    let line='';for(const word of paragraph.trim().split(/\s+/u).filter(Boolean)){
+      if(ctx.measureText(word).width>width)throw Error('Từ vượt khung chữ');
+      const next=line?line+' '+word:word;
+      if(line&&ctx.measureText(next).width>width){lines.push(line);line=word}else line=next;
+    }if(line)lines.push(line);
+  }if(clean(lines.join(' '))!==clean(text))throw Error('Nguyên văn bị thay đổi');return lines;
+}
+function block(ctx,text,box,opts={}){
+  const {x,y,w,h}=box;const max=opts.max||42,min=opts.min||max,family=opts.family||SANS,weight=opts.weight||'400',align=opts.align||'left',color=opts.color||INK;
+  let lines,size,step;
+  for(size=max;size>=min;size-=2){
+    ctx.font=`${weight} ${size}px ${family}`;step=Math.ceil(size*1.28);
+    try{lines=wrap(ctx,text,w-8)}catch(e){if(size===min)throw e;continue}
+    const orphan=lines.length>1&&lines.at(-1).trim().split(/\s+/u).length===1;
+    if(lines.length*step<=h&&lines.length<=(opts.maxLines||Infinity)&&(!opts.avoidOrphan||!orphan))break;
+  }
+  if(size<min||!lines)throw Error('Nội dung vượt khung chữ');
+  ctx.fillStyle=color;
+  if(opts.inkCenter){
+    if(lines.length!==1)throw Error('Tiêu đề cần một dòng');
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    const metrics=ctx.measureText(lines[0]);
+    const inkWidth=metrics.actualBoundingBoxLeft+metrics.actualBoundingBoxRight;
+    const inkHeight=metrics.actualBoundingBoxAscent+metrics.actualBoundingBoxDescent;
+    const px=x+w/2+(metrics.actualBoundingBoxLeft-metrics.actualBoundingBoxRight)/2;
+    const py=y+h/2+(metrics.actualBoundingBoxAscent-metrics.actualBoundingBoxDescent)/2;
+    ctx.fillText(lines[0],px,py);
+    return {original:text,lines,fontSize:size,box,usedHeight:inkHeight,maxLineWidth:inkWidth,inkBounds:{x:px-metrics.actualBoundingBoxLeft,y:py-metrics.actualBoundingBoxAscent,w:inkWidth,h:inkHeight},inkCenter:{x:x+w/2,y:y+h/2}};
+  }
+  ctx.textAlign=align;ctx.textBaseline='top';
+  const start=opts.middle?y+(h-lines.length*step)/2:y;
+  const tx=align==='center'?x+w/2:align==='right'?x+w:x;
+  lines.forEach((line,i)=>ctx.fillText(line,tx,start+i*step));
+  return {original:text,lines,fontSize:size,box,usedHeight:lines.length*step,maxLineWidth:Math.max(...lines.map(l=>ctx.measureText(l).width))};
+}
+function rule(ctx,x1,y,x2){ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke()}
+function photo(ctx,x,y,w,h,shape='arch'){
+  ctx.save();ctx.beginPath();
+  if(shape==='circle')ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);
+  else{const r=w/2;ctx.moveTo(x,y+r);ctx.arc(x+r,y+r,r,Math.PI,0);ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.closePath()}
+  ctx.clip();const scale=Math.max(w/portrait.naturalWidth,h/portrait.naturalHeight);
+  const dw=portrait.naturalWidth*scale,dh=portrait.naturalHeight*scale;
+  const dy=Math.min(y,Math.max(y+h-dh,shape==='circle'?y-dh*.065:y-(dh-h)*.16));
+  ctx.drawImage(portrait,x+(w-dw)/2,dy,dw,dh);ctx.restore();
+  ctx.strokeStyle=GOLD;ctx.lineWidth=3;ctx.stroke();
+}
+function card(row,requested){
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const ctx=canvas.getContext('2d');ctx.fillStyle=CREAM;ctx.fillRect(0,0,W,H);
+  const report={week:row.Ky,code:row.MaLoiDay,template:requested,width:W,height:H,blocks:{},status:'DRAFT_NOT_APPROVED'};
+  const put=(id,text,box,opts)=>{try{return report.blocks[id]=block(ctx,text,box,opts)}catch(e){throw Error(row.MaLoiDay+' / '+requested+' / '+id+': '+e.message)}};
+  put('masthead','THƯ TUẦN · LỜI BÁC DẠY',{x:80,y:72,w:1060,h:52},{max:35,weight:'700'});
+  put('date',dateVI(row.Ky),{x:1160,y:72,w:360,h:52},{max:35,align:'right'});rule(ctx,80,136,1520);
+  put('model',MODEL,{x:80,y:176,w:1440,h:62},{max:42,min:30,family:SERIF,weight:'700',color:RED,align:'center',maxLines:1});
+  put('motto',MOTTO,{x:80,y:267,w:1440,h:84},{max:56,min:46,family:SERIF,weight:'700',color:RED,align:'center',maxLines:1});rule(ctx,80,378,1520);
+  ctx.fillStyle='#efe4d2';ctx.fillRect(80,416,1440,104);
+  put('theme',row.ChuDe.toLocaleUpperCase('vi'),{x:80,y:416,w:1440,h:104},{max:64,min:46,color:RED,weight:'700',maxLines:1,inkCenter:true});
+  if(requested==='B'){
+    photo(ctx,80,545,430,590);
+    put('quote',row.NoiDungNguyenVan,{x:574,y:588,w:946,h:405},{max:100,min:54,family:SERIF,weight:'700',color:RED,middle:true,avoidOrphan:true});rule(ctx,574,1021,1520);
+    put('source',row.NguonTrich,{x:574,y:1052,w:946,h:125},{max:29,min:23});
+  }else if(requested==='C'){
+    const short=clean(row.NoiDungNguyenVan).split(' ').length<=12;
+    if(short)photo(ctx,690,551,220,220,'circle');else photo(ctx,80,551,160,160,'circle');
+    const quoteBox=short?{x:100,y:796,w:1400,h:223}:{x:280,y:562,w:1240,h:456};
+    put('quote',row.NoiDungNguyenVan,quoteBox,{max:92,min:48,family:SERIF,weight:'700',color:RED,align:'center',middle:true,maxLines:short?1:Infinity,avoidOrphan:true});rule(ctx,80,1031,1520);
+    put('source',row.NguonTrich,{x:80,y:1061,w:1440,h:115},{max:28,min:22,align:'center'});
+  }else throw Error('Mẫu không hợp lệ');
+  for(const b of Object.values(report.blocks))if(b.usedHeight>b.box.h||b.maxLineWidth>b.box.w||b.box.x<0||b.box.y<0||b.box.x+b.box.w>W||b.box.y+b.box.h>H)throw Error('Khung chữ không hợp lệ');
+  if(row.caption.length>1800)throw Error('Nội dung kèm vượt một tin');
+  return {canvas,report};
+}
+const weekNumber=ky=>Math.round((Date.parse(ky+'T00:00:00Z')-Date.UTC(1970,0,5))/6048e5);
+function choose(row){
+  const preferred=row.NoiDungNguyenVan.length>150?'C':['B','C'][weekNumber(row.Ky)%2];
+  let lastError;for(const layout of [...new Set([preferred,'C','B'])]){try{return card(row,layout)}catch(e){lastError=e}}if(lastError)throw lastError;
+  throw Error('Không có mẫu phù hợp');
+}
+function filename(row,layout){return `${row.Ky}_${row.MaLoiDay}_${layout}`}
+async function sha(bytes){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('')}
+const crcTable=Uint32Array.from({length:256},(_,n)=>{let c=n;for(let j=0;j<8;j++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;return c>>>0});
+function crc32(bytes){let c=0xffffffff;for(const b of bytes)c=crcTable[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0}
+function header(n){const b=new Uint8Array(n);return{b,v:new DataView(b.buffer)}}
+function zip(files){
+  const chunks=[],central=[];let offset=0,centralSize=0;
+  for(const file of files){
+    const name=enc.encode(file.name),bytes=file.bytes,crc=crc32(bytes),local=header(30),c=header(46);
+    local.v.setUint32(0,0x04034b50,true);local.v.setUint16(4,20,true);local.v.setUint16(6,0x800,true);local.v.setUint16(12,0x21,true);local.v.setUint32(14,crc,true);local.v.setUint32(18,bytes.length,true);local.v.setUint32(22,bytes.length,true);local.v.setUint16(26,name.length,true);
+    c.v.setUint32(0,0x02014b50,true);c.v.setUint16(4,20,true);c.v.setUint16(6,20,true);c.v.setUint16(8,0x800,true);c.v.setUint16(14,0x21,true);c.v.setUint32(16,crc,true);c.v.setUint32(20,bytes.length,true);c.v.setUint32(24,bytes.length,true);c.v.setUint16(28,name.length,true);c.v.setUint32(42,offset,true);
+    chunks.push(local.b,name,bytes);central.push(c.b,name);offset+=30+name.length+bytes.length;centralSize+=46+name.length;
+  }
+  const end=header(22);end.v.setUint32(0,0x06054b50,true);end.v.setUint16(8,files.length,true);end.v.setUint16(10,files.length,true);end.v.setUint32(12,centralSize,true);end.v.setUint32(16,offset,true);
+  return new Blob([...chunks,...central,end.b],{type:'application/zip'});
+}
+const links=new Map();
+function save(blob,name){const old=links.get(name);if(old){URL.revokeObjectURL(old.href);old.remove()}const url=URL.createObjectURL(blob);const a=document.createElement('a');links.set(name,a);a.href=url;a.download=name;a.textContent='Tải '+name;a.style.display='block';a.style.padding='16px 0';document.getElementById('status').after(a)}
+async function add(files,result,row,label){
+  const name=label||filename(row,result.report.template),bytes=new Uint8Array(await(await blobOf(result.canvas)).arrayBuffer());
+  const captionBytes=enc.encode(row.caption+'\n');
+  files.push({name:name+'.png',bytes},{name:name+'-caption.txt',bytes:captionBytes});
+  const manifest={...result.report,image:name+'.png',imageSha256:await sha(bytes),captionUtf16Length:row.caption.length,captionFileSha256:await sha(captionBytes),portraitSha256:DATA.portraitSha256};
+  files.push({name:name+'-manifest.json',bytes:enc.encode(JSON.stringify(manifest,null,2)+'\n')});
+  result.canvas.width=1;result.canvas.height=1;return manifest;
+}
+async function exportBatch(mode){
+  const buttons=[...document.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+  const files=[],manifest=[];try{
+    if(mode==='samples'){
+      const sampleRows=DATA.longest.Ky===DATA.rows[0].Ky?[DATA.rows[0]]:[DATA.rows[0],DATA.longest];
+      for(const row of sampleRows)for(const layout of ['B','C']){
+        let result;try{result=card(row,layout)}catch(e){document.getElementById('status').textContent+=`Bỏ qua mẫu ${layout}: ${e.message}\n`;continue}
+        manifest.push(await add(files,result,row,'sample_'+filename(row,layout)));
+      }
+    }else for(let i=0;i<DATA.rows.length;i++){
+      const row=DATA.rows[i];document.getElementById('progress').textContent=`Đang tạo ${i+1}/${DATA.rows.length}: ${row.MaLoiDay}`;
+      manifest.push(await add(files,choose(row),row));await new Promise(r=>setTimeout(r,0));
+    }
+    files.push({name:'manifest.json',bytes:enc.encode(JSON.stringify({version:1,modelName:MODEL,motto:MOTTO,count:manifest.length,status:'DRAFT_NOT_APPROVED',cards:manifest},null,2)+'\n')});
+    const archive=zip(files), archiveName=mode==='samples'?'thu-tuan-mau-BC.zip':'thu-tuan-anh-BC.zip';
+    save(archive,archiveName);
+    document.getElementById('progress').textContent=`Đã xuất ${manifest.length} ảnh; nguyên văn được giữ đầy đủ; không tràn khung.`;
+    document.getElementById('status').textContent+=`Bộ ${mode}: ${manifest.length} ảnh PNG, kích thước ${W} × ${H}.\n`;
+  }catch(e){document.getElementById('progress').textContent='Xuất ảnh bị chặn: '+e.message}finally{buttons.forEach(b=>b.disabled=false)}
+}
+document.getElementById('export').onclick=()=>exportBatch('batch');document.getElementById('samples').onclick=()=>exportBatch('samples');
+function tile(result,row,parent){const article=document.createElement('article');article.className='tile';const img=new Image();img.src=result.canvas.toDataURL('image/png');img.alt=`Mẫu ${result.report.template} — ${row.MaLoiDay}`;const p=document.createElement('p');p.textContent=`Mẫu ${result.report.template} · ${row.MaLoiDay} · ${row.NoiDungNguyenVan.length} ký tự lời dạy`;article.append(img,p);document.getElementById(parent).append(article);result.canvas.width=1;result.canvas.height=1}
+portrait.onload=()=>{try{
+  for(const layout of ['B','C']){try{tile(card(DATA.rows[0],layout),DATA.rows[0],'gallery')}catch(e){document.getElementById('status').textContent+=e.message+'\n'}}
+  tile(choose(DATA.longest),DATA.longest,'long-gallery');
+  const counts={B:0,C:0},sizes=[];
+  DATA.rows.forEach(row=>{const result=choose(row);counts[result.report.template]++;sizes.push(result.report.blocks.quote.fontSize);result.canvas.width=1;result.canvas.height=1});
+  document.getElementById('progress').textContent=`Đã kiểm tra ${DATA.rows.length}/${DATA.rows.length} ảnh: không tràn chữ, không cắt lời dạy.`;
+  document.querySelectorAll('button').forEach(b=>b.disabled=false);
+  document.getElementById('status').textContent+=`Mẫu B: ${counts.B}; C: ${counts.C}. Cỡ chữ lời dạy: ${Math.min(...sizes)}–${Math.max(...sizes)} px.\nCâu dài nhất: ${DATA.longest.MaLoiDay}, ${DATA.longest.NoiDungNguyenVan.length} ký tự.\n`;
+}catch(e){document.getElementById('progress').textContent='Cần điều chỉnh mẫu: '+e.message;document.querySelectorAll('button').forEach(b=>b.disabled=true)}};
+portrait.onerror=()=>{document.getElementById('progress').textContent='Không tải được ảnh Bác';document.querySelectorAll('button').forEach(b=>b.disabled=true)};
+portrait.src=DATA.portrait;
+</script>
+</html>

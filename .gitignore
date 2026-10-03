@@ -14,3 +14,8 @@ backend/.clasp.json
 # Google Cloud service account credentials (ten dang project-id-hash.json)
 *-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*.json
 credentials/*.json
+
+# Local AI review/runtime evidence (may contain private portraits, exports or Drive links)
+.codex-runtime-evidence/
+.codex-remote-attachments/
+.codegraph/daemon.pid

@@ -1175,3 +1175,24 @@ codegraph impact validateApiToken_
 3. Mở app → tab `Học tập` → section `Tủ sách`.
 4. Xác nhận danh mục 10 tài liệu hiện ra; bấm vào một tài liệu, modal chi tiết bật lên và nằm trong viewport.
 5. Thử tìm kiếm theo tên/chủ đề/tác giả.
+
+
+## [2026-10-03] Đóng gói Card Studio B/C để commit và PR
+
+- Theo yêu cầu commit/PR/prompt review: tạo checkout riêng từ origin/main, giữ nguyên WIP checkout ban đầu và các nhánh PR16/17. Thêm services/thu-tuan/tools/card-studio/{build.cjs,template.html,README.md}, tests/thu-tuan-card-studio.test.cjs; cập nhật workflow Thu tuan, brain01/03/04/06 và docs/reviews/thu-tuan-card-bc-review.md.
+- Đóng gói template ứng viên B/C đã xem: bỏ A, model một dòng, motto in hoa lớn, chủ đề 64 px căn tâm nét chữ x=800/y=468. Bảo toàn quote/source, C câu ngắn một dòng/câu dài tránh orphan. Thay endpoint POST export cục bộ bằng tải Blob để template độc lập offline; chặn nút đến khi ảnh và toàn bộ fit được kiểm.
+- Builder mới bỏ đường dẫn/count cố định của script riêng; whitelist trường nội dung, giới hạn caption, chặn nguồn cần review/link chưa hỗ trợ, escape JSON, output ngoài Git và tạo mới bằng wx. Không chứa dữ liệu/chân dung/URL Drive/ID nội bộ/credential thật.
+- Impact: CodeGraph MCP transport closed; truy vấn read-only SQLite CodeGraph xác định corpus-to-sheet main → parseCorpus/auditWeeks/buildRows/loadHeaders/mondayKeys/toCsv/isInside. Tool mới độc lập, không đổi symbol service/caller GAS/route/API/schema. Renderer riêng: wrap → block → card → choose/tile/exportBatch, add → SHA/ZIP/download.
+- Rủi ro: font hệ thống khác có thể đổi line-break; mock không thay PNG thực; HTML xuất chứa dữ liệu riêng tư; B/C chưa áp dụng hàng loạt. Helper nghiệm thu sendPhoto TEST và minh chứng riêng không thuộc code của PR này. Không gửi tin/cập nhật cloud hoặc Drive.
+- Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse tracked GS bằng vm.Script; git diff --check. Dựng HTML vào workspace riêng, mở Chrome/Edge xem B/C/câu dài, xuất ZIP đối chiếu count/CRC/SHA256/quote/source/inkBounds. Kết quả xác minh cụ thể được bổ sung sau chạy.
+
+- Kết quả: 163/163 test local (154 service + 9 Card Studio); sau tinh chỉnh bộ nhớ/ẩn lỗi JSON, 9/9 Card Studio chạy lại đạt. Parse 21 tracked GS và builder đạt; diff sạch. Browser dựng đủ 51/51, B23/C28, tải ZIP qua UI. Kiểm ZIP CRC, CRC chunk PNG, SHA256 ảnh/caption, 51 caption khớp từng byte bộ trước, model/motto một dòng, nguyên văn/nguồn đủ và 51 inkCenter/khung đạt. PNG B/C đầu tiên khớp từng byte mẫu đã xem, câu dài nhất được xem trực quan. CI sẽ được kiểm theo SHA sau push; không gọi PASS toàn repo/cloud/Production.
+
+
+## [2026-10-03] Sửa toàn bộ findings review độc lập PR18 (Card Studio B/C)
+
+- File: services/thu-tuan/tools/card-studio/{build.cjs,template.html,README.md}, tests/thu-tuan-card-studio.test.cjs, .gitignore, docs/brain/03-decisions.md, 06-ai-working-log.md.
+- Lý do/sửa: (1) manifest captionSha256 không khớp tệp TXT → captionFileSha256 băm đúng byte tệp; (2) bộ mẫu lặp bài khi bài đầu là bài dài nhất → loại trùng theo Ky, báo lỗi thật khi bỏ qua mẫu; (3) chân dung vuông/ngang hở đáy khung tròn → kẹp dy để ảnh luôn phủ kín khung; (4) thiếu cờ sourceReviewRequired vẫn qua → bắt buộc === false và nguồn có Tập/tr.; (5) mẫu theo vị trí mảng → theo số tuần từ 1970-01-05 (51 kỳ hiện có giữ nguyên B/C); (6) link tải tích tụ và giữ Blob → thay link cùng tên, revokeObjectURL; (7) JSON có BOM bị từ chối → bỏ BOM; (8) ngày ZIP bằng 0 → 1980-01-01; (9) bổ sung test junction/BOM/crop/layout/ZIP/manifest/samples. Thêm fallback font serif/sans-serif. .gitignore thêm .codex-runtime-evidence/, .codex-remote-attachments/, .codegraph/daemon.pid.
+- Không đổi: bố cục, cỡ chữ, vị trí khung, căn tâm chủ đề; không gọi API/Drive/Zalo; không chạy SEND.
+- Rủi ro: dữ liệu thiếu sourceReviewRequired hoặc nguồn thiếu Tập/tr. giờ bị chặn ở builder (51 kỳ thật đều đạt); manifest đổi tên trường captionSha256 → captionFileSha256 nên công cụ đối chiếu cũ cần cập nhật.
+- Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse tracked GS bằng vm.Script; git diff --check. Dựng lại studio từ dữ liệu thật ngoài Git, mở Chrome/Edge, xuất ZIP và đối chiếu PNG với bản trước.
