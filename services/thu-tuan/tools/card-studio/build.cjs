@@ -46,10 +46,16 @@ function buildHtml(input, portraitBytes) {
   const mime = portraitBytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? 'png' :
     portraitBytes[0] === 255 && portraitBytes[1] === 216 && portraitBytes[2] === 255 ? 'jpeg' : null;
   if (!mime) throw Error('PORTRAIT_MUST_BE_PNG_OR_JPEG');
+  // Public bronze-drum artwork shipped with the tool (cleared for publication).
+  const drumBytes = fs.readFileSync(path.join(__dirname, 'assets', 'trong-dong.webp'));
+  if (drumBytes.toString('latin1', 0, 4) !== 'RIFF' || drumBytes.toString('latin1', 8, 12) !== 'WEBP') throw Error('INVALID_DRUM_ASSET');
+  const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
   const data = {
     rows, longest: rows.reduce((a, b) => a.NoiDungNguyenVan.length >= b.NoiDungNguyenVan.length ? a : b),
     portrait: 'data:image/' + mime + ';base64,' + portraitBytes.toString('base64'),
-    portraitSha256: crypto.createHash('sha256').update(portraitBytes).digest('hex')
+    portraitSha256: sha256(portraitBytes),
+    drum: 'data:image/webp;base64,' + drumBytes.toString('base64'),
+    drumSha256: sha256(drumBytes)
   };
   const template = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
   if (template.split('__CARD_DATA__').length !== 2) throw Error('INVALID_TEMPLATE');

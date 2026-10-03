@@ -1196,3 +1196,11 @@ codegraph impact validateApiToken_
 - Không đổi: bố cục, cỡ chữ, vị trí khung, căn tâm chủ đề; không gọi API/Drive/Zalo; không chạy SEND.
 - Rủi ro: dữ liệu thiếu sourceReviewRequired hoặc nguồn thiếu Tập/tr. giờ bị chặn ở builder (51 kỳ thật đều đạt); manifest đổi tên trường captionSha256 → captionFileSha256 nên công cụ đối chiếu cũ cần cập nhật.
 - Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse tracked GS bằng vm.Script; git diff --check. Dựng lại studio từ dữ liệu thật ngoài Git, mở Chrome/Edge, xuất ZIP và đối chiếu PNG với bản trước.
+
+## [2026-10-03] Card Studio: thay B/C bằng mẫu D/F
+
+- File: services/thu-tuan/tools/card-studio/{template.html,build.cjs,README.md,assets/trong-dong.webp}, tests/thu-tuan-card-studio.test.cjs, docs/brain/01, 03, 04, 06.
+- Lý do: người dùng chốt D (ngang) và F (dọc) sau vòng xem trước; dùng hình trống đồng được phép công bố; bỏ gạch trước “Hồ Chí Minh”; chủ đề D căn trái cạnh chân dung thay vì lệch tâm.
+- Thay đổi: renderer D/F, mặt nạ trống đồng tô màu, nguồn hai tầng giữ nguyên văn, giữ cụm “Hà Nội/Tập N/tr. N” trên một dòng, dấu ngoặc kép bám dòng đầu lời dạy; ZIP mỗi kỳ gồm _D.png, _F.png, caption, manifest v2 (images[], drumSha256). Builder nhúng asset WebP sau khi kiểm signature.
+- Rủi ro: manifest đổi cấu trúc (version 2: weeks[].images[]) nên công cụ đối chiếu cũ cần cập nhật; HTML tăng ~640 KB do asset; hình thức vẫn phụ thuộc font hệ thống Times New Roman/Arial.
+- Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse GS; git diff --check. Dựng studio từ dữ liệu thật ngoài Git, mở Chrome/Edge, xuất ZIP: 51 kỳ, 102 PNG (D 1600 × 1200, F 1080 × 1350), CRC/SHA/caption từng byte, nguyên văn/nguồn đủ, không từ lẻ cuối, không gọi mạng.

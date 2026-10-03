@@ -163,3 +163,9 @@ flowchart TD
 - services/thu-tuan/tools/card-studio/build.cjs + template.html đóng gói mẫu B/C thành HTML tự chứa từ JSON/portrait cục bộ ngoài Git. Không dependency mới; renderer dùng Canvas và ZIP native.
 - Luồng riêng: kiểm trường/ngày/nguồn/caption → allowlist dữ liệu và mã hóa JSON → HTML riêng tư ngoài Git → xem PNG/kiểm fit → tải ZIP PNG/caption/manifest SHA256. Trạng thái luôn DRAFT_NOT_APPROVED.
 - Template chỉ có B/C, theme căn giữa bằng actualBoundingBox, tên mô hình một dòng và motto in hoa lớn; auto-fit giữ đủ quote/source. Không có caller từ runtime GAS, không route/API/Sheet schema mới. Mẫu mới vẫn chờ phản hồi trước thay cả bộ ảnh.
+
+### Card Studio D/F (2026-10-03)
+
+- Template thay B/C bằng hai mẫu chốt: D (1600 × 1200, chủ đề căn trái cạnh chân dung) và F (1080 × 1350 cho điện thoại). Mỗi kỳ xuất cả hai PNG, một caption và một manifest version 2.
+- Nền trống đồng là asset công khai services/thu-tuan/tools/card-studio/assets/trong-dong.webp; builder kiểm signature WebP, nhúng data URL và drumSha256. Trình duyệt tách hoa văn thành mặt nạ alpha rồi tô màu; không tải tài nguyên ngoài.
+- Không đổi luồng GAS/route/API/Sheet; vẫn là công cụ offline, trạng thái DRAFT_NOT_APPROVED.
