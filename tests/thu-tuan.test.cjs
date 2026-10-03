@@ -466,11 +466,55 @@ test('approval is verified by reading back; a stamp that does not survive Sheets
  assert.throws(()=>w.ctx.duyetNoiDungThuTuan('2026-09-21'),/APPROVAL_NOT_VERIFIED:STAMP_MISMATCH/);
  assert.equal(w.ctx.xemTruocThuTuan().reason,'STAMP_MISMATCH');
 });
-test('re-approving a week that already has send logs blocks further sends for that week',()=>{
+test('re-approving a week that already has send logs is refused before any write; a forged re-stamp still blocks sending',()=>{
  const w=world({content:[draft({})],recipients:[{MaCB:'CB1',Email:'one@example.test',TrangThai:'DangNhan'},{MaCB:'CB2',Email:'two@example.test',TrangThai:'TamDung'}]});
  w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');w.ctx.guiThuTuan();
- w.sheets['private-id|ThuTuan_NguoiNhan'].data[2][2]='DangNhan';w.setNow('2026-09-21T05:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
+ const sheet=w.sheets['content-id|LoiDay_NoiDung'],before=JSON.stringify(sheet.data);
+ w.setNow('2026-09-21T05:00:00Z');
+ assert.throws(()=>w.ctx.duyetNoiDungThuTuan('2026-09-21'),/WEEK_HAS_DELIVERY_HISTORY/);
+ assert.throws(()=>w.ctx.duyetKyThuTuan(),/WEEK_HAS_DELIVERY_HISTORY/);
+ assert.equal(JSON.stringify(sheet.data),before);assert.equal(w.mail.length,1);
+ // A stamp written outside the helper must still be caught by the send-time guard.
+ const forged=w.ctx.thuTuanRows_(sheet,'LoiDay_NoiDung')[0];forged.NgayDuyet=new Date('2026-09-21T05:00:00Z');
+ sheet.data[1][7]=forged.NgayDuyet;sheet.data[1][9]=w.ctx.thuTuanDigest_(forged,SECRET);
+ w.sheets['private-id|ThuTuan_NguoiNhan'].data[2][2]='DangNhan';
  assert.equal(w.ctx.guiThuTuan().status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(w.mail.length,1);
+});
+test('history guard: any Zalo log state of the week (also by Khoa when Ky became a date) refuses approval; other weeks stay approvable',()=>{
+ for(const state of ['SENT','SENDING','UNKNOWN','PENDING','FAILED']){
+  const w=zaloWorld({env:'PROD'});
+  assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
+  w.zaloLog.data[1][6]=state;w.zaloLog.data[1][1]=new Date('2026-09-21T00:00:00+07:00');
+  const before=JSON.stringify(w.row),requests=w.requests.length;
+  assert.throws(()=>w.ctx.duyetKyThuTuan(),/WEEK_HAS_DELIVERY_HISTORY/);
+  w.props.THU_TUAN_APPROVAL_WEEK='2026-09-21';assert.throws(()=>w.ctx.duyetKyThuTuan(),/WEEK_HAS_DELIVERY_HISTORY/);
+  assert.equal(JSON.stringify(w.row),before);assert.equal(w.requests.length,requests);
+ }
+ const w=zaloWorld({env:'PROD'});assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');
+ const sheet=w.sheets['prod-content-id|LoiDay_NoiDung'];
+ sheet.data.push(w.H.LoiDay_NoiDung.map(h=>draft({Ky:'2026-09-28',NotebookLM_URL:''})[h]??''));
+ const logBefore=JSON.stringify(w.zaloLog.data);
+ w.props.THU_TUAN_APPROVAL_WEEK='2026-09-28';const result=w.ctx.duyetKyThuTuan();
+ assert.equal(result.status,'APPROVED');assert.equal(result.key,'2026-09-28');assert.equal(JSON.stringify(w.zaloLog.data),logBefore);
+ assert.equal(w.ctx.xemTruocThuTuan().alreadySent,1);
+});
+test('runbook B: a week with history edited after sending stays blocked, refuses re-approval, and resumes only the eligible part once restored exactly',()=>{
+ const w=world({content:[draft({})],recipients:[{MaCB:'CB1',Email:'one@example.test',TrangThai:'DangNhan'},{MaCB:'CB2',Email:'two@example.test',TrangThai:'DangNhan'}]});
+ w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
+ const log=w.sheets['private-id|ThuTuan_NhatKyGui'],sheet=w.sheets['content-id|LoiDay_NoiDung'];
+ assert.equal(w.ctx.guiThuTuan().sent,2);log.data[2][6]='FAILED';
+ const original=sheet.data[1].slice();sheet.data[1][2]='Edited after send';
+ const blocked=w.ctx.guiThuTuan();assert.equal(blocked.status,'CONTENT_NOT_APPROVED');assert.equal(w.mail.length,2);
+ assert.throws(()=>w.ctx.duyetKyThuTuan(),/WEEK_HAS_DELIVERY_HISTORY/);assert.equal(sheet.data[1][2],'Edited after send');
+ sheet.data[1]=original;
+ const preview=w.ctx.xemTruocThuTuan();assert.equal(preview.status,'PREVIEW');assert.equal(preview.pending,1);assert.equal(preview.alreadySent,1);assert.equal(preview.unknown,0);
+ const resumed=w.ctx.guiThuTuan();assert.equal(resumed.status,'COMPLETE');assert.equal(resumed.sent,1);assert.equal(w.mail.length,3);assert.equal(w.mail[2].to,'two@example.test');
+});
+test('history guard fails closed when no delivery log sheet exists, without writing the stamp',()=>{
+ const w=world({enabled:false,content:[draft({})]});delete w.sheets['private-id|ThuTuan_NhatKyGui'];
+ w.setNow('2026-09-21T01:00:00Z');const before=JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data);
+ assert.throws(()=>w.ctx.duyetKyThuTuan(),/MISSING_SHEET/);
+ assert.equal(JSON.stringify(w.sheets['content-id|LoiDay_NoiDung'].data),before);
 });
 
 // ---------- Triggers and key ----------

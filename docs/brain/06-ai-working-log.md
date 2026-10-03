@@ -1,5 +1,12 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-02] Review độc lập PROD Zalo và guard duyệt lại kỳ đã gửi
+
+- Review chỉ đọc source `4bb781c`/evidence PROD (pilot ghi trên `126e738`, cloud sau PR #15 khớp `4bb781c`, luồng gửi không đổi giữa hai bản). Verdict giữ `THU_TUAN_ZALO_PRODUCTION_PILOT_PASS_AUTOMATION_PENDING`. Không P0; P1 token Bot dùng chung (owner tự xử lý); lặp LD-001 owner chấp nhận (05/10 là kỳ đầu). Sửa P2 duyệt lại kỳ đã gửi và bổ sung runbook kiểm sau lịch. CodeGraph (index checkout cũ) + grep: chỉ `duyetNoiDungThuTuan` và `duyetFixtureZaloThuTuanTest` gọi `thuTuanApproveContent_`; luồng gửi không đổi.
+- Files: `services/thu-tuan/Code.gs` (thêm `thuTuanWeekHasHistory_`, gọi trong approval), `tests/thu-tuan.test.cjs` (viết lại test duyệt lại sau gửi, thêm 2 test guard), `services/thu-tuan/README.md` (lỗi duyệt mới, checklist thứ Hai đối chiếu SHA được chấp thuận cho lần chạy, phân loại bất thường theo toàn bộ lịch sử kỳ: chưa có nhật ký / đã có nhật ký / chưa chắc / không có execution / kỳ sau thiếu nội dung), brain01/03/06. Sau review lần hai: thu hẹp hướng dẫn khôi phục, không hướng dẫn duyệt lại kỳ đã có lịch sử.
+- Rủi ro: duyệt đọc thêm bảng B; thiếu cả hai trang nhật ký thì từ chối. Không đổi gửi/trigger/schema. Chưa deploy cloud; không deploy trước 05/10.
+- Cách test: `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs` (156/156), parse 21 `.gs`; mutation check bỏ guard làm 3 test mới fail. Sau merge: upload Code.gs, readback hash, chạy `duyetKyThuTuan` trong tuần đã gửi phải ra `WEEK_HAS_DELIVERY_HISTORY` và dòng không đổi.
+
 ## [2026-10-02] Chọn kỳ duyệt trước lịch thật
 
 - CodeGraph flow/impact helper và core từ vòng PR14 giữ nguyên; index checkout gốc còn baseline trướcPR14, đọc đúng helper hiện tại trong managed checkout main126e738 trước sửa. Thêm riêng getter Properties cho explicit week, không sửa identity/HMAC/sender hoặc schema Sheets.

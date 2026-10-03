@@ -570,6 +570,19 @@ function duyetNoiDungThuTuan(ky) {
   return thuTuanApproveContent_(ky);
 }
 
+/** Any Gmail/Zalo log row of this week, in any state. Re-stamping it would block reconciliation of the remaining parts. */
+function thuTuanWeekHasHistory_(privateId, ky) {
+  if (!privateId) throw new Error('MISSING_SHEET_CONFIG');
+  var book = SpreadsheetApp.openById(privateId);
+  var present = ['ThuTuan_NhatKyGui','ThuTuan_Zalo_NhatKyGui'].filter(function(name) { return !!book.getSheetByName(name); });
+  if (!present.length) throw new Error('MISSING_SHEET');
+  return present.some(function(name) {
+    return thuTuanRows_(thuTuanSheet_(privateId,name),name).some(function(row) {
+      return thuTuanText_(row.Ky) === ky || thuTuanText_(row.Khoa).indexOf(ky + '|') === 0;
+    });
+  });
+}
+
 /** Shared approval implementation; an internal verifier can bind TEST acceptance inside this same lock. */
 function thuTuanApproveContent_(ky, verifyBeforeWrite) {
   var cfg=thuTuanConfig_(), actor=thuTuanText_(Session.getActiveUser().getEmail()).toLowerCase();
@@ -582,6 +595,7 @@ function thuTuanApproveContent_(ky, verifyBeforeWrite) {
     var sheet=thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung');
     var rows=thuTuanForKey_(thuTuanRows_(sheet,'LoiDay_NoiDung'), ky);
     if (rows.length!==1) throw new Error('INVALID_WEEK');
+    if (thuTuanWeekHasHistory_(cfg.privateId, ky)) throw new Error('WEEK_HAS_DELIVERY_HISTORY');
     var row=rows[0];
     THU_TUAN_REQUIRED.forEach(function(k) { if(!thuTuanText_(row[k]))throw new Error('INCOMPLETE_CONTENT'); });
     if (!thuTuanNotebookOk_(row.NotebookLM_URL)) throw new Error('INVALID_NOTEBOOKLM_URL');

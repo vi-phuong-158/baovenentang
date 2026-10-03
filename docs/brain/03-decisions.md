@@ -1,5 +1,12 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 02/10/2026 — Hàm duyệt từ chối kỳ đã có nhật ký gửi
+
+- Review độc lập sau pilot PROD: helper mặc định tuần hiện tại khiến lỡ chạy duyệt trong tuần đã gửi sẽ ký lại dòng, làm cả kỳ `CONTENT_CHANGED_DURING_WEEK` (mất phần đang đối soát) trong khi kỳ sau vẫn chưa duyệt. README vốn cấm duyệt lại kỳ đã gửi; nay core enforce thay vì dựa vào thao tác người.
+- Chặn mọi trạng thái nhật ký (kể cả PENDING/FAILED) vì mọi dòng đều gắn digest cũ; sửa nội dung kỳ đã bắt đầu vẫn là quyết định thủ công có kiểm soát. Guard send-time `CONTENT_CHANGED_DURING_WEEK` giữ nguyên làm lớp thứ hai.
+- Không deploy lên PROD trước lần chạy theo lịch 05/10/2026. Pilot đạt trên `126e738`; cloud sau PR #15 readback khớp `4bb781c`; hai bản chỉ khác helper chọn kỳ duyệt, luồng gửi giữ nguyên. Không lưu source trên editor (trigger chạy Head) cho tới khi nghiệm thu 05/10; sau đó mới merge/CI, upload + readback.
+- Runbook khôi phục phân biệt kỳ chưa có nhật ký (được duyệt/chạy tay một lần) với kỳ đã có nhật ký (không duyệt lại; chỉ khôi phục nguyên trạng nội dung/dấu gốc rồi tiếp tục phần PENDING/FAILED đã xác minh). `attempted:0` của một lượt không chứng minh kỳ chưa từng gửi.
+
 ## Quyết định 02/10/2026 — Duyệt trước hạn bằng kỳ tường minh
 
 - Lịch thứ Hai cần nội dung duyệt trước kỳ gửi, trong khi editor không truyền args. Một Script Property chọn kỳ giải quyết việc này qua API duyệt đã có; không hardcode tuần/clone fixture hoặc thêm batch-approval.
