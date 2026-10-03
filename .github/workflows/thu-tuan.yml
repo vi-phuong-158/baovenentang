@@ -35,4 +35,4 @@ jobs:
           '
 
       - name: Thu tuan tests
-        run: node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs
+        run: node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs tests/thu-tuan-card-studio.test.cjs

@@ -156,3 +156,10 @@ flowchart TD
 - Luồng gửi: trigger thứ Hai hoặc chạy thủ công → Script Lock → xác minh approval HMAC-SHA256 canonical version 2 và allow-list người duyệt → kiểm tra toàn bộ recipient table → ghi SENDING → gửi riêng từng email qua MailApp → ghi SENT hoặc giữ trạng thái cần reconciliation.
 - Canonical content chỉ gồm các trường được duyệt; hai cột legacy GoiYLienHe và LienHeAnNinhDoiNgoai không thuộc dấu HMAC v2 và không được render. Thư có HTML responsive, plain-text fallback và banner JPEG inline qua CID; lỗi tạo banner không chặn email.
 - TEST mode dùng một recipient override, chỉ chạy thủ công và chặn tạo trigger. Production configuration/runtime chưa được xác minh; không xem kết quả kiểm thử cục bộ hoặc TEST là nghiệm thu Production.
+
+
+### Công cụ Card Studio B/C offline (2026-10-03)
+
+- services/thu-tuan/tools/card-studio/build.cjs + template.html đóng gói mẫu B/C thành HTML tự chứa từ JSON/portrait cục bộ ngoài Git. Không dependency mới; renderer dùng Canvas và ZIP native.
+- Luồng riêng: kiểm trường/ngày/nguồn/caption → allowlist dữ liệu và mã hóa JSON → HTML riêng tư ngoài Git → xem PNG/kiểm fit → tải ZIP PNG/caption/manifest SHA256. Trạng thái luôn DRAFT_NOT_APPROVED.
+- Template chỉ có B/C, theme căn giữa bằng actualBoundingBox, tên mô hình một dòng và motto in hoa lớn; auto-fit giữ đủ quote/source. Không có caller từ runtime GAS, không route/API/Sheet schema mới. Mẫu mới vẫn chờ phản hồi trước thay cả bộ ảnh.

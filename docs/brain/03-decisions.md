@@ -127,3 +127,10 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
 - Người nhận và gửi: kiểm tra mọi dòng recipient trước khi gửi, kể cả dòng tạm dừng; mã cán bộ toàn bảng và email đang hoạt động không được trùng. Mỗi người nhận một email riêng, không CC/BCC. TEST mode chỉ nhận một mailbox override, không cài trigger và không gửi qua event trigger.
 - Dedupe: ghi SENDING trước MailApp, bỏ qua SENT, giữ SENDING/UNKNOWN để đối soát thủ công và không tự gửi lại khi kết quả chưa rõ. Banner JPEG cố định được nhúng bằng CID; không dùng Drive hoặc URL ảnh ngoài và không cần OAuth scope mới.
 - Production gate: code/test trong repository không xác minh cấu hình hoặc runtime Production. Chỉ owner mới có thể cho go/no-go sau khi review project, Sheets, recipient/approver, secret mới, nguồn/approval, preview, quota, reconciliation và trigger.
+
+
+## [2026-10-03] Đưa mẫu B/C vào Git, tách dữ liệu thiết kế riêng
+
+- Lưu mã template/builder và test giả lập trong repo để review/tái tạo. Không đưa chân dung, bộ 51 kỳ, ảnh xuất, HTML dữ liệu, Drive links hoặc helper TEST chứa fixture thật vào repo công khai.
+- Chỉ giữ B/C và tâm nét chữ chính giữa; dùng Canvas/font hệ thống/ZIP native, không đổi stack. Đầu ra chứa dữ liệu thật nên chặn ghi vào Git checkout, giải quyết symlink thư mục và không ghi đè file hiện có. JSON chỉ lấy trường nội dung cho phép, escape dấu < để tránh đóng script.
+- Caption giới hạn 1.800 UTF-16 và luôn draft; không thay approval/receipt/sender. Chưa tích hợp NotebookLM trong formatter này nên link không rỗng bị chặn. Không cập nhật 51 ảnh/Drive khi mới xem trước.

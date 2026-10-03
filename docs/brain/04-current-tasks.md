@@ -106,3 +106,9 @@
   npm run dev
   ```
 - [ ] Xác minh kết nối cơ sở dữ liệu Google Sheets khi cập nhật lịch sử chat đa lượt và feedback.
+
+
+## Card Studio B/C (2026-10-03)
+
+- Mã template B/C, builder offline và kiểm thử được đưa vào nhánh review riêng; dữ liệu/ảnh thật giữ ngoài Git.
+- Chờ review PR và phản hồi mẫu B/C trước thay đồng loạt bộ 51 ảnh. Không dùng merge PR thiết kế làm tín hiệu triển khai PROD hoặc thay approval media.
