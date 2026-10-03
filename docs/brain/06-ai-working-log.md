@@ -1187,3 +1187,12 @@ codegraph impact validateApiToken_
 - Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse tracked GS bằng vm.Script; git diff --check. Dựng HTML vào workspace riêng, mở Chrome/Edge xem B/C/câu dài, xuất ZIP đối chiếu count/CRC/SHA256/quote/source/inkBounds. Kết quả xác minh cụ thể được bổ sung sau chạy.
 
 - Kết quả: 163/163 test local (154 service + 9 Card Studio); sau tinh chỉnh bộ nhớ/ẩn lỗi JSON, 9/9 Card Studio chạy lại đạt. Parse 21 tracked GS và builder đạt; diff sạch. Browser dựng đủ 51/51, B23/C28, tải ZIP qua UI. Kiểm ZIP CRC, CRC chunk PNG, SHA256 ảnh/caption, 51 caption khớp từng byte bộ trước, model/motto một dòng, nguyên văn/nguồn đủ và 51 inkCenter/khung đạt. PNG B/C đầu tiên khớp từng byte mẫu đã xem, câu dài nhất được xem trực quan. CI sẽ được kiểm theo SHA sau push; không gọi PASS toàn repo/cloud/Production.
+
+
+## [2026-10-03] Sửa toàn bộ findings review độc lập PR18 (Card Studio B/C)
+
+- File: services/thu-tuan/tools/card-studio/{build.cjs,template.html,README.md}, tests/thu-tuan-card-studio.test.cjs, .gitignore, docs/brain/03-decisions.md, 06-ai-working-log.md.
+- Lý do/sửa: (1) manifest captionSha256 không khớp tệp TXT → captionFileSha256 băm đúng byte tệp; (2) bộ mẫu lặp bài khi bài đầu là bài dài nhất → loại trùng theo Ky, báo lỗi thật khi bỏ qua mẫu; (3) chân dung vuông/ngang hở đáy khung tròn → kẹp dy để ảnh luôn phủ kín khung; (4) thiếu cờ sourceReviewRequired vẫn qua → bắt buộc === false và nguồn có Tập/tr.; (5) mẫu theo vị trí mảng → theo số tuần từ 1970-01-05 (51 kỳ hiện có giữ nguyên B/C); (6) link tải tích tụ và giữ Blob → thay link cùng tên, revokeObjectURL; (7) JSON có BOM bị từ chối → bỏ BOM; (8) ngày ZIP bằng 0 → 1980-01-01; (9) bổ sung test junction/BOM/crop/layout/ZIP/manifest/samples. Thêm fallback font serif/sans-serif. .gitignore thêm .codex-runtime-evidence/, .codex-remote-attachments/, .codegraph/daemon.pid.
+- Không đổi: bố cục, cỡ chữ, vị trí khung, căn tâm chủ đề; không gọi API/Drive/Zalo; không chạy SEND.
+- Rủi ro: dữ liệu thiếu sourceReviewRequired hoặc nguồn thiếu Tập/tr. giờ bị chặn ở builder (51 kỳ thật đều đạt); manifest đổi tên trường captionSha256 → captionFileSha256 nên công cụ đối chiếu cũ cần cập nhật.
+- Cách test: node --test tests/thu-tuan-card-studio.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs; parse tracked GS bằng vm.Script; git diff --check. Dựng lại studio từ dữ liệu thật ngoài Git, mở Chrome/Edge, xuất ZIP và đối chiếu PNG với bản trước.

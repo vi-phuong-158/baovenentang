@@ -5,10 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
+const zlib = require('node:zlib');
+const crypto = require('node:crypto');
 const { prepareRows, buildHtml, assertOutputPath, main } = require('../services/thu-tuan/tools/card-studio/build.cjs');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64');
 const fixture = () => ({ Ky: '2026-10-12', MaLoiDay: 'LD-999', ChuDe: 'Chủ đề thử',
-  NoiDungNguyenVan: 'Đây là câu thử bố cục, không phải lời trích thực tế.', NguonTrich: 'Nguồn giả lập để kiểm thử.',
+  NoiDungNguyenVan: 'Đây là câu thử bố cục, không phải lời trích thực tế.', NguonTrich: 'Nguồn giả lập, Tập 1, tr. 1.', sourceReviewRequired: false,
   BoiCanhZalo: 'Bối cảnh thử.', YNgiaVanDungZalo: 'Ý nghĩa thử.', HanhDongTuanNayZalo: 'Hành động thử.' });
 
 test('Caption preserves exact quote/source/editorial text; exports remain draft and fields are allowlisted', () => {
@@ -31,7 +33,10 @@ test('Rows are sorted; invalid dates, non-Mondays and duplicate weeks are blocke
 test('Missing fields, unsafe filenames, source-review flags and unsupported notebook links fail closed', () => {
   assert.throws(() => prepareRows([{ ...fixture(), ChuDe: ' ' }]), /INVALID_FIELD/);
   assert.throws(() => prepareRows([{ ...fixture(), MaLoiDay: '../secret' }]), /INVALID_CODE/);
-  for (const sourceReviewRequired of [true, 'false', null]) assert.throws(() => prepareRows([{ ...fixture(), sourceReviewRequired }]), /SOURCE_REVIEW_REQUIRED/);
+  for (const sourceReviewRequired of [true, 'false', null, undefined]) assert.throws(() => prepareRows([{ ...fixture(), sourceReviewRequired }]), /SOURCE_REVIEW_REQUIRED/);
+  const missing = fixture(); delete missing.sourceReviewRequired;
+  assert.throws(() => prepareRows([missing]), /SOURCE_REVIEW_REQUIRED/);
+  for (const NguonTrich of ['Nguồn thiếu tập, tr. 5.', 'Nguồn thiếu trang, Tập 5.']) assert.throws(() => prepareRows([{ ...fixture(), NguonTrich }]), /SOURCE_REVIEW_REQUIRED/);
   assert.throws(() => prepareRows([{ ...fixture(), NotebookLM_URL: 'https://example.org' }]), /NOTEBOOK_LINK_UNSUPPORTED/);
 });
 
@@ -69,24 +74,69 @@ test('CLI keeps generated private HTML outside Git, does not overwrite output or
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-function renderer() {
+test('CLI resolves a symlinked/junction output folder into Git and accepts BOM-prefixed JSON', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'card-studio-repo-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'card-studio-out-'));
+  try {
+    fs.mkdirSync(path.join(repo, '.git')); fs.mkdirSync(path.join(repo, 'sub'));
+    const link = path.join(outside, 'link');
+    fs.symlinkSync(path.join(repo, 'sub'), link, 'junction');
+    assert.throws(() => assertOutputPath(path.join(link, 'studio.html')), /OUTPUT_INSIDE_GIT_REPOSITORY/);
+    const input = path.join(outside, 'rows.json'), portrait = path.join(outside, 'portrait.png'), out = path.join(outside, 'studio.html');
+    fs.writeFileSync(input, '﻿' + JSON.stringify([fixture()])); fs.writeFileSync(portrait, png);
+    main(['--input', input, '--portrait', portrait, '--out', out]);
+    assert.ok(fs.readFileSync(out, 'utf8').includes('LD-999'));
+    assert.equal(fs.readdirSync(path.join(repo, 'sub')).length, 0);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); fs.rmSync(outside, { recursive: true, force: true }); }
+});
+
+function renderer({ rows = [fixture()], portraitSize = [600, 800] } = {}) {
   const template = fs.readFileSync(path.join(__dirname, '../services/thu-tuan/tools/card-studio/template.html'), 'utf8');
   const source = template.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const draws = [];
   const ctx = { font: '', measureText(text) {
     const size = Number(/(\d+)px/.exec(this.font)[1]), width = text.length * size * .46;
     return { width, actualBoundingBoxLeft: 1, actualBoundingBoxRight: width - 1,
       actualBoundingBoxAscent: size * .7, actualBoundingBoxDescent: size * .2 };
   }, fillText() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, save() {}, restore() {},
-    clip() {}, arc() {}, ellipse() {}, closePath() {}, drawImage() {} };
-  const elements = new Map();
+    clip() {}, arc() {}, ellipse() {}, closePath() {}, drawImage(img, x, y, w, h) { draws.push({ x, y, w, h }); } };
+  const prepared = prepareRows(rows);
+  const longest = prepared.reduce((a, b) => a.NoiDungNguyenVan.length >= b.NoiDungNguyenVan.length ? a : b);
+  const data = JSON.stringify({ rows: prepared, portrait: 'data:image/png;base64,', longest, portraitSha256: '0'.repeat(64) });
+  const elements = new Map(), anchors = [], blobs = new Map(), revoked = [];
+  const element = () => ({ textContent: '', style: {}, append() {}, after(a) { anchors.unshift(a); }, remove() { this.removed = true; } });
   const document = { getElementById(id) {
-    if (!elements.has(id)) elements.set(id, { textContent: id === 'data' ? JSON.stringify({ rows: [prepareRows([fixture()])[0]], portrait: 'data:image/png;base64,', longest: fixture() }) : '' });
+    if (!elements.has(id)) elements.set(id, { ...element(), textContent: id === 'data' ? data : '' });
     return elements.get(id);
-  }, querySelectorAll: () => [], createElement: () => ({ getContext: () => ctx }) };
-  const sandbox = vm.createContext({ document, TextEncoder, Image: class { constructor() { this.naturalWidth = 600; this.naturalHeight = 800; } } });
+  }, querySelectorAll: () => [], createElement: tag => tag === 'canvas'
+    ? { getContext: () => ctx, toBlob(cb) { cb(new Blob([png])); } }
+    : element() };
+  const URL = { createObjectURL(blob) { const url = 'blob:' + blobs.size; blobs.set(url, blob); return url; }, revokeObjectURL(url) { revoked.push(url); } };
+  const sandbox = vm.createContext({ document, TextEncoder, Blob, URL, crypto: globalThis.crypto, setTimeout,
+    Image: class { constructor() { [this.naturalWidth, this.naturalHeight] = portraitSize; } } });
   new vm.Script(source).runInContext(sandbox);
-  return sandbox;
+  return Object.assign(sandbox, { draws, anchors, blobs, revoked });
 }
+
+// Minimal independent reader for the stored (uncompressed) ZIP the page builds.
+function readZip(buf) {
+  const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  assert.equal(eocd + 22, buf.length);
+  const entries = [];
+  for (let p = buf.readUInt32LE(eocd + 16), i = 0; i < buf.readUInt16LE(eocd + 10); i++) {
+    assert.equal(buf.readUInt32LE(p), 0x02014b50);
+    const nameLength = buf.readUInt16LE(p + 28), offset = buf.readUInt32LE(p + 42), size = buf.readUInt32LE(p + 20);
+    const name = buf.subarray(p + 46, p + 46 + nameLength).toString('utf8');
+    assert.equal(buf.readUInt32LE(offset), 0x04034b50);
+    const bytes = buf.subarray(offset + 30 + buf.readUInt16LE(offset + 26), offset + 30 + buf.readUInt16LE(offset + 26) + size);
+    assert.equal(zlib.crc32(bytes), buf.readUInt32LE(p + 16), name);
+    assert.equal(buf.readUInt16LE(p + 14), 0x21); assert.equal(buf.readUInt16LE(offset + 12), 0x21);
+    entries.push({ name, bytes });
+    p += 46 + nameLength;
+  }
+  return entries;
+}
+const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 
 test('Both layouts center theme ink on both axes and reject removed layout A', () => {
   const sandbox = renderer(), row = prepareRows([fixture()])[0];
@@ -118,4 +168,56 @@ test('Content that cannot fit is rejected without truncation; short C quote stay
   assert.equal(sandbox.card(row, 'C').report.blocks.quote.lines.length, 1);
   row.ChuDe = 'W'.repeat(1000);
   assert.throws(() => sandbox.choose(row, 0), /theme/);
+});
+
+test('Portrait always covers its arch/circle clip box for tall, square and landscape images', () => {
+  const row = prepareRows([fixture()])[0];
+  for (const portraitSize of [[600, 800], [800, 800], [1000, 700], [400, 2000]]) {
+    for (const layout of ['B', 'C']) {
+      const sandbox = renderer({ portraitSize });
+      sandbox.card(row, layout);
+      const box = layout === 'B' ? { y: 545, h: 590 } : { y: 551, h: 220 };
+      const draw = sandbox.draws.at(-1);
+      assert.ok(draw.y <= box.y + 1e-9 && draw.y + draw.h >= box.y + box.h - 1e-9, `${layout} ${portraitSize}`);
+    }
+  }
+});
+
+test('Layout preference follows the week, not the position of the row in the batch', () => {
+  const weeks = ['2026-10-12', '2026-10-19', '2026-10-26'];
+  const rows = weeks.map((Ky, i) => ({ ...fixture(), Ky, MaLoiDay: 'LD-99' + i }));
+  const all = renderer({ rows }), withoutFirst = renderer({ rows: rows.slice(1) });
+  const layouts = sandbox => JSON.parse(sandbox.document.getElementById('data').textContent)
+    .rows.map(row => [row.Ky, sandbox.choose(row).report.template]);
+  assert.deepEqual(layouts(all).map(x => x[1]), ['B', 'C', 'B']);
+  assert.deepEqual(layouts(withoutFirst), layouts(all).slice(1));
+});
+
+test('Batch ZIP is complete, CRC-valid and hashes the exact caption bytes it ships', async () => {
+  const rows = ['2026-10-12', '2026-10-19'].map((Ky, i) => ({ ...fixture(), Ky, MaLoiDay: 'LD-90' + i, BoiCanhZalo: '</script> $& 😀' }));
+  const sandbox = renderer({ rows });
+  await sandbox.exportBatch('batch');
+  const entries = readZip(Buffer.from(await sandbox.blobs.get(sandbox.anchors[0].href).arrayBuffer()));
+  assert.equal(entries.length, rows.length * 3 + 1);
+  assert.equal(new Set(entries.map(e => e.name)).size, entries.length);
+  const top = JSON.parse(entries.find(e => e.name === 'manifest.json').bytes);
+  assert.equal(top.count, 2); assert.equal(top.status, 'DRAFT_NOT_APPROVED');
+  for (const card of top.cards) {
+    const base = card.image.replace(/\.png$/, '');
+    const caption = entries.find(e => e.name === base + '-caption.txt').bytes;
+    assert.equal(card.captionFileSha256, sha256(caption));
+    assert.equal(caption.toString('utf8'), prepareRows(rows).find(r => r.Ky === card.week).caption + '\n');
+    assert.equal(card.imageSha256, sha256(entries.find(e => e.name === card.image).bytes));
+  }
+});
+
+test('Samples export never duplicates a card and a re-export replaces its link and revokes the old URL', async () => {
+  const sandbox = renderer();
+  await sandbox.exportBatch('samples');
+  const first = sandbox.anchors[0];
+  const entries = readZip(Buffer.from(await sandbox.blobs.get(first.href).arrayBuffer()));
+  assert.equal(new Set(entries.map(e => e.name)).size, entries.length);
+  assert.equal(JSON.parse(entries.find(e => e.name === 'manifest.json').bytes).count, 2);
+  await sandbox.exportBatch('samples');
+  assert.ok(first.removed); assert.deepEqual(sandbox.revoked, [first.href]);
 });

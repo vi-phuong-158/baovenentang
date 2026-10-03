@@ -23,7 +23,8 @@ function prepareRows(input) {
         date.toISOString().slice(0, 10) !== row.Ky || date.getUTCDay() !== 1 || weeks.has(row.Ky)) throw Error('INVALID_WEEK:' + i);
     weeks.add(row.Ky);
     if (!/^LD-\d{3,6}$/.test(row.MaLoiDay)) throw Error('INVALID_CODE:' + i);
-    if (source.sourceReviewRequired !== undefined && source.sourceReviewRequired !== false) throw Error('SOURCE_REVIEW_REQUIRED:' + i);
+    // Fail closed: the source must be explicitly reviewed and carry volume/page like the corpus audit requires.
+    if (source.sourceReviewRequired !== false || !/Tập\s+\d+/.test(row.NguonTrich) || !/tr\.\s*\d+/.test(row.NguonTrich)) throw Error('SOURCE_REVIEW_REQUIRED:' + i);
     if (source.NotebookLM_URL !== undefined && source.NotebookLM_URL !== '') throw Error('NOTEBOOK_LINK_UNSUPPORTED:' + i);
     const [y, m, d] = row.Ky.split('-');
     row.caption = [
@@ -75,7 +76,9 @@ function main(args) {
     options[key] = args[i + 1];
   }
   const output = assertOutputPath(options['--out']);
-  const html = buildHtml(JSON.parse(fs.readFileSync(options['--input'], 'utf8')), fs.readFileSync(options['--portrait']));
+  // Windows PowerShell 5.1 writes UTF-8 with a BOM by default.
+  const input = fs.readFileSync(options['--input'], 'utf8').replace(/^﻿/, '');
+  const html = buildHtml(JSON.parse(input), fs.readFileSync(options['--portrait']));
   fs.writeFileSync(output, html, { encoding: 'utf8', flag: 'wx' });
   console.log('Created draft studio; open locally in Chrome/Edge. Export does not approve or send.');
 }
