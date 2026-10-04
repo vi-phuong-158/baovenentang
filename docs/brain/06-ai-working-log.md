@@ -1,5 +1,15 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-04] Chuẩn bị Production Showcase theo chỉ đạo mới
+
+- Owner đã merge PR20; fetch main mới nhất a91ef20997ecaf07acb00480d125adf73726b8d2. Chỉ đạo “Dùng luôn bản prod không cần test” cho phép PROD, bỏ runtime TEST; không cho bypass HMAC/approval hoặc đổi lịch/token/Drive.
+- CodeGraph lần trước bị automatic approval review từ chối vì telemetry ngoài host được phép; không chạy lại/né rejection. Static rg/caller/callee audit xác định thay đổi chỉ zaloBotConfig_/VerifyRelay_, fixed preflight và relay makeEnvelope/createHandler. Incoming: doPost→HandleRelay; fresh-check→Config; preflight→Config/Rows/Approval/Identity/Quiz. Domain/router/weekly read generator giữ nguyên; không API chung/AI/Telegram/schema/stack thay đổi.
+- Files: backend/13-zalo-bot.gs, web/api/zalo-webhook.js, tests/zalo-showcase.test.cjs, tests/zalo-webhook.test.cjs, README.md, docs/ZALO_SHOWCASE_V1.md, brain01/03/05/06. Thêm active PROD prefix/pin, signed domain, strict Vercel pair, opposite collision và role/private-workbook/project guard, read-only PROD preflight. TEST behavior/wire/domain giữ tương thích. Không sửa existing assertions để bypass guard; fixture helper mở rộng profile, thêm PROD tests.
+- Local 291/291 PASS (123 Showcase/relay +168 weekly/Card); PROD VM fixtures không gọi Google/Zalo thật. Cách kiểm: generator --check, node --check relay, vm.Script backend global namespace, node --test năm suite và git diff --check. Test mới: six commands, VN current week, approved/draft/HMAC, quiz/TTL, domain mismatch, no fallback, pin/group/hash/secret/kill switch, counterpart/weekly private/project, preflight env/sanitization, allowlist/self/dedupe, race SENDING và relay→actual doPost.
+- Read-only browser Apps Script home chuyển về trang public chưa đăng nhập; Google sign-in trả 502 Bad Gateway/[Errno111] Connection refused, reload một lần vẫn lỗi. Không sign-in form để cấp credential; không bot-detection evidence. Không có clasp auth hoặc GAS target đã xác minh. Chưa deploy/version/config/webhook/send PROD. Không đọc/print secrets, chỉnh token/approval/weekly Properties/triggers/lịch/Drive hoặc merge.
+- Risks: cần correct backend target/auth/Vercel PROD config và kiểm consumer trước setWebhook; owner bỏ runtime TEST nên deployed behavior chưa nghiệm thu. Image F vẫn BLOCKED_PRIVATE_MEDIA. Runtime blocker ZALO_SHOWCASE_V1_RUNTIME_BLOCKED_GAS_ACCESS; không dùng weekly runtime/CI làm evidence interactive PASS. Rollback adapter bằng disable/version/webhook cũ, giữ sender/dedupe.
+
+
 ## [2026-10-02] Chọn kỳ duyệt trước lịch thật
 
 - CodeGraph flow/impact helper và core từ vòng PR14 giữ nguyên; index checkout gốc còn baseline trướcPR14, đọc đúng helper hiện tại trong managed checkout main126e738 trước sửa. Thêm riêng getter Properties cho explicit week, không sửa identity/HMAC/sender hoặc schema Sheets.

@@ -1,5 +1,13 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 04/10/2026 — Profile Showcase PROD tường minh
+
+- Owner “Dùng luôn bản prod không cần test” thay TEST-only của Showcase; không gắn nhãn TEST cho Production để qua guard. Thêm profile/pin/domain PROD vào relay/GAS hiện hữu, không framework/dependency mới.
+- Cặp env Vercel/relay phải khớp; actual backend Script ID khớp active pin và khác known opposite/sender project. HMAC domain bind environment; không đổi approval canonical v2/wire action/version. Không fallback secret hoặc dùng chung giữa role.
+- Bỏ runtime TEST theo owner, giữ preflight PROD chỉ đọc và local regression. Không coi merge/build là deployed/running, không runtime PASS khi chưa quan sát thật. Source/version/target phải xác minh trước cloud update.
+- Weekly outbound giữ độc lập: có thể chung approved content/Bot PROD, tách project/recipient-log. Không đổi token/lịch/Drive hoặc tự merge PR tiếp theo.
+
+
 ## Quyết định 02/10/2026 — Duyệt trước hạn bằng kỳ tường minh
 
 - Lịch thứ Hai cần nội dung duyệt trước kỳ gửi, trong khi editor không truyền args. Một Script Property chọn kỳ giải quyết việc này qua API duyệt đã có; không hardcode tuần/clone fixture hoặc thêm batch-approval.

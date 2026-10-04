@@ -1,5 +1,13 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Showcase Production theo chỉ đạo owner (04/10/2026)
+
+- Active config prefix ZALO_BOT_<ENV>_*, actual backend Script ID/nhóm/Bot/nguồn; không fallback TEST↔PROD. Snapshot có environment, fresh checks trước/sau SENDING giữ nguyên.
+- Relay chỉ TEST+preview/development hoặc PROD+production; prefix ZALO_SHOWCASE_<ENV>_*, exact secret header, HMAC domain ZALO_SHOWCASE_V1_<ENV>. Wire action/version/path không đổi, TEST tương thích cũ. Counterpart config collision và secret-role reuse bị chặn.
+- PROD được phép chung Bot/approved content với sender PROD, nhưng không chung project sender/workbook recipient-log. Opposite identity đã khai báo phải khác. Không đổi 07-main.gs, approval canonical/read-core, sender, schedules/scopes/Drive.
+- kiemTraZaloShowcaseProduction/Test dùng chung read-only preflight, env entrypoint cố định; gọi nhầm dừng trước I/O. Source push cần cập nhật Web App version. Cloud chưa deploy: sign-in GAS 502/Connection refused, thiếu clasp auth/target đã xác minh. Runbook: docs/ZALO_SHOWCASE_V1.md.
+
+
 ## Chọn kỳ duyệt qua cấu hình (02/10/2026)
 
 - `duyetKyThuTuan` đọc riêng `THU_TUAN_APPROVAL_WEEK` và truyền nguyên giá trị cho API duyệt. Chỉ null (key vắng) mới dùng tuần hiện tại; giá trị rỗng/sai vẫn bị core từ chối. Key không tham gia config sender/trigger, không chọn tuần gửi.

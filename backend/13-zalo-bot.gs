@@ -1,5 +1,4 @@
-/** Interactive TEST-only adapter. Outbound weekly transport remains independent. */
-var ZALO_BOT_DOMAIN_ = 'ZALO_SHOWCASE_V1_TEST';
+/** Interactive adapter with pinned TEST/PROD profiles. Weekly outbound stays independent. */
 var ZALO_BOT_MAX_AGE_MS_ = 300000;
 var ZALO_BOT_QUIZ_TTL_ = 300;
 var ZALO_BOT_EVENT_PREFIX_ = 'ZALO_BOT_EVENT_';
@@ -11,31 +10,42 @@ function zaloBotConfig_() {
     if (typeof v !== 'string' || !pattern.test(v)) throw new Error('CONFIG_BLOCKED');
     return v;
   }
-  if (p.ZALO_BOT_ENV !== 'TEST' || p.ZALO_BOT_ENABLED !== 'true') throw new Error('TEST_DISABLED');
+  var environment=p.ZALO_BOT_ENV;
+  if (['TEST','PROD'].indexOf(environment)<0 || p.ZALO_BOT_ENABLED !== 'true') throw new Error('BOT_DISABLED');
+  var prefix='ZALO_BOT_'+environment+'_';
   var cfg = {
-    script:need('ZALO_BOT_TEST_SCRIPT_ID',/^[A-Za-z0-9_-]{1,256}$/),
-    bot:need('ZALO_BOT_TEST_BOT_ID',/^[A-Za-z0-9_.-]{1,256}$/),
-    token:need('ZALO_BOT_TEST_BOT_TOKEN',/^[A-Za-z0-9_:-]{8,512}$/),
-    chat:need('ZALO_BOT_TEST_CHAT_ID',/^[^\s\x00-\x1f\x7f]{1,256}$/),
-    chatHash:need('ZALO_BOT_TEST_CHAT_SHA256',/^[a-f0-9]{64}$/),
-    contentId:need('ZALO_BOT_TEST_CONTENT_SHEET_ID',/^[A-Za-z0-9_-]{1,256}$/),
-    quizId:need('ZALO_BOT_TEST_QUIZ_SHEET_ID',/^[A-Za-z0-9_-]{1,256}$/),
-    relaySecret:need('ZALO_BOT_TEST_RELAY_SECRET',/^[A-Za-z0-9_-]{32,256}$/),
+    environment:environment,
+    script:need(prefix+'SCRIPT_ID',/^[A-Za-z0-9_-]{1,256}$/),
+    bot:need(prefix+'BOT_ID',/^[A-Za-z0-9_.-]{1,256}$/),
+    token:need(prefix+'BOT_TOKEN',/^[A-Za-z0-9_:-]{8,512}$/),
+    chat:need(prefix+'CHAT_ID',/^[^\s\x00-\x1f\x7f]{1,256}$/),
+    chatHash:need(prefix+'CHAT_SHA256',/^[a-f0-9]{64}$/),
+    contentId:need(prefix+'CONTENT_SHEET_ID',/^[A-Za-z0-9_-]{1,256}$/),
+    quizId:need(prefix+'QUIZ_SHEET_ID',/^[A-Za-z0-9_-]{1,256}$/),
+    relaySecret:need(prefix+'RELAY_SECRET',/^[A-Za-z0-9_-]{32,256}$/),
     secret:need('THU_TUAN_APPROVAL_SECRET',/^[\s\S]{32,512}$/),
     approvers:thuTuanText_(p.THU_TUAN_APPROVER_EMAILS).toLowerCase().split(',').map(thuTuanText_).filter(Boolean),
-    quizIds:thuTuanText_(p.ZALO_BOT_TEST_QUIZ_IDS).split(',').map(thuTuanText_).filter(Boolean)
+    quizIds:thuTuanText_(p[prefix+'QUIZ_IDS']).split(',').map(thuTuanText_).filter(Boolean)
   };
-  if (cfg.script !== ScriptApp.getScriptId() || p.ZALO_BOT_TEST_GROUP_CONFIRMED !== 'true' ||
+  if (cfg.script !== ScriptApp.getScriptId() || p[prefix+'GROUP_CONFIRMED'] !== 'true' ||
       cfg.chatHash !== hashSha256_(cfg.chat) || !cfg.approvers.length ||
       cfg.quizIds.length > 500 || cfg.quizIds.some(function(id) { return !/^[A-Za-z0-9_-]{1,64}$/.test(id); }))
     throw new Error('ISOLATION_BLOCKED');
-  // Only TEST is supported. Known Production identities/targets/credentials may never collide.
-  ['ZALO_BOT_PROD_','THU_TUAN_ZALO_PROD_'].forEach(function(prefix) {
+  // Environment selection never falls back to the other profile's credentials.
+  var opposite=environment==='TEST' ? 'PROD' : 'TEST';
+  ['ZALO_BOT_'+opposite+'_','THU_TUAN_ZALO_'+opposite+'_'].forEach(function(otherPrefix) {
     [['SCRIPT_ID',cfg.script],['BOT_ID',cfg.bot],['BOT_TOKEN',cfg.token],['CHAT_ID',cfg.chat],
       ['CHAT_SHA256',cfg.chatHash],['CONTENT_SHEET_ID',cfg.contentId],['CONTENT_SHEET_ID',cfg.quizId],
-      ['PRIVATE_SHEET_ID',cfg.contentId],['PRIVATE_SHEET_ID',cfg.quizId],['QUIZ_SHEET_ID',cfg.quizId]]
-      .forEach(function(pair) { if (p[prefix+pair[0]] === pair[1]) throw new Error('ISOLATION_BLOCKED'); });
+      ['PRIVATE_SHEET_ID',cfg.contentId],['PRIVATE_SHEET_ID',cfg.quizId],['QUIZ_SHEET_ID',cfg.quizId],
+      ['RELAY_SECRET',cfg.relaySecret]]
+      .forEach(function(pair) { if (p[otherPrefix+pair[0]] === pair[1]) throw new Error('ISOLATION_BLOCKED'); });
   });
+  // A backend adapter must not be installed into the independent weekly sender project
+  // or read its private recipients/log workbook, even in the same environment.
+  var weeklyPrefix='THU_TUAN_ZALO_'+environment+'_';
+  if (p[weeklyPrefix+'SCRIPT_ID']===cfg.script ||
+      p[weeklyPrefix+'PRIVATE_SHEET_ID']===cfg.contentId || p[weeklyPrefix+'PRIVATE_SHEET_ID']===cfg.quizId ||
+      cfg.relaySecret===cfg.secret || cfg.relaySecret===cfg.token) throw new Error('ISOLATION_BLOCKED');
   return cfg;
 }
 
@@ -50,7 +60,7 @@ function zaloBotVerifyRelay_(data, cfg, now) {
       typeof data.nonce !== 'string' || !/^[a-f0-9-]{36}$/.test(data.nonce) ||
       typeof data.event !== 'string' || data.event.length>16000 ||
       typeof data.signature !== 'string' || !/^[a-f0-9]{64}$/.test(data.signature)) return false;
-  var canonical = JSON.stringify([ZALO_BOT_DOMAIN_,1,data.timestamp,data.nonce,data.event]);
+  var canonical = JSON.stringify(['ZALO_SHOWCASE_V1_'+cfg.environment,1,data.timestamp,data.nonce,data.event]);
   return constantTimeEquals_(data.signature,zaloBotHmac_(canonical,cfg.relaySecret));
 }
 
@@ -220,14 +230,19 @@ function zaloBotIdentity_(cfg) {
 }
 
 /** No writes/sends; output contains only status/counters, never credentials or IDs. */
-function kiemTraZaloShowcaseTest() {
+function zaloBotPreflight_(environment) {
   try {
-    var cfg=zaloBotConfig_(), rows=zaloBotRows_(cfg), key=thuTuanWeekKey_(new Date());
-    return {status:zaloBotIdentity_(cfg) ? 'TEST_PREFLIGHT_OK' : 'TEST_BOT_UNCONFIRMED',
-      environment:'TEST',currentWeek:key,currentApproved:!!zaloBotApproved_(cfg,rows,key),
+    var cfg=zaloBotConfig_();
+    if (cfg.environment!==environment) throw new Error('ISOLATION_BLOCKED');
+    var rows=zaloBotRows_(cfg), key=thuTuanWeekKey_(new Date());
+    return {status:zaloBotIdentity_(cfg) ? environment+'_PREFLIGHT_OK' : environment+'_BOT_UNCONFIRMED',
+      environment:environment,currentWeek:key,currentApproved:!!zaloBotApproved_(cfg,rows,key),
       quizAvailable:!!zaloBotQuiz_(cfg),imageStatus:'BLOCKED_PRIVATE_MEDIA'};
-  } catch (_) { return {status:'TEST_PREFLIGHT_BLOCKED'}; }
+  } catch (_) { return {status:environment+'_PREFLIGHT_BLOCKED'}; }
 }
+
+function kiemTraZaloShowcaseTest() { return zaloBotPreflight_('TEST'); }
+function kiemTraZaloShowcaseProduction() { return zaloBotPreflight_('PROD'); }
 
 function zaloBotClaim_(props, eventKey, now) {
   if (props.getProperty(eventKey)!==null) return false;
@@ -304,7 +319,7 @@ function zaloBotHandleRelay_(data) {
     if (claimed) try { props.setProperty(eventKey,JSON.stringify({until:now+86400000,phase:'UNKNOWN',confirmed:confirmed})); } catch (ignored) {}
     // Raw errors may contain request URLs/tokens; never return/log them.
     var status=claimed ? 'HELD_NO_RETRY' : 'REQUEST_BLOCKED';
-    var codes=['CONFIG_BLOCKED','TEST_DISABLED','ISOLATION_BLOCKED','STATE_BLOCKED','CONTENT_BLOCKED',
+    var codes=['CONFIG_BLOCKED','BOT_DISABLED','ISOLATION_BLOCKED','STATE_BLOCKED','CONTENT_BLOCKED',
       'CONFIG_CHANGED','CONTENT_CHANGED','DELIVERY_UNCONFIRMED'];
     var code=error && codes.indexOf(error.message)>=0 ? error.message : 'INTERNAL_UNCONFIRMED';
     try { Logger.log(JSON.stringify({component:'zalo_showcase',command:command,status:status,

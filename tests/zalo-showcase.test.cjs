@@ -9,14 +9,17 @@ const hash=s=>crypto.createHash('sha256').update(s).digest('hex');
 const hm=(s,k)=>Array.from(crypto.createHmac('sha256',k).update(s).digest());
 function world(options={}) {
   let now=Date.parse(options.time||'2026-10-04T02:00:00Z'), n=0, locked=false;
-  const props=options.props||{
+  const environment=options.environment||'TEST', profile=environment.toLowerCase();
+  const props=options.props||Object.fromEntries(Object.entries({
     ZALO_BOT_ENV:'TEST',ZALO_BOT_ENABLED:'true',ZALO_BOT_TEST_SCRIPT_ID:'test-script',
     ZALO_BOT_TEST_BOT_ID:'test-bot',ZALO_BOT_TEST_BOT_TOKEN:'synthetic-token-only',
     ZALO_BOT_TEST_CHAT_ID:'test-group',ZALO_BOT_TEST_CHAT_SHA256:hash('test-group'),
     ZALO_BOT_TEST_GROUP_CONFIRMED:'true',ZALO_BOT_TEST_CONTENT_SHEET_ID:'test-content',
     ZALO_BOT_TEST_QUIZ_SHEET_ID:'test-quiz',ZALO_BOT_TEST_RELAY_SECRET:RELAY,
     THU_TUAN_APPROVAL_SECRET:SECRET,THU_TUAN_APPROVER_EMAILS:'reviewer@example.test',ZALO_BOT_TEST_QUIZ_IDS:'Q1'
-  };
+  }).map(([key,value])=>[key.replace('ZALO_BOT_TEST_','ZALO_BOT_'+environment+'_'),
+    key==='ZALO_BOT_ENV' ? environment : key==='ZALO_BOT_TEST_CHAT_SHA256' ? hash(profile+'-group') :
+    typeof value==='string' && value.startsWith('test-') ? value.replace('test-',profile+'-') : value]));
   const state=new Map(), calls=[], sent=[], logs=[], mutations=[], rows=[];
   const quizzes=[['Q1','Fixture question?', 'Option A','Option B','Option C','Option D','B','Fixture explanation','fixture']];
   const propertyService={getProperties:()=>({...props}),getProperty:k=>Object.hasOwn(props,k)?props[k]:null,
@@ -34,18 +37,18 @@ function world(options={}) {
       Charset:{UTF_8:'utf8'},DigestAlgorithm:{SHA_256:'sha256'}},
     CONFIG:{API_ACCESS_TOKEN:'synthetic-api-token',TELEGRAM_WEBHOOK_SECRET:'synthetic-telegram-secret'},
     Logger:{log:v=>logs.push(String(v))},PropertiesService:{getScriptProperties:()=>propertyService},CacheService:{getScriptCache:()=>cache},
-    ScriptApp:{getScriptId:()=>options.script||'test-script'},
+    ScriptApp:{getScriptId:()=>options.script||profile+'-script'},
     LockService:{getScriptLock:()=>({tryLock(){if(options.busy||locked)return false;locked=true;return true;},releaseLock(){assert.ok(locked);locked=false;}})},
     SpreadsheetApp:{openById(id){calls.push(['sheet',id]);return {getSheetByName(name){
-      if(id==='test-content'&&name==='LoiDay_NoiDung')return sheet(ctx.THU_TUAN_HEADERS.LoiDay_NoiDung,()=>rows.map(r=>ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map(h=>r[h]??'')));
-      if(id==='test-quiz'&&name==='QUIZ')return sheet(vm.runInContext('SHEET_HEADERS.QUIZ',ctx),()=>quizzes);
+      if(id===profile+'-content'&&name==='LoiDay_NoiDung')return sheet(ctx.THU_TUAN_HEADERS.LoiDay_NoiDung,()=>rows.map(r=>ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map(h=>r[h]??'')));
+      if(id===profile+'-quiz'&&name==='QUIZ')return sheet(vm.runInContext('SHEET_HEADERS.QUIZ',ctx),()=>quizzes);
       throw Error('Unexpected sheet access');
     }};}},
     UrlFetchApp:{fetch(url,params){calls.push(['api',url.split('/').pop()]);assert.equal(params.followRedirects,false);
       const method=url.split('/').pop();
       if(options.fetch) return options.fetch(method,params,sent);
       let result;
-      if(method==='getMe')result={id:'test-bot',can_join_groups:true};
+      if(method==='getMe')result={id:profile+'-bot',can_join_groups:true};
       else {assert.equal(method,'sendMessage');sent.push(JSON.parse(params.payload));result={message_id:'receipt-'+sent.length};}
       return {getResponseCode:()=>200,getContentText:()=>JSON.stringify({ok:true,result})};
     }},ContentService:{MimeType:{JSON:'json'},createTextOutput:s=>({text:s,setMimeType(){return this;}})},
@@ -58,10 +61,10 @@ function world(options={}) {
     TrangThai:'DaDuyet',NguoiDuyet:'reviewer@example.test',NgayDuyet:'2026-09-26T02:00:00Z',PhienBan:'1',...extra};}
   function stamp(r){r.DauVanBanDuyet=ctx.thuTuanDigest_(r,props.THU_TUAN_APPROVAL_SECRET);return r;}
   rows.push(stamp(row()),stamp(row({Ky:'2026-10-05',MaLoiDay:'LD-002',NoiDungNguyenVan:'FUTURE_SENTINEL'})));
-  function event(text,extra={}) {return {ok:true,result:{event_name:'message.text.received',message:{from:{id:'test-owner',is_bot:false},
-    chat:{id:'test-group',chat_type:'GROUP'},message_id:'fixture-'+(++n),date:now,text,...extra}}};}
+  function event(text,extra={}) {return {ok:true,result:{event_name:'message.text.received',message:{from:{id:profile+'-owner',is_bot:false},
+    chat:{id:profile+'-group',chat_type:'GROUP'},message_id:'fixture-'+(++n),date:now,text,...extra}}};}
   function envelope(body) {const data={action:'zalo_showcase_v1',version:1,timestamp:now,nonce:crypto.randomUUID(),event:JSON.stringify(body)};
-    data.signature=ctx.zaloBotHmac_(JSON.stringify(['ZALO_SHOWCASE_V1_TEST',1,data.timestamp,data.nonce,data.event]),props.ZALO_BOT_TEST_RELAY_SECRET);return data;}
+    data.signature=ctx.zaloBotHmac_(JSON.stringify(['ZALO_SHOWCASE_V1_'+environment,1,data.timestamp,data.nonce,data.event]),props['ZALO_BOT_'+environment+'_RELAY_SECRET']);return data;}
   function runBody(body){return ctx.zaloBotHandleRelay_(envelope(body));}
   return {ctx,props,state,cache,calls,sent,logs,mutations,rows,quizzes,row,stamp,event,envelope,runBody,run:text=>runBody(event(text)),
     tick:ms=>{now+=ms;},time:value=>{now=Date.parse(value);},now:()=>now,properties:propertyService};
@@ -195,6 +198,95 @@ test('relay to actual doPost contract, retry with fresh nonce still one logical 
   for(let i=0;i<2;i++){
     const res={code:0,value:null,setHeader(){},status(code){this.code=code;return this;},json(value){this.value=value;return this;}};
     await handler({method:'POST',headers:{'content-type':'application/json','x-bot-api-secret-token':'fixture-webhook-secret'},body:event},res);
+    assert.equal(res.code,200);assert.equal(res.value.status,i===0?'SENT':'DUPLICATE');
+  }
+  assert.equal(w.sent.length,1);assert.match(reply(w),/LD-001/);
+});
+
+// PROD below is a synthetic configuration in a local VM, never a Production API call.
+for(const command of ['/gioithieu','/loibac','/quiz','/tracuu phương châm','/lich','/trogiup'])
+test('pinned PROD supports '+command+' through unchanged command logic (local)',()=>{
+  const w=world({environment:'PROD'});assert.equal(w.run(command).status,'SENT');
+  assert.equal(w.sent.length,1);assert.equal(w.sent[0].chat_id,'prod-group');
+  assert.equal(w.ctx.zaloBotConfig_().environment,'PROD');
+});
+test('PROD approved current week and draft/invalid HMAC follow the same gate (local)',()=>{
+  for(const variant of ['approved','draft','invalid']){
+    const w=world({environment:'PROD',time:'2026-10-04T17:00:00Z'});
+    if(variant==='draft'){w.rows[1].TrangThai='Nhap';w.stamp(w.rows[1]);}
+    if(variant==='invalid')w.rows[1].DauVanBanDuyet='0'.repeat(64);
+    assert.equal(w.run('/loibac').status,'SENT');
+    assert.match(reply(w),variant==='approved'?/05\/10\/2026 · LD-002/:/tuần này chưa được phê duyệt/);
+    if(variant!=='approved')assert.doesNotMatch(reply(w),/FUTURE_SENTINEL/);
+  }
+});
+test('PROD quiz state grades and expires without recording user results (local)',()=>{
+  const w=world({environment:'PROD'});w.run('/quiz');w.tick(1000);w.run('B');assert.match(w.sent.at(-1).text,/✅ Chính xác!/);
+  assert.equal(w.run('B').status,'IGNORED_NO_PENDING_QUIZ');w.run('/quiz');w.tick(301000);
+  assert.equal(w.run('A').status,'IGNORED_NO_PENDING_QUIZ');
+  assert.ok(w.mutations.every(k=>k.startsWith('ZALO_BOT_EVENT_')));
+});
+for(const env of ['TEST','PROD'])test(env+' envelope rejects opposite signed domain before I/O (local)',async()=>{
+  const {makeEnvelope}=await import('../web/api/zalo-webhook.js'),w=world({environment:env});
+  const e=makeEnvelope(JSON.stringify(w.event('/loibac')),RELAY,w.now(),crypto.randomUUID(),env==='TEST'?'PROD':'TEST');
+  assert.equal(w.ctx.zaloBotHandleRelay_(e).status,'AUTH_DENIED');assert.equal(w.calls.length,0);assert.equal(w.mutations.length,0);
+});
+test('PROD required pin/secret/group/kill switch fail closed before I/O (local)',()=>{
+  for(const [key,value] of [['ZALO_BOT_ENABLED','false'],['ZALO_BOT_PROD_SCRIPT_ID','wrong-project'],
+    ['ZALO_BOT_PROD_GROUP_CONFIRMED','false'],['ZALO_BOT_PROD_CHAT_SHA256','0'.repeat(64)],
+    ['ZALO_BOT_PROD_BOT_TOKEN',''],['ZALO_BOT_PROD_RELAY_SECRET','short'],['THU_TUAN_APPROVAL_SECRET','short']]){
+    const w=world({environment:'PROD'});w.props[key]=value;
+    assert.equal(w.run('/trogiup').status,'REQUEST_BLOCKED');assert.equal(w.calls.length,0);assert.equal(w.sent.length,0);
+  }
+});
+test('PROD never falls back to complete TEST credentials and cannot run in TEST project (local)',()=>{
+  const w=world({environment:'PROD'}),t=world();Object.assign(w.props,t.props,{ZALO_BOT_ENV:'PROD'});
+  delete w.props.ZALO_BOT_PROD_BOT_TOKEN;
+  assert.equal(w.run('/trogiup').status,'REQUEST_BLOCKED');assert.equal(w.calls.length,0);
+  const x=world({environment:'PROD',script:'test-script'});assert.equal(x.run('/trogiup').status,'REQUEST_BLOCKED');assert.equal(x.calls.length,0);
+});
+test('PROD denies opposite identity/credentials and weekly private data/project collisions (local)',()=>{
+  for(const [key,value] of [['ZALO_BOT_TEST_SCRIPT_ID','prod-script'],['THU_TUAN_ZALO_TEST_BOT_ID','prod-bot'],
+    ['ZALO_BOT_TEST_CHAT_ID','prod-group'],['ZALO_BOT_TEST_CONTENT_SHEET_ID','prod-content'],
+    ['ZALO_BOT_TEST_RELAY_SECRET',RELAY],['THU_TUAN_ZALO_PROD_SCRIPT_ID','prod-script'],
+    ['THU_TUAN_ZALO_PROD_PRIVATE_SHEET_ID','prod-content'],['THU_TUAN_ZALO_PROD_PRIVATE_SHEET_ID','prod-quiz'],
+    ['ZALO_BOT_PROD_RELAY_SECRET',SECRET]]){
+    const w=world({environment:'PROD'});w.props[key]=value;
+    assert.equal(w.run('/trogiup').status,'REQUEST_BLOCKED');assert.equal(w.calls.length,0);
+  }
+});
+test('PROD allows approved content and Bot shared with its own weekly sender, never reads private data (local)',()=>{
+  const w=world({environment:'PROD'});Object.assign(w.props,{THU_TUAN_ZALO_PROD_SCRIPT_ID:'separate-weekly-script',
+    THU_TUAN_ZALO_PROD_BOT_ID:'prod-bot',THU_TUAN_ZALO_PROD_CONTENT_SHEET_ID:'prod-content',
+    THU_TUAN_ZALO_PROD_PRIVATE_SHEET_ID:'weekly-private',THU_TUAN_ENABLED:'false'});
+  const before={...w.props};assert.equal(w.run('/loibac').status,'SENT');
+  assert.equal(w.props.THU_TUAN_ENABLED,before.THU_TUAN_ENABLED);
+  assert.ok(w.calls.filter(c=>c[0]==='sheet').every(c=>c[1]==='prod-content'));
+});
+test('PROD allowlist/self/deduplication preserved (local)',()=>{
+  const w=world({environment:'PROD'});
+  assert.equal(w.runBody(w.event('/loibac',{chat:{id:'other-group',chat_type:'GROUP'}})).status,'IGNORED_CHAT');
+  assert.equal(w.runBody(w.event('/loibac',{from:{id:'prod-bot',is_bot:false}})).status,'IGNORED_SELF');
+  const e=w.event('/trogiup');assert.equal(w.runBody(e).status,'SENT');assert.equal(w.runBody(e).status,'DUPLICATE');assert.equal(w.sent.length,1);
+});
+test('PROD read-only preflight is sanitized; fixed TEST helper refuses PROD before I/O (local)',()=>{
+  const w=world({environment:'PROD'});assert.equal(w.ctx.kiemTraZaloShowcaseTest().status,'TEST_PREFLIGHT_BLOCKED');assert.equal(w.calls.length,0);
+  const r=w.ctx.kiemTraZaloShowcaseProduction();assert.equal(r.status,'PROD_PREFLIGHT_OK');assert.equal(r.currentApproved,true);
+  assert.equal(w.sent.length,0);assert.equal(w.mutations.length,0);assert.doesNotMatch(JSON.stringify(r),/prod-bot|prod-group|synthetic/);
+  const t=world();assert.equal(t.ctx.kiemTraZaloShowcaseProduction().status,'PROD_PREFLIGHT_BLOCKED');assert.equal(t.calls.length,0);
+});
+test('PROD config change after durable intent stops before sending (local)',()=>{
+  let w;w=world({environment:'PROD',beforeProperty(k,v){if(k.startsWith('ZALO_BOT_EVENT_')&&JSON.parse(v).phase==='SENDING')w.props.ZALO_BOT_PROD_BOT_TOKEN='changed-synthetic-token';}});
+  assert.equal(w.run('/trogiup').status,'HELD_NO_RETRY');assert.equal(w.sent.length,0);
+});
+test('PROD relay to actual doPost verifies domain and suppresses retry (local)',async()=>{
+  const {createHandler}=await import('../web/api/zalo-webhook.js'),w=world({environment:'PROD'}),event=w.event('/loibac');
+  const handler=createHandler({env:{VERCEL_ENV:'production',ZALO_SHOWCASE_ENV:'PROD',ZALO_SHOWCASE_PROD_WEBHOOK_SECRET:'fixture-prod-webhook',
+    ZALO_SHOWCASE_PROD_RELAY_SECRET:RELAY,ZALO_SHOWCASE_PROD_GAS_URL:'https://script.google.com/macros/s/prod-fixture/exec/zalo-showcase-v1'},clock:w.now,
+    fetchImpl:async(url,options)=>{const output=post(w,JSON.parse(options.body),{pathInfo:'zalo-showcase-v1'});return {ok:true,json:async()=>JSON.parse(output.text)};}});
+  for(let i=0;i<2;i++){
+    const res={code:0,value:null,setHeader(){},status(code){this.code=code;return this;},json(value){this.value=value;return this;}};
+    await handler({method:'POST',headers:{'content-type':'application/json','x-bot-api-secret-token':'fixture-prod-webhook'},body:event},res);
     assert.equal(res.code,200);assert.equal(res.value.status,i===0?'SENT':'DUPLICATE');
   }
   assert.equal(w.sent.length,1);assert.match(reply(w),/LD-001/);

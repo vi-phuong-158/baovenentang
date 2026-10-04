@@ -50,11 +50,11 @@ Tính năng `Thư viện phản bác` công khai đã được gỡ khỏi UI/AP
 
 ## Tính năng chính
 
-### Zalo Bot Showcase V1 (TEST)
+### Zalo Bot Showcase V1 (TEST/PROD)
 
-Sáu lệnh `/gioithieu`, `/loibac`, `/quiz`, `/tracuu`, `/lich`, `/trogiup` trình diễn mô hình và học liệu được kiểm soát, không gọi AI. Adapter tương tác tách khỏi outbound Thư tuần; `/loibac` đọc tuần hiện tại theo giờ Việt Nam và giữ nguyên approval HMAC v2. Relay xác thực webhook ở Vercel Preview trước khi chuyển envelope ký tới Apps Script TEST.
+Sáu lệnh `/gioithieu`, `/loibac`, `/quiz`, `/tracuu`, `/lich`, `/trogiup` trình diễn mô hình và học liệu được kiểm soát, không gọi AI. Adapter tương tác tách khỏi outbound Thư tuần; `/loibac` đọc tuần hiện tại theo giờ Việt Nam và giữ nguyên approval HMAC v2. Relay xác thực webhook rồi ký HMAC đúng profile Preview/TEST hoặc Production/PROD; pin và approval vẫn bắt buộc, không fallback credential giữa môi trường.
 
-Xem [kiến trúc, cấu hình và nghiệm thu TEST](docs/ZALO_SHOWCASE_V1.md). Runtime thật chưa chạy vì chưa có credential TEST đã xác minh; ảnh F chờ cơ chế private media được phép. Không bật tính năng này trên Production.
+Xem [kiến trúc, cấu hình và triển khai](docs/ZALO_SHOWCASE_V1.md). Owner yêu cầu trực tiếp PROD và bỏ nghiệm thu TEST ngày 04/10/2026; source hỗ trợ profile riêng. Deploy GAS còn bị chặn truy cập đăng nhập Google, chưa có runtime thật. Ảnh F chờ private media; lịch/trigger và token Thư tuần giữ nguyên.
 
 ### Tin tức
 
