@@ -141,3 +141,12 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
 - Người dùng chốt D (ngang) và F (dọc 4:5) sau khi so sánh B2/C2/D/E/F trên bài thật; bỏ B/C. Mỗi kỳ luôn có cả hai khổ để chọn khổ gửi chính, không cần chọn mẫu theo tuần.
 - Hình trống đồng do người dùng cung cấp và xác nhận được phép công bố, nên lưu trong repo như asset của công cụ; chân dung và dữ liệu thật vẫn ngoài Git.
 - Bỏ vân giấy vì làm PNG nặng gấp đôi (D ~2,3 MB → ~1 MB) mà khó thấy. Nguồn tách “Hồ Chí Minh” (đậm, không gạch đầu dòng) và phần còn lại; ghép lại phải đúng nguyên văn. “Hà Nội”, “Tập N”, “tr. N” không bị ngắt dòng.
+
+## [2026-10-04] Showcase Zalo deterministic, riêng TEST và giữ approval core
+
+- Native Bot webhook dùng `X-Bot-Api-Secret-Token` theo tài liệu Zalo hiện hành. GAS event không cung cấp header này; dùng Node API relay của stack Vercel hiện hữu, không chấp nhận secret giả trong body/query. Relay chỉ Preview/TEST, ký HMAC giao thức nội bộ riêng tới route GAS TEST; không bổ sung thư viện/framework.
+- Không biến weekly `ZaloTransport.gs` thành interactive router. Generator trích nguyên source core đọc/approval/split sang backend, `--check` trong CI bắt drift; tránh chép sender/recipient/reconciliation vào public Web App hoặc viết lại semantics HMAC v2.
+- `/loibac` chọn Monday theo Asia/Ho_Chi_Minh, không dựa lịch gửi và không fallback tuần sau/AI. Quote/source/vận dụng là canonical approved verbatim, kiểm lại trước mỗi phần gửi và sau SENDING. LD lookup/alias cũng cùng gate.
+- Static introduction/lookup theo prompt và V10 mới nhất đã đọc. V10 còn nhãn DỰ THẢO; chỉ presentation extracts được owner yêu cầu, không public toàn văn/Drive ID hoặc xem mô tả là approval LD. Quiz dùng mapper hiện hữu và allowlist ID, không copy bank hoặc lưu kết quả người dùng.
+- Dedupe bền vững tối đa 500 active hashed claims, 24 giờ; message/envelope freshness 5 phút. Unknown delivery không tự retry. Quiz TTL 5 phút; hash Bot/chat/sender; rate best effort 10 lượt/10 giây.
+- Ảnh F BLOCKED_PRIVATE_MEDIA: documented sendPhoto chỉ nhận URL, chưa có private upload được xác nhận, source card manifest draft. Không public Drive/upload ngoài để demo. Runtime BLOCKED_NO_TEST_CREDENTIALS; local tests không nâng thành PASS runtime.
