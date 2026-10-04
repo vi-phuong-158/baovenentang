@@ -139,6 +139,18 @@ test('/lich marks current and lists future only as plan, no draft contents',()=>
 test('schedule pagination includes current region, seven entries max',()=>{const w=world();for(let i=2;i<17;i++)w.rows.push(w.stamp(w.row({Ky:new Date(Date.parse('2026-09-28')+i*604800000).toISOString().slice(0,10),MaLoiDay:'LD-'+String(i+1).padStart(3,'0')})));w.run('/lich 2');assert.equal(reply(w).split('\n').filter(l=>/^Tuần \d/.test(l)).length,7);assert.match(reply(w),/Trang 2/);});
 test('/trogiup shows exactly six primary commands',()=>{const w=world();w.run('/trogiup');assert.equal(w.sent.length,1);assert.equal(reply(w).split('\n').filter(l=>/^\/[a-z]+.*—/.test(l)).length,6);assert.doesNotMatch(reply(w),/phanbac|kiemchung|vietbai/);});
 test('unknown commands safe and not logged verbatim',()=>{const w=world();w.run('/sensitiveword');assert.match(reply(w),/trogiup/);assert.doesNotMatch(w.logs.join(''),/sensitiveword/);});
+test('leading group @mention before command/query is accepted',()=>{
+  for(const text of ['@Trợ lý 35 /trogiup','@Bot /trogiup','@Trợ lý 35 /TROGIUP']){const w=world();assert.equal(w.run(text).status,'SENT');assert.match(reply(w),/Các lệnh chính/);}
+  const w=world();w.run('@Trợ lý 35 /tracuu phương châm');assert.match(reply(w),/Hợp tác đúng nội dung/);
+  const x=world();assert.equal(x.run('@Trợ lý 35 /loibac').status,'SENT');assert.match(reply(x),/LD-001/);
+});
+test('@mention quiz answer graded only with pending quiz',()=>{
+  const w=world();assert.equal(w.run('@Trợ lý 35 B').status,'IGNORED_NO_PENDING_QUIZ');w.run('@Trợ lý 35 /quiz');w.tick(1000);
+  assert.equal(w.run('@Trợ lý 35 b').status,'SENT');assert.match(w.sent.at(-1).text,/✅ Chính xác!/);assert.equal(w.sent.length,2);
+});
+test('@mention without command stays ordinary chat',()=>{
+  for(const text of ['@Trợ lý 35 xin chào','@Trợ lý 35','@Bot hello/world','@Bot AB']){const w=world();assert.equal(w.run(text).status,'IGNORED_CHAT_TEXT');assert.equal(w.calls.length,0);assert.equal(w.mutations.length,0);}
+});
 test('ordinary chat ignored, no AI/no API/no Sheet/no property writes',()=>{const w=world();assert.equal(w.run('hello https://example.invalid').status,'IGNORED_CHAT_TEXT');assert.equal(w.calls.length,0);assert.equal(w.mutations.length,0);});
 test('oversized input fail safe before any calls',()=>{const w=world();w.run('x'.repeat(1001));assert.equal(w.calls.length,0);assert.equal(w.sent.length,0);});
 test('non-allowlisted group and PRIVATE chat ignored',()=>{for(const chat of [{id:'not-allowed',chat_type:'GROUP'},{id:'test-group',chat_type:'PRIVATE'}]){const w=world();assert.equal(w.runBody(w.event('/loibac',{chat})).status,'IGNORED_CHAT');assert.equal(w.calls.length,0);}});

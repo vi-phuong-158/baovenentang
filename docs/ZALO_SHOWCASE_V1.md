@@ -41,7 +41,7 @@ Trình diễn mô hình **TUYỆT ĐỐI TRUNG THÀNH - CHỦ ĐỘNG, SÁNG T�
 | `/lich [trang]` | 7 kỳ/trang quanh hiện tại; `▶` đánh dấu tuần hiện tại; tương lai chỉ là metadata kế hoạch |
 | `/trogiup` | Menu gọn sáu lệnh và ví dụ |
 
-`/tuan` là alias current-week; `/tracuu LD-xxx` chỉ tra kỳ hiện tại hoặc quá khứ, cùng approval gate. Không lấy tuần sau. Không có `/phanbac`, `/kiemchung`, `/vietbai`. Command không phân biệt hoa thường; Unicode NFC/NFD được xử lý; input tối đa 1.000 UTF-16. URL trong query không bao giờ được fetch.
+`/tuan` là alias current-week; `/tracuu LD-xxx` chỉ tra kỳ hiện tại hoặc quá khứ, cùng approval gate. Không lấy tuần sau. Không có `/phanbac`, `/kiemchung`, `/vietbai`. Command không phân biệt hoa thường; chấp nhận một @mention ở đầu tin (ví dụ `@Bot /loibac`, `@Bot B`), chỉ bóc tiền tố đó, lệnh/đáp án vẫn phải là token riêng; Unicode NFC/NFD được xử lý; input tối đa 1.000 UTF-16. URL trong query không bao giờ được fetch.
 
 ## Current week và approval
 

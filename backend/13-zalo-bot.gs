@@ -74,6 +74,12 @@ function zaloBotEvent_(body, cfg, now) {
 function zaloBotParse_(text) {
   if (typeof text !== 'string' || text.length>1000) return {kind:'ignore'};
   var value = text.normalize('NFC').trim();
+  // Group messages may carry a leading @mention (display names can contain spaces).
+  // Strip only that prefix; the command/answer itself must still be a separate token.
+  if (value.charAt(0)==='@') {
+    var mention = /^@[^\n]*?\s(\/[\s\S]*)$/.exec(value) || /^@[^\n]*\s([ABCD])$/i.exec(value);
+    if (mention) value = mention[1].trim();
+  }
   if (/^[ABCD]$/i.test(value)) return {kind:'answer',answer:value.toUpperCase()};
   if (value.charAt(0)!=='/') return {kind:'ignore'};
   var match = /^\/([a-z0-9]+)(?:\s+([\s\S]*))?$/i.exec(value);
