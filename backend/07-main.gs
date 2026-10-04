@@ -270,9 +270,27 @@ function doPost(e) {
 
   try {
     const data = parsePostData_(e);
+    if (!data || typeof data !== 'object' || Array.isArray(data))
+      return jsonResponse_({success:false, status:'MALFORMED_REQUEST'});
+
+    // Explicit relay route; GAS does not expose Zalo's authentication header.
+    // Never accept direct Zalo webhook bodies or user-supplied headers as authentication.
+    const path = (e && e.pathInfo) || '';
+    if (path === 'zalo-showcase-v1' || data.action === 'zalo_showcase_v1') {
+      if (path !== 'zalo-showcase-v1' || data.action !== 'zalo_showcase_v1' ||
+          Object.prototype.hasOwnProperty.call(data, 'update_id'))
+        return jsonResponse_({success:false, status:'ROUTE_DENIED'});
+      return jsonResponse_(zaloBotHandleRelay_(data));
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'event_name') ||
+        (data.result && Object.prototype.hasOwnProperty.call(data.result, 'event_name')))
+      return jsonResponse_({success:false, status:'DIRECT_ZALO_DENIED'});
 
     // Telegram webhook — validate secret
-    if (data.update_id) {
+    if (Object.prototype.hasOwnProperty.call(data, 'update_id') && !data.action) {
+      if (!Number.isSafeInteger(data.update_id) || data.update_id < 0 ||
+          !(data.message || data.callback_query))
+        return jsonResponse_({success:false, status:'MALFORMED_TELEGRAM'});
       validateTelegramWebhook_(e);
       if (data.message) {
         handleTelegramMessage(data.message);

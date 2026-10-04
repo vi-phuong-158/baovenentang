@@ -169,3 +169,11 @@ flowchart TD
 - Template thay B/C bằng hai mẫu chốt: D (1600 × 1200, chủ đề căn trái cạnh chân dung) và F (1080 × 1350 cho điện thoại). Mỗi kỳ xuất cả hai PNG, một caption và một manifest version 2.
 - Nền trống đồng là asset công khai services/thu-tuan/tools/card-studio/assets/trong-dong.webp; builder kiểm signature WebP, nhúng data URL và drumSha256. Trình duyệt tách hoa văn thành mặt nạ alpha rồi tô màu; không tải tài nguyên ngoài.
 - Không đổi luồng GAS/route/API/Sheet; vẫn là công cụ offline, trạng thái DRAFT_NOT_APPROVED.
+
+### Zalo Showcase V1, adapter tương tác TEST (2026-10-04)
+
+- Luồng riêng: Zalo official webhook → `web/api/zalo-webhook.js` ở Vercel Preview xác thực header secret → HMAC envelope → backend TEST `/exec/zalo-showcase-v1` → `13-zalo-bot.gs` allowlist/dedupe/command router → Zalo sendMessage. GAS không nhận được header webhook qua documented event fields nên không xác thực Zalo trực tiếp.
+- `doPost` yêu cầu path + action rõ ràng, chặn direct/mixed webhook; Telegram và POST API có regression. Không dùng `/api/gas`, Gemini, subscriber/history/quota AI hay bảng người nhận Thư tuần.
+- Sáu lệnh deterministic; current-week/approval/canonical/split từ source service qua generated `13a-thu-tuan-read-core.gs`, CI chống drift. Quiz tái sử dụng `quizFromRows_`, chỉ câu hỏi ID được phép; CacheService 5 phút, không lưu kết quả cá nhân.
+- ScriptLock và hashed Script Properties tombstone 24 giờ giữ claim/SENDING/SENT/UNKNOWN, không tự resend khi kết quả chưa rõ; rate guard best effort. Config pin project/Bot/group/workbooks TEST, production deployment relay bị chặn. Không thêm trigger/schema.
+- Card F vẫn BLOCKED_PRIVATE_MEDIA vì URL-only sendPhoto và manifest draft; text không phụ thuộc ảnh. Runtime mới chưa chạy; xem `docs/ZALO_SHOWCASE_V1.md` cho cấu hình và gate nghiệm thu.

@@ -439,7 +439,12 @@ function getRandomQuiz(count = 1) {
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   const shuffled = shuffleRows_(data);
 
-  return shuffled.slice(0, limit).map(row => ({
+  return quizFromRows_(shuffled.slice(0, limit));
+}
+
+/** Shared quiz domain mapping; interactive adapters read their own allowed bank without creating sheets. */
+function quizFromRows_(rows) {
+  return rows.map(row => ({
     id: row[0],
     question: row[1],
     options: {

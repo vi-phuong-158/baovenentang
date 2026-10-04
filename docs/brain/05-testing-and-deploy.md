@@ -109,3 +109,11 @@ Trong Apps Script Editor, bạn có thể chạy trực tiếp các hàm kiểm 
 - `testRun()`: Kiểm tra chạy thử crawler tin tức hàng ngày.
 - `testTroLy35Setup()`: Kiểm tra khả năng kết nối Gemini AI, Pinecone RAG và ghi nhận lịch sử của Trợ lý 35.
 - `syncTccsApprovedChunksToPinecone()`: Chạy đồng bộ kho dữ liệu tạp chí đã duyệt lên vector database.
+
+## 6. Zalo Showcase V1: kiểm thử local và nghiệm thu TEST riêng
+
+- Runbook: [ZALO_SHOWCASE_V1.md](../ZALO_SHOWCASE_V1.md). Không chạy `setupSystem`, `clasp push --force` hoặc đăng ký webhook với project/credential Production để nghiệm thu Showcase.
+- Chạy `node tools/build-zalo-read-core.cjs --check`, `node --check web/api/zalo-webhook.js`, rồi `node --test tests/zalo-showcase.test.cjs tests/zalo-webhook.test.cjs tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs tests/thu-tuan-card-studio.test.cjs`; dùng `vm.Script` để parse `.gs`, không `node --check` trực tiếp extension này.
+- 04/10/2026: 264/264 local PASS, gồm 96 Showcase/relay và 168 regression weekly/Card Studio; Vite build PASS. Test tích hợp dùng fake Google/Zalo, không chứng minh deployed runtime.
+- Runtime real chỉ sau preflight Bot/group/project/secrets/source/endpoint TEST đủ và được xác minh. `kiemTraZaloShowcaseTest()` chỉ đọc, không gửi/ghi; sau đó trình tự sáu lệnh, quiz answer, duplicate và negative theo runbook. Image F vẫn BLOCKED_PRIVATE_MEDIA.
+- Phiên triển khai này chưa có credential TEST/clasp auth/endpoint đã xác minh: `ZALO_SHOWCASE_V1_RUNTIME_BLOCKED_NO_TEST_CREDENTIALS`. Không deploy/gửi/sửa Properties/triggers/lịch Production; không merge main.
