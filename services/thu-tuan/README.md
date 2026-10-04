@@ -1,5 +1,7 @@
 # Thư tuần “Lời Bác dạy”
 
+> **Lệnh Zalo TEST (04/10/2026 23:35):** `/tuan` đã gửi ảnh D kèm toàn bộ thư trong một tin; dùng `/tuan 2` hoặc `/tuan 2026-10-12`. Owner cấp riêng quyền xem theo liên kết cho51 ảnhD. Web App version3/catalog224/flags true; native PNG/hash/caption xác minh, controlled trial SENT và replay ALREADY_HANDLED/no duplicate, webhook healthy/log12. 201 regression/33 actualcloudcompat/syntax22GAS đạt; owner đã thử mention /tuan 2 và xác nhận ảnh/thư hiển thị đúng. Properties cũ/lịch tuần/Production giữ nguyên. Chi tiết [ZALO-COMMANDS.md](ZALO-COMMANDS.md).
+
 Module Apps Script **độc lập**, gửi nội dung đã được con người duyệt trong Google Sheets qua Gmail (mặc định) hoặc Zalo Bot (plain text).
 
 > **Chuẩn bị pilot Production (01/10/2026, chỉ code/test, chưa chạy PROD):** thêm receiver PROD `nhanSuKienZaloThuTuanProd` (chỉ pin `THU_TUAN_ZALO_PROD_CHAT_ID/CHAT_SHA256`), hàm chỉ đọc `kiemTraSanSangZaloProduction`, trigger báo lỗi `THU_TUAN_TRIGGER_ATTENTION:<STATUS>` và CI `.github/workflows/thu-tuan.yml`. Regression local **148/148**. Chưa tạo project/Bot PROD, chưa gửi Production. Quy trình bắt buộc ở mục 12 “Pilot Production”. `THU_TUAN_ZALO_TEST_RUNTIME_ACCEPTANCE_PASS` **không** phải nghiệm thu Production; `READY_FOR_PRODUCTION_PILOT` **không** phải `PRODUCTION_ACCEPTANCE_PASS`.

@@ -117,3 +117,10 @@ Trong Apps Script Editor, bạn có thể chạy trực tiếp các hàm kiểm 
 - 04/10/2026: 264/264 local PASS, gồm 96 Showcase/relay và 168 regression weekly/Card Studio; Vite build PASS. Test tích hợp dùng fake Google/Zalo, không chứng minh deployed runtime.
 - Runtime real chỉ sau preflight Bot/group/project/secrets/source/endpoint TEST đủ và được xác minh. `kiemTraZaloShowcaseTest()` chỉ đọc, không gửi/ghi; sau đó trình tự sáu lệnh, quiz answer, duplicate và negative theo runbook. Image F vẫn BLOCKED_PRIVATE_MEDIA.
 - Phiên triển khai này chưa có credential TEST/clasp auth/endpoint đã xác minh: `ZALO_SHOWCASE_V1_RUNTIME_BLOCKED_NO_TEST_CREDENTIALS`. Không deploy/gửi/sửa Properties/triggers/lịch Production; không merge main.
+
+## /tuan ảnh + full letter TEST (04/10/2026 23:35)
+
+- Regression201/201,33/33 bằng corecloud v3/schema20 backup, syntax22GAS, diffcheck đạt. Thêm5test ảnh/fullletter/replay/URL-date-hash/body/HTML/drift/UNKNOWN. Không sửa frontend/video nên không chạy lại các gate đó hoặc gọi PASS toàn repo.
+- Native TEST preview tuần2: sendPhoto/caption1023UTF16, public PNG1.000.862bytes/magic/hashmatch true. Owner đã cho phép chỉ51D public/viewer; selection51khớp allowlist, ảnhTEST riêng bị loại. Web App version3 cùng URL, catalog224duyệt/đọc lại; old19Properties/core/transport/weekly flags giữ nguyên.
+- Input controlled qua actualrelay→GAS gửi1ảnh+caption/SENT13,019s; sameevent replay ALREADY_HANDLED2,151s khônggửi nữa. Nativehealth23:35:54 catalog224/log12 toànSENT/receipt/target/no duplicate/unresolved; commandtrue, weeklyfalse. Owner mention/photo rendering confirmation còn chờ; khôngclaimhuman E2EPASS.
+- Chốt23:39: owner đã thử /tuan2 và xác nhận ảnh/thư đúng; freshcallback23:37:59 ROOT→SENT200, nativehealth23:39 log13 (+1)/catalog224/flags true/probeOk/targetMatches/receipt hợp lệ/no unresolved. Human photo TEST gate hoàn tất, không suy sang Production/toànrepo.

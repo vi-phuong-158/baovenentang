@@ -150,3 +150,9 @@ Dưới đây là các quyết định kỹ thuật cốt lõi đã được th�
 - Static introduction/lookup theo prompt và V10 mới nhất đã đọc. V10 còn nhãn DỰ THẢO; chỉ presentation extracts được owner yêu cầu, không public toàn văn/Drive ID hoặc xem mô tả là approval LD. Quiz dùng mapper hiện hữu và allowlist ID, không copy bank hoặc lưu kết quả người dùng.
 - Dedupe bền vững tối đa 500 active hashed claims, 24 giờ; message/envelope freshness 5 phút. Unknown delivery không tự retry. Quiz TTL 5 phút; hash Bot/chat/sender; rate best effort 10 lượt/10 giây.
 - Ảnh F BLOCKED_PRIVATE_MEDIA: documented sendPhoto chỉ nhận URL, chưa có private upload được xác nhận, source card manifest draft. Không public Drive/upload ngoài để demo. Runtime BLOCKED_NO_TEST_CREDENTIALS; local tests không nâng thành PASS runtime.
+
+## 18. Dùng /tuan gửi ảnh D và thư đã duyệt trong một tin (04/10/2026)
+
+- Owner muốn gõ /tuan nhận đúng kiểu ảnh+toàn bộ thư. Chọn sendPhoto/caption qua Bot API hiện có; giữ giới hạn bảo thủ1800 UTF16 thay vì nâng lên trần API2000. Không thêm /loiday hoặc gọi sender tuần; dedupe dùng event/nhật ký lệnh, nên không làm kỳ theo lịch bị đánh dấu đã gửi.
+- Dùng ảnh D theo catalog ANHTUAN sealed URL/hash/kỳ/mã. Đối chiếu hash từ manifest hiện có, không dùng link xem KHOANH làm media, không tự công khai Drive. PNG/type/signature/hash phải đúng trước khi gửi; thiếu ảnh thì toàn bộ thư bằng chữ, ảnh sai hash bị chặn để đối soát.
+- Renderer cloud v3/schema20 đang chạy là nguồn caption; core checkout v2/schema17 không bị upload. Legacy renderer được kiểm tương thích local; nội dung quá dài không bị cắt/tóm tắt. Một event vẫn một API send và receipt, giữ SENDING/UNKNOWN fail-closed. Chỉ cập nhật module TEST/deployment hiện có, không đổi stack/header/log tuần/Production.

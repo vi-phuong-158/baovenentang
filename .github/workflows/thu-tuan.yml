@@ -38,4 +38,4 @@ jobs:
         run: |
           node tools/build-zalo-read-core.cjs --check
           node --check web/api/zalo-webhook.js
-          node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs tests/thu-tuan-card-studio.test.cjs tests/zalo-showcase.test.cjs tests/zalo-webhook.test.cjs
+          node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs tests/thu-tuan-card-studio.test.cjs tests/zalo-showcase.test.cjs tests/zalo-webhook.test.cjs tests/thu-tuan-commands.test.cjs

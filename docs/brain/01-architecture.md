@@ -177,3 +177,8 @@ flowchart TD
 - Sáu lệnh deterministic; current-week/approval/canonical/split từ source service qua generated `13a-thu-tuan-read-core.gs`, CI chống drift. Quiz tái sử dụng `quizFromRows_`, chỉ câu hỏi ID được phép; CacheService 5 phút, không lưu kết quả cá nhân.
 - ScriptLock và hashed Script Properties tombstone 24 giờ giữ claim/SENDING/SENT/UNKNOWN, không tự resend khi kết quả chưa rõ; rate guard best effort. Config pin project/Bot/group/workbooks TEST, production deployment relay bị chặn. Không thêm trigger/schema.
 - Card F vẫn BLOCKED_PRIVATE_MEDIA vì URL-only sendPhoto và manifest draft; text không phụ thuộc ảnh. Runtime mới chưa chạy; xem `docs/ZALO_SHOWCASE_V1.md` cho cấu hình và gate nghiệm thu.
+
+### /tuan trả ảnh kèm toàn bộ thư theo yêu cầu (04/10/2026)
+
+- Owner yêu cầu `/tuan` trả ảnh và thư như mẫu ảnh+caption. ZaloCommands.gs dựng plan riêng: chọn tuần/approval canonical, dùng renderer cloud (v3 dùng các trường biên tập đã sealed), chọn ANHTUAN đúng kỳ/mã, sendPhoto với caption đầy đủ ≤1800 UTF-16; chưa có ảnh trả thư bằng sendMessage. Các lệnh tra cứu khác giữ nguyên, không gọi guiThuTuan hoặc ghi nhật ký tuần.
+- Catalog cùng 5 cột bổ sung loại ANHTUAN, mã ANH-YYYY-MM-DD, mã LD, URL PNG trực tiếp trên drive.google.com/uc?export=download&id= và SHA256. Seal hiện có binds URL/hash cùng pin/allowlist. MIME PNG/signature/hash được xác minh hai lần quanh preflight/readback; response vẫn status/count, mỗi event một receipt, log 7 cột không đổi. Drive quyền và sender Production giữ nguyên.
