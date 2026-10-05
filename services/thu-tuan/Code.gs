@@ -564,9 +564,12 @@ function thuTuanRunWithProgress_(io, key, dryRun, progress) {
 function thuTuanExecute_(dryRun) {
   var cfg = thuTuanConfig_();
   if (!dryRun && !cfg.enabled) return { status:'DISABLED', sent:0 };
-  if (cfg.startWeek && (!/^\d{4}-\d{2}-\d{2}$/.test(cfg.startWeek) ||
-      thuTuanWeekKey_(new Date(cfg.startWeek + 'T00:00:00+07:00')) !== cfg.startWeek ||
-      thuTuanWeekKey_(new Date()) < cfg.startWeek)) return {status:'BEFORE_START_WEEK',sent:0};
+  if (cfg.startWeek) {
+    // A malformed cutoff must surface as a failed trigger, never as a quiet skip that stops delivery forever.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cfg.startWeek) ||
+        thuTuanWeekKey_(new Date(cfg.startWeek + 'T00:00:00+07:00')) !== cfg.startWeek) return {status:'INVALID_START_WEEK',sent:0};
+    if (thuTuanWeekKey_(new Date()) < cfg.startWeek) return {status:'BEFORE_START_WEEK',sent:0};
+  }
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { status:'BUSY', sent:0 };
   var result;

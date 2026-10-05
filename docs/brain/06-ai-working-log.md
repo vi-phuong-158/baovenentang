@@ -1,5 +1,14 @@
 # 06-ai-working-log.md - Nhật ký hoạt động của AI
 
+## [2026-10-05] Review PR #22 và gỡ công cụ TEST, chỉ giữ Production
+
+- Yêu cầu owner: review PR #22, bỏ TEST chuyển hẳn sang Prod. Nhánh `ccr-43bb7e8e-ld992d` dựa trên head PR #22 (a1ef541). Đã đọc brain/CLAUDE; CodeGraph không có trong container nên phân tích impact bằng grep caller/callee toàn repo (services, backend generated, tools, tests, workflow).
+- Files: xóa `services/thu-tuan/ZaloAcceptance.gs`, `tests/thu-tuan-acceptance.test.cjs`; sửa `services/thu-tuan/Code.gs` (START_WEEK), `ZaloCommands.gs` (bỏ 2 wrapper *Test), `ZaloProductionOperations.gs` (bỏ `chuyenNhomTestThanhProduction`, `thuTuanPromotionArchive_`, `tatLichProductionCu`; preview tuần sắp gửi), `tests/thu-tuan-commands.test.cjs`, `.github/workflows/thu-tuan.yml`, README/ZALO-COMMANDS, brain 01/03/06.
+- Lý do: các công cụ này chỉ chạy được khi TEST_MODE=true hoặc là migration một lần đã chạy xong trên cloud (PROMOTION_STATE=MIGRATED). Lõi gửi (TEST_MODE trong Code.gs/ZaloTransport.gs, diagnostics chỉ đọc) giữ nguyên vì cloud đã TEST_MODE=false, profile TEST đã xóa, và lõi được ~250 kiểm thử bao phủ; sửa sâu một tuần trước lần gửi tự động đầu tiên 12/10 là rủi ro không cần thiết.
+- Sửa lỗi review: (1) `THU_TUAN_START_WEEK` sai định dạng trước đây trả BEFORE_START_WEEK (trạng thái "im lặng") → lịch không bao giờ gửi mà không báo lỗi; nay trả INVALID_START_WEEK và trigger báo lỗi. (2) `kiemTraProductionDaChuyen`/`batLichProductionDaChuyen` luôn kiểm cố định tuần 12/10 → sau 12/10 luôn PREVIEW_BLOCKED; nay kiểm thứ Hai sắp gửi (hôm nay nếu là thứ Hai), không sớm hơn 12/10.
+- Rủi ro: sau khi merge phải `clasp push --force` project Thư tuần để cloud khớp repo; push sẽ xóa `ZaloAcceptance.gs` trên cloud (đúng ý đồ). Không đổi schema Sheets, HMAC, receipt hay luồng gửi. Tên miền relay `thu-tuan-zalo-test.vercel.app` vẫn chứa chữ "test" nhưng đang là relay Production; đổi tên là thay đổi cloud riêng.
+- Test: cú pháp toàn bộ .gs, `node tools/build-zalo-read-core.cjs --check`, `node --check web/api/zalo-webhook.js`, `node --test` 5 file workflow: 291/291 đạt (307 trước đây − 16 acceptance − 2 promotion + 2 mới). Trên cloud sau push: chạy `kiemTraProductionDaChuyen` (không gửi tin) phải trả PRODUCTION_PHOTO_READY cho tuần 12/10; không chạy `guiThuTuan` thủ công.
+
 ## [2026-10-05] Chuẩn bị commit và PR đồng bộ thư Zalo Production
 
 - Owner yêu cầu commit/tạo PR để review. Rà diff độc lập và CodeGraph impact adapter→core/promotion preview; remote main khớp base5e64fa4. Dùng nhánh codex/thu-tuan-zalo-production-photo, chỉ stage12 tệp service/core generated/test/runbook/brain của thay đổi này. Evidence ignored và cache có sẵn không thuộc commit; không merge/main push hoặc thay cấu hình cloud trong lượt tạo PR.

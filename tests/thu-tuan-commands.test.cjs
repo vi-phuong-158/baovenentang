@@ -107,48 +107,17 @@ test('cutover start week prevents a current-week delivery or preview before the 
  assert.equal(w.ctx.guiThuTuan().status,'BEFORE_START_WEEK');assert.equal(w.ctx.xemTruocThuTuan().status,'BEFORE_START_WEEK');
  assert.deepEqual(w.calls,[]);assert.equal(w.sheets['private-TEST|ThuTuan_Zalo_NhatKyGui'].data.length,1);
 });
-function promotionWorld(){
- const w=world(),props=w.props,ctx=w.ctx;
- ctx.ScriptApp.getProjectTriggers=()=>[];
- ctx.PropertiesService.getScriptProperties=()=>({getProperties:()=>({...props}),getProperty:k=>props[k]??null,
-  setProperty:(k,v)=>{props[k]=v;},deleteProperty:k=>{delete props[k];}});
- const add=(id,name,s)=>{w.sheets[id+'|'+name]=s;s.setFrozenRows=()=>{};s.setName=next=>{
-  delete w.sheets[id+'|'+name];add(id,next,s);return s;};return s;};
- ctx.SpreadsheetApp.openById=id=>({getSheetByName:name=>w.sheets[id+'|'+name],insertSheet:name=>add(id,name,sheet([]))});
- add('content-TEST','LoiDay_NoiDung',w.content);
- add('private-TEST','ThuTuan_Zalo_NhatKyGui',sheet(ctx.THU_TUAN_HEADERS.ThuTuan_Zalo_NhatKyGui));
- add('private-TEST','ThuTuan_NhatKyGui',sheet(ctx.THU_TUAN_HEADERS.ThuTuan_NhatKyGui));
- add('private-TEST','ThuTuan_Zalo_Lenh',w.log);
- const rows=[];
- for(let i=0;i<51;i++){
-  const key=new Date(now+i*7*86400000).toISOString().slice(0,10),r={...w.row,Ky:key,TrangThai:'Nhap',NguoiDuyet:'',NgayDuyet:'',DauVanBanDuyet:''};
-  rows.push(ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map(h=>r[h]??''));
-  if(i)w.catalog.data.push(['LICHTUAN','TUAN-'+String(i+2).padStart(2,'0'),'LD-047',key,'Lịch thử']);
-  w.catalog.data.push(['ANHTUAN','ANH-'+key,'LD-047','https://drive.google.com/uc?export=download&id=synthetic-D',sha(photoBytes)]);
+test('malformed start week is surfaced as a trigger failure, never a quiet skip',()=>{
+ for(const value of ['2026-10-13','12/10/2026','2026-10-1']){
+  const w=weeklyPhotoWorld();w.props.THU_TUAN_START_WEEK=value;
+  assert.equal(w.ctx.guiThuTuan().status,'INVALID_START_WEEK');
+  assert.throws(()=>w.ctx.thuTuanTriggerResult_({triggerUid:'synthetic'},w.ctx.guiThuTuan()),/THU_TUAN_TRIGGER_ATTENTION:INVALID_START_WEEK/);
+  assert.deepEqual(w.calls,[]);
  }
- add('content-TEST','Zalo_Nhap_51_Ky',sheet([...ctx.THU_TUAN_HEADERS.LoiDay_NoiDung,'SoKyTuZalo','TinZaloXemTruoc'],rows.map(r=>[...r,123,'preview'])));
- props.THU_TUAN_ZALO_COMMAND_CATALOG_STAMP=ctx.thuTuanCommandCatalog_(ctx.thuTuanCommandConfig_('TEST'),false).stamp;
- return w;
-}
-test('promotion archives original tables, preserves first approval, imports drafts and migrates pins while both sends remain disabled',()=>{
- const w=promotionWorld(),before=w.content.data.map(r=>r.slice());
- const report=w.ctx.chuyenNhomTestThanhProduction();assert.equal(report.status,'PROMOTED_DISABLED');assert.equal(report.approved,1);
- assert.deepEqual(w.sheets['content-TEST|LoiDay_NoiDung_TEST_20261005'].data,before);
- assert.equal(w.sheets['content-TEST|LoiDay_NoiDung'].data.length,52);
- assert.equal(w.sheets['content-TEST|LoiDay_NoiDung'].data[2][5],'Nhap');
- assert.equal(w.props.THU_TUAN_ZALO_ENV,'PROD');assert.equal(w.props.THU_TUAN_TEST_MODE,'false');assert.equal(w.props.THU_TUAN_ENABLED,'false');
- assert.equal(w.props.THU_TUAN_ZALO_COMMANDS_ENABLED,'false');assert.equal(w.props.THU_TUAN_ZALO_TEST_BOT_TOKEN,undefined);
- assert.equal(w.props.PROMOTION_BACKUP_THU_TUAN_ZALO_TEST_BOT_TOKEN,'synthetic-token-TEST');
- assert.equal(w.ctx.thuTuanZaloConfig_(w.ctx.thuTuanConfig_()).env,'PROD');
- assert.doesNotThrow(()=>w.ctx.thuTuanCommandCatalog_(w.ctx.thuTuanCommandConfig_('PROD'),true));assert.equal(w.messages.length,0);
- assert.throws(()=>w.ctx.chuyenNhomTestThanhProduction(),/PROMOTION_ALREADY_STARTED/);
 });
-test('promotion refuses unresolved history and invalid drafts before any property or sheet mutation',()=>{
- for(const mutate of [w=>w.log.data.push(['event','UNKNOWN','','tuan','','TEST',sha('synthetic-chat-TEST')]),
-  w=>w.sheets['content-TEST|Zalo_Nhap_51_Ky'].data[2][1]='LD-003',w=>w.content.data[1][5]='Nhap']){
-  const w=promotionWorld(),before=JSON.stringify(w.props),tables=Object.keys(w.sheets);mutate(w);
-  assert.throws(()=>w.ctx.chuyenNhomTestThanhProduction());assert.equal(JSON.stringify(w.props),before);assert.deepEqual(Object.keys(w.sheets),tables);assert.equal(w.messages.length,0);
- }
+test('production check previews the upcoming Monday, never before the cutover week',()=>{
+ const w=world('PROD');assert.equal(w.ctx.thuTuanPromotedWeek_(),'2026-10-12');
+ assert.equal(w.ctx.chuyenNhomTestThanhProduction,undefined);assert.equal(w.ctx.tatLichProductionCu,undefined);
 });
 test('parser accepts accented/unaccented commands and mention prefix; ignores conversation',()=>{
  const w=world();for(const text of ['/gioithieu','/giới thiệu','giới thiệu','@Bot Mẫu /start'])assert.equal(w.ctx.thuTuanCommandParse_(text).name,'gioithieu');
@@ -259,20 +228,21 @@ test('oversized original quote is never truncated or split into extra replies',(
  const w=world();w.row.NoiDungNguyenVan='Nguyên văn '.repeat(200);w.row.DauVanBanDuyet=w.ctx.thuTuanDigest_(w.row,secret);w.content.data[1]=w.ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map(h=>w.row[h]??'');
  assert.equal(w.run('/tuan 2').status,'SENT');assert.ok(w.messages[0].text.includes('vượt độ dài'));assert.ok(!w.messages[0].text.includes('Nguyên văn'));assert.equal(w.messages.length,1);
 });
-test('approval requires allowlisted actor, explicit manual TEST/PROD and disabled commands',()=>{
- const w=world();assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_ADMIN_BLOCKED');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';w.actor('other@example.test');assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_ADMIN_BLOCKED');w.actor('reviewer@example.test');
- assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.ctx.duyetKhoTraCuuZaloTest({}).status,'COMMAND_MANUAL_ONLY');assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_CATALOG_APPROVED');assert.deepEqual(w.writes,['THU_TUAN_ZALO_COMMAND_CATALOG_STAMP']);
+test('approval requires allowlisted actor, explicit manual PROD and disabled commands',()=>{
+ const w=world('PROD');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';w.actor('other@example.test');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');w.actor('reviewer@example.test');
+ assert.equal(w.ctx.thuTuanCommandAdmin_(undefined,'TEST',true).status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.ctx.duyetKhoTraCuuZaloProd({}).status,'COMMAND_MANUAL_ONLY');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_CATALOG_APPROVED');assert.deepEqual(w.writes,['THU_TUAN_ZALO_COMMAND_CATALOG_STAMP']);
+ assert.equal(w.ctx.taoBangLenhZaloTest,undefined);assert.equal(w.ctx.duyetKhoTraCuuZaloTest,undefined);
 });
 test('HTTP response/status exposes no event, key, query, credential or raw exception',()=>{
  const w=world();w.failSend();const result=w.ctx.doPost({postData:{contents:JSON.stringify(w.envelope())}});assert.deepEqual(JSON.parse(result.text),{status:'REPLY_UNCONFIRMED'});assert.equal(w.logs.length,0);
 });
 test('setup creates only missing command tabs and preserves existing data; wrong schema is blocked',()=>{
- const w=world();w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';
+ const w=world('PROD');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';
  const before=JSON.stringify(w.content.data),catalogBefore=JSON.stringify(w.catalog.data);
- assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_SHEETS_READY');assert.equal(JSON.stringify(w.content.data),before);assert.equal(JSON.stringify(w.catalog.data),catalogBefore);
- delete w.sheets['private-TEST|ThuTuan_Zalo_Lenh'];assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_SHEETS_READY');assert.equal(w.sheets['private-TEST|ThuTuan_Zalo_Lenh'].data.length,1);
- w.catalog.data[0][0]='wrong';assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.catalog.data[0][0],'wrong');
- assert.ok(w.logs.every(s=>!s.includes(secret)&&!s.includes('synthetic-chat')&&!s.includes('content-TEST')));
+ assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_SHEETS_READY');assert.equal(JSON.stringify(w.content.data),before);assert.equal(JSON.stringify(w.catalog.data),catalogBefore);
+ delete w.sheets['private-PROD|ThuTuan_Zalo_Lenh'];assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_SHEETS_READY');assert.equal(w.sheets['private-PROD|ThuTuan_Zalo_Lenh'].data.length,1);
+ w.catalog.data[0][0]='wrong';assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.catalog.data[0][0],'wrong');
+ assert.ok(w.logs.every(s=>!s.includes(secret)&&!s.includes('synthetic-chat')&&!s.includes('content-PROD')));
 });
 test('missing receipt, malformed log, duplicate key and filled log all fail closed',()=>{
  for(const mutate of [w=>w.log.data.push(['bad','SENT',new Date(now),'gioithieu','', 'TEST',sha('synthetic-chat-TEST')]),

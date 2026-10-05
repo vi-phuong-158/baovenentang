@@ -1,5 +1,11 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 05/10/2026 — Gỡ công cụ TEST khỏi mã nguồn Thư tuần
+
+- Owner chỉ đạo bỏ TEST, chỉ còn Production. Gỡ các phần chỉ phục vụ TEST hoặc migration một lần: `ZaloAcceptance.gs`, `taoBangLenhZaloTest`/`duyetKhoTraCuuZaloTest`, `chuyenNhomTestThanhProduction`/`tatLichProductionCu`.
+- Giữ cờ TEST_MODE trong lõi và diagnostics chỉ đọc: cloud đã TEST_MODE=false, không còn profile TEST nên các nhánh này không thể gửi tin; gỡ lõi đòi viết lại phần lớn bộ kiểm thử và chạm luồng gửi ngay trước kỳ gửi thật 12/10. Có thể dọn tiếp sau khi 12/10 nghiệm thu thành công.
+- START_WEEK sai định dạng phải là lỗi (INVALID_START_WEEK), không được là trạng thái im lặng.
+
 ## Quyết định 05/10/2026 — Owner chuyển nhóm TEST thành Production
 
 - Chỉ đạo mới “Đồng bộ lại đi giờ nhóm Test đấy làm thành Prod luôn” thay thế giới hạn TEST-only trong các ghi chú lịch sử. Giữ đúng Bot/GROUP đã xác minh, chuyển namespace pins/relay sang PROD, không nới isolation. Backup credential tại chính Script Properties, không xuất vào repo/log. Tắt lịch Production cũ để chỉ một nhóm nhận tự động.
