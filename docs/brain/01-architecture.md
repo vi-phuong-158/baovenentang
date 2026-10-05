@@ -1,5 +1,12 @@
 # 01-architecture.md - Kiến trúc hệ thống
 
+## Vận hành Thư tuần Zalo — chuyển nhóm TEST thành PROD (05/10/2026)
+
+- Theo chỉ đạo owner, dùng lại project/Bot/GROUP/hai Sheets và webhook của TEST làm Production. Chuyển profile hoạt động sang PROD, TEST_MODE=false, giữ credential/approval secret; pins TEST cũ lưu riêng trong Script Properties dưới PROMOTION_BACKUP_, không còn profile hoạt động. Project Production cũ đã tắt flag gửi và gỡ trigger của owner.
+- Đồng bộ Code.gs/ZaloTransport.gs với cloud v3: schema nội dung20 cột, vẫn đọc schema17 cột; dấu v2 giữ nguyên, v3 ký thêm BoiCanhZalo/YNgiaVanDungZalo/HanhDongTuanNayZalo. Weekly photo opt-in THU_TUAN_ZALO_WEEKLY_PHOTO=true dùng ANHTUAN đúng Ky/MaLoiDay + LICHTUAN trong catalog đã duyệt. PlanHash gắn method/URL/hash PNG/full caption; preview offline, ảnh/hash/catalog/config recheck trước gửi. Một sendPhoto/receipt, SENDING/UNKNOWN không tự retry.
+- Cutover THU_TUAN_START_WEEK=2026-10-12: không gửi lại tuần05/10. Bốn tab nội dung/log TEST đổi hậu tố _TEST_20261005, giữ nguyên dữ liệu; tab vận hành mới có51 tuần, chỉ giữ dấu duyệt12/10 đã đối chiếu chính xác,50 bài còn lại Nhap. Không giả duyệt hàng loạt. Relay cũ giữ URL, ZALO_COMMAND_ENV=PROD; không đổi backend Trợ lý35.
+- Manual ZaloProductionOperations.gs chạy dưới lock/reviewer/pins, kiểm lịch sử đã SENT trước cutover, backup properties nội bộ, fail-closed nếu dở dang. Luồng HTTP chỉ nhận envelope có HMAC như trước; helper không được gọi từ webhook/trigger. Lịch mới chỉ bật sau preview ảnh/nguồn/approval, getMe và webhook health.
+
 ## Chọn kỳ duyệt qua cấu hình (02/10/2026)
 
 - `duyetKyThuTuan` đọc riêng `THU_TUAN_APPROVAL_WEEK` và truyền nguyên giá trị cho API duyệt. Chỉ null (key vắng) mới dùng tuần hiện tại; giá trị rỗng/sai vẫn bị core từ chối. Key không tham gia config sender/trigger, không chọn tuần gửi.

@@ -2,7 +2,7 @@
 
 function thuTuanZaloSafeReason_(error) {
   var allowed = ['ZALO_ISOLATION_REQUIRED','ZALO_TOKEN_REQUIRED','ZALO_TARGET_REQUIRED','ZALO_GROUP_CONFIRMATION_REQUIRED',
-    'ZALO_INVALID_UNICODE','ZALO_TEXT_TOO_LONG','ZALO_CONFIG_CHANGED','SEPARATE_SHEETS_REQUIRED','INVALID_TEST_MODE',
+    'ZALO_INVALID_UNICODE','ZALO_TEXT_TOO_LONG','ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE','ZALO_CONTENT_REQUIRED','ZALO_CONFIG_CHANGED','SEPARATE_SHEETS_REQUIRED','INVALID_TEST_MODE',
     'MISSING_APPROVAL_SECRET','MISSING_SHEET_CONFIG','MISSING_SHEET','INVALID_HEADERS'];
   return error && allowed.indexOf(error.message) >= 0 ? error.message : 'ZALO_IO_BLOCKED';
 }
@@ -116,22 +116,95 @@ function thuTuanZaloMessageId_(result) {
     ? result.message_id : '';
 }
 
+/** Four sections. Never summarize, trim or concatenate editorial fields at send time. */
+function thuTuanRenderZaloText_(content) {
+  content = thuTuanCanonicalContent_(content);
+  // Preserve renderer/PlanHash for previously approved v2 weeks, including receipt audits.
+  if (thuTuanApprovalVersion_(content) === 2) return thuTuanRenderText_(content);
+  if (THU_TUAN_ZALO_FIELDS_.some(function(key) { return !thuTuanText_(content[key]); })) throw new Error('ZALO_CONTENT_REQUIRED');
+  var week = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(content.Ky));
+  var date = week ? week[3] + '/' + week[2] + '/' + week[1] : String(content.Ky);
+  var sections = [
+    'THƯ TUẦN – LỜI BÁC DẠY\nTuần từ ' + date + ' · ' + content.ChuDe,
+    'LỜI BÁC DẠY\n' + content.NoiDungNguyenVan + '\nNguồn: ' + content.NguonTrich,
+    'BỐI CẢNH\n' + content.BoiCanhZalo,
+    'Ý NGHĨA VÀ VẬN DỤNG\n' + content.YNgiaVanDungZalo,
+    'HÀNH ĐỘNG TUẦN NÀY\n' + content.HanhDongTuanNayZalo
+  ];
+  var url = thuTuanNotebookUrl_(content.NotebookLM_URL);
+  if (url) sections.push('Tra cứu thêm: ' + url + '\n' + THU_TUAN_NOTEBOOK_NOTE);
+  return sections.join('\n\n');
+}
+
+function thuTuanZaloOneMessage_(content) {
+  if (THU_TUAN_ZALO_FIELDS_.some(function(key) { return !thuTuanText_(content[key]); })) throw new Error('ZALO_CONTENT_REQUIRED');
+  var text = thuTuanRenderZaloText_(content);
+  // Validate Unicode with the same splitter; no grapheme is cut in GAS.
+  if (text.length > 1800) throw new Error('ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE');
+  var parts = thuTuanZaloSplit_(text);
+  if (parts.length !== 1) throw new Error('ZALO_TEXT_TOO_LONG_FOR_ONE_MESSAGE');
+  return text;
+}
+
+/** Authorized draft preview. Content is returned to the reviewer, never written to Logger. */
+function xemTruocNoiDungZaloThuTuan(ky) {
+  var cfg = thuTuanConfig_(), actor = thuTuanText_(Session.getActiveUser().getEmail()).toLowerCase();
+  if (!actor || cfg.approvers.indexOf(actor) < 0) throw new Error('APPROVER_REQUIRED');
+  if (typeof ky !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(ky) || thuTuanWeekKey_(new Date(ky+'T00:00:00+07:00')) !== ky) throw new Error('INVALID_WEEK');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) throw new Error('BUSY');
+  try {
+    var rows = thuTuanForKey_(thuTuanRows_(thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung'),'LoiDay_NoiDung'),ky);
+    if (rows.length !== 1) throw new Error('INVALID_WEEK');
+    var content = Object.assign({},rows[0],{DauVanBanDuyet:'v3:'});
+    THU_TUAN_REQUIRED.forEach(function(key) { if (!thuTuanText_(content[key])) throw new Error('INCOMPLETE_CONTENT'); });
+    if (!thuTuanNotebookOk_(content.NotebookLM_URL)) throw new Error('INVALID_NOTEBOOKLM_URL');
+    var text = thuTuanRenderZaloText_(content), parts = thuTuanZaloSplit_(text);
+    return {status:'ZALO_DRAFT_PREVIEW',key:ky,text:text,utf16Length:text.length,partCount:parts.length,
+      fitsOneMessage:text.length <= 1800,withinEditorialTarget:text.length >= 1200 && text.length <= 1500};
+  } finally { lock.releaseLock(); }
+}
+
+function xemTruocBanNhapZaloThuTuan() {
+  var ky = PropertiesService.getScriptProperties().getProperty('THU_TUAN_APPROVAL_WEEK');
+  return xemTruocNoiDungZaloThuTuan(ky === null ? thuTuanWeekKey_(new Date()) : ky);
+}
+
+/** A weekly photo is bound to the approved catalog, exact week and quotation. No network in planning. */
+function thuTuanZaloWeeklyPhoto_(content, cfg) {
+  var state = thuTuanCommandConfig_(cfg.zaloProperties.THU_TUAN_ZALO_ENV);
+  if (JSON.stringify(state.cfg) !== JSON.stringify(cfg)) throw new Error('ZALO_CONFIG_CHANGED');
+  var catalog = thuTuanCommandCatalog_(state,true);
+  var schedule = catalog.rows.filter(function(r) { return r.Loai === 'LICHTUAN' && r.NoiDung === content.Ky && r.TieuDe === content.MaLoiDay; });
+  var photos = catalog.rows.filter(function(r) { return r.Loai === 'ANHTUAN' && r.Ma === 'ANH-' + content.Ky && r.TieuDe === content.MaLoiDay; });
+  if (schedule.length !== 1 || photos.length !== 1) throw new Error('ZALO_WEEKLY_PHOTO_REQUIRED');
+  return {method:'sendPhoto',payload:{photo:photos[0].NoiDung,caption:thuTuanZaloOneMessage_(content)},imageHash:photos[0].Nguon};
+}
+
 function thuTuanZaloAdapter_(cfg) {
   var zalo = thuTuanZaloConfig_(cfg), plan = null;
   function unchanged() {
     var currentCfg = thuTuanConfig_(), current = thuTuanZaloConfig_(currentCfg);
     if (currentCfg.transport !== 'ZALO' || !currentCfg.enabled || currentCfg.secret !== cfg.secret ||
+        currentCfg.weeklyPhoto !== cfg.weeklyPhoto || currentCfg.startWeek !== cfg.startWeek ||
         JSON.stringify(currentCfg.approvers) !== JSON.stringify(cfg.approvers) || JSON.stringify(current) !== JSON.stringify(zalo))
       throw new Error('ZALO_CONFIG_CHANGED');
+    if (plan.photo) {
+      var fresh = thuTuanZaloWeeklyPhoto_(plan.content,currentCfg);
+      if (JSON.stringify(fresh) !== JSON.stringify(plan.photo) || !thuTuanCommandPhotoOk_(fresh))
+        throw new Error('ZALO_WEEKLY_PHOTO_UNCONFIRMED');
+    }
   }
   function units(content) {
-    // Plain-text renderer shared with Gmail; no Markdown cleanup or truncation of approved content.
-    var parts = thuTuanZaloSplit_(thuTuanRenderText_(content));
+    var text = thuTuanApprovalVersion_(content) === 3 ? thuTuanZaloOneMessage_(content) : thuTuanRenderZaloText_(content);
+    var parts = thuTuanZaloSplit_(text);
     var hash = thuTuanZaloHash_(JSON.stringify(parts));
-    plan = { parts:parts, hash:hash };
+    var photo = cfg.weeklyPhoto ? thuTuanZaloWeeklyPhoto_(content,cfg) : null;
+    if (photo) hash = thuTuanZaloHash_(JSON.stringify(['WEEKLY_PHOTO_V1',photo]));
+    plan = { parts:parts, hash:hash, photo:photo, content:content };
     return parts.map(function(text,i) {
       return { MaCB:'ZALO_' + zalo.env + '_' + zalo.targetHash.slice(0,32) + '_' + (i+1) + '_' + parts.length,
-        Part:i+1, PartCount:parts.length, PlanHash:hash, text:text };
+        Part:i+1, PartCount:parts.length, PlanHash:hash, text:text, photo:photo };
     });
   }
   return Object.assign(thuTuanStorage_(cfg,'ThuTuan_Zalo_NhatKyGui'), {
@@ -165,7 +238,8 @@ function thuTuanZaloAdapter_(cfg) {
         PartCount:unit.PartCount,PlanHash:unit.PlanHash,MessageId:''});
     },
     send:function(unit) {
-      var result = thuTuanZaloRequest_(zalo,'sendMessage',{chat_id:zalo.chatId,text:unit.text});
+      var result = unit.photo ? thuTuanZaloRequest_(zalo,'sendPhoto',Object.assign({chat_id:zalo.chatId},unit.photo.payload)) :
+        thuTuanZaloRequest_(zalo,'sendMessage',{chat_id:zalo.chatId,text:unit.text});
       var messageId = thuTuanZaloMessageId_(result);
       if (!messageId || messageId.indexOf(zalo.token) >= 0 || messageId.indexOf(zalo.chatId) >= 0)
         throw new Error('ZALO_SEND_UNCONFIRMED');

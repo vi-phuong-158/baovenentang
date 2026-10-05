@@ -5,7 +5,8 @@ var THU_TUAN_NOTEBOOK_NOTE = 'NotebookLM chỉ là công cụ tra cứu thêm, k
 // Sheet schema retains legacy columns for backward-compatible imports.
 var THU_TUAN_HEADERS = {
   LoiDay_NoiDung: ['Ky','MaLoiDay','NoiDungNguyenVan','NguonTrich','GoiYLienHe','TrangThai','NguoiDuyet','NgayDuyet','PhienBan','DauVanBanDuyet',
-    'ChuDe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL'],
+    'ChuDe','BoiCanh','PhanTich','LienHeCAND','LienHeAnNinhDoiNgoai','HanhDongTuanNay','NotebookLM_URL',
+    'BoiCanhZalo','YNgiaVanDungZalo','HanhDongTuanNayZalo'],
   ThuTuan_NguoiNhan: ['MaCB','Email','TrangThai','NgayDangKy'],
   ThuTuan_NhatKyGui: ['Khoa','Ky','MaCB','MaLoiDay','PhienBan','DauVanBanDuyet','TrangThai','CapNhatLuc','MaLoi'],
   ThuTuan_Zalo_NhatKyGui: ['Khoa','Ky','MaCB','MaLoiDay','PhienBan','DauVanBanDuyet','TrangThai','CapNhatLuc','MaLoi',
@@ -24,11 +25,12 @@ function thuTuanIsDate_(value) { return Object.prototype.toString.call(value) ==
 // LEGACY INPUT ONLY — DO NOT RENDER. Never add these fields to the canonical payload.
 var THU_TUAN_LEGACY_INPUT_FIELDS_ = ['GoiYLienHe','LienHeAnNinhDoiNgoai'];
 var THU_TUAN_CANONICAL_VERSION_ = 2;
+var THU_TUAN_ZALO_FIELDS_ = ['BoiCanhZalo','YNgiaVanDungZalo','HanhDongTuanNayZalo'];
 var THU_TUAN_CANONICAL_FIELDS_ = ['Ky','ChuDe','MaLoiDay','NoiDungNguyenVan','NguonTrich','BoiCanh','PhanTich',
   'LienHeCAND','HanhDongTuanNay','NotebookLM_URL','TrangThai','NguoiDuyet','NgayDuyet','PhienBan'];
 function thuTuanCanonicalContent_(content) {
   var canonical = {};
-  THU_TUAN_CANONICAL_FIELDS_.forEach(function(key) { canonical[key] = content && content[key] != null ? content[key] : ''; });
+  THU_TUAN_CANONICAL_FIELDS_.concat(THU_TUAN_ZALO_FIELDS_).forEach(function(key) { canonical[key] = content && content[key] != null ? content[key] : ''; });
   canonical.DauVanBanDuyet = content && content.DauVanBanDuyet != null ? content.DauVanBanDuyet : '';
   return canonical;
 }
@@ -36,7 +38,9 @@ function thuTuanCanonicalContent_(content) {
 function thuTuanDigest_(content, secret) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('MISSING_APPROVAL_SECRET');
   var canonical = thuTuanCanonicalContent_(content);
-  var value = [THU_TUAN_CANONICAL_VERSION_].concat(THU_TUAN_CANONICAL_FIELDS_.map(function(key) {
+  var version = thuTuanApprovalVersion_(canonical);
+  var fields = version === 3 ? THU_TUAN_CANONICAL_FIELDS_.concat(THU_TUAN_ZALO_FIELDS_) : THU_TUAN_CANONICAL_FIELDS_;
+  var value = [version].concat(fields.map(function(key) {
     var raw = canonical[key];
     if (key === 'NgayDuyet') {
       if (raw == null || raw === '') return '';
@@ -46,8 +50,14 @@ function thuTuanDigest_(content, secret) {
     }
     return raw == null ? '' : String(raw);
   }));
-  return Utilities.computeHmacSha256Signature(JSON.stringify(value), secret, Utilities.Charset.UTF_8)
+  return (version === 3 ? 'v3:' : '') + Utilities.computeHmacSha256Signature(JSON.stringify(value), secret, Utilities.Charset.UTF_8)
     .map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+
+/** Existing v2 stamps remain byte-identical; any new Zalo field participates in v3. */
+function thuTuanApprovalVersion_(content) {
+  return /^v3:/.test(String(content.DauVanBanDuyet || '')) ||
+    THU_TUAN_ZALO_FIELDS_.some(function(key) { return content[key] != null && String(content[key]) !== ''; }) ? 3 : 2;
 }
 
 function thuTuanNotebookUrl_(value) {
@@ -213,6 +223,8 @@ function thuTuanConfig_() {
     zaloProperties: zaloProperties,
     enabled: p.THU_TUAN_ENABLED === 'true',
     enabledValue: p.THU_TUAN_ENABLED,
+    weeklyPhoto: p.THU_TUAN_ZALO_WEEKLY_PHOTO === 'true',
+    startWeek: p.THU_TUAN_START_WEEK || '',
     testMode: p.THU_TUAN_TEST_MODE === 'true',
     testModeValue: p.THU_TUAN_TEST_MODE,
     testRecipientEmail: thuTuanText_(p.THU_TUAN_TEST_RECIPIENT_EMAIL).toLowerCase(),
@@ -228,9 +240,11 @@ function thuTuanSheet_(id, name) {
   var sheet = SpreadsheetApp.openById(id).getSheetByName(name);
   if (!sheet) throw new Error('MISSING_SHEET');
   var expected = THU_TUAN_HEADERS[name];
-  if (sheet.getLastColumn() !== expected.length) throw new Error('INVALID_HEADERS');
-  var actual = sheet.getRange(1,1,1,expected.length).getValues()[0];
-  if (actual.length !== expected.length || expected.some(function(h,i) { return actual[i] !== h; })) throw new Error('INVALID_HEADERS');
+  var width = sheet.getLastColumn();
+  var legacy = name === 'LoiDay_NoiDung' && width === expected.length - THU_TUAN_ZALO_FIELDS_.length;
+  if (width !== expected.length && !legacy) throw new Error('INVALID_HEADERS');
+  var actual = sheet.getRange(1,1,1,width).getValues()[0];
+  if (actual.length !== width || expected.slice(0,width).some(function(h,i) { return actual[i] !== h; })) throw new Error('INVALID_HEADERS');
   return sheet;
 }
 
@@ -242,6 +256,29 @@ function thuTuanRows_(sheet, name) {
     headers.forEach(function(h,j) { item[h] = row[j]; });
     return item;
   }).filter(function(row) { return headers.some(function(h) { return thuTuanText_(row[h]); }); });
+}
+
+/** Manual append-only schema upgrade while sending is disabled; existing cells/stamps stay intact. */
+function nangCapCotNoiDungZaloThuTuan() {
+  var cfg = thuTuanConfig_(), actor = thuTuanText_(Session.getActiveUser().getEmail()).toLowerCase();
+  if (!actor || cfg.approvers.indexOf(actor) < 0) throw new Error('APPROVER_REQUIRED');
+  if (cfg.enabledValue !== 'false') throw new Error('DISABLE_BEFORE_SCHEMA_UPGRADE');
+  if (!cfg.contentId || !cfg.privateId || cfg.contentId === cfg.privateId) throw new Error('SEPARATE_SHEETS_REQUIRED');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) throw new Error('BUSY');
+  try {
+    var current = thuTuanConfig_();
+    if (current.enabledValue !== 'false' || current.contentId !== cfg.contentId || current.privateId !== cfg.privateId ||
+        JSON.stringify(current.approvers) !== JSON.stringify(cfg.approvers)) throw new Error('SCHEMA_CONFIG_CHANGED');
+    var sheet = thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung'), width = sheet.getLastColumn();
+    if (width === THU_TUAN_HEADERS.LoiDay_NoiDung.length) return {status:'SCHEMA_ALREADY_CURRENT'};
+    var max = sheet.getMaxColumns(), needed = THU_TUAN_HEADERS.LoiDay_NoiDung.length;
+    if (max < needed) sheet.insertColumnsAfter(max,needed-max);
+    sheet.getRange(1,width+1,1,THU_TUAN_ZALO_FIELDS_.length).setValues([THU_TUAN_ZALO_FIELDS_]);
+    SpreadsheetApp.flush();
+    thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung');
+    return {status:'ZALO_COLUMNS_ADDED',columns:THU_TUAN_ZALO_FIELDS_.slice()};
+  } finally { lock.releaseLock(); }
 }
 
 function thuTuanStorage_(cfg, logName) {
@@ -527,6 +564,9 @@ function thuTuanRunWithProgress_(io, key, dryRun, progress) {
 function thuTuanExecute_(dryRun) {
   var cfg = thuTuanConfig_();
   if (!dryRun && !cfg.enabled) return { status:'DISABLED', sent:0 };
+  if (cfg.startWeek && (!/^\d{4}-\d{2}-\d{2}$/.test(cfg.startWeek) ||
+      thuTuanWeekKey_(new Date(cfg.startWeek + 'T00:00:00+07:00')) !== cfg.startWeek ||
+      thuTuanWeekKey_(new Date()) < cfg.startWeek)) return {status:'BEFORE_START_WEEK',sent:0};
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return { status:'BUSY', sent:0 };
   var result;
@@ -547,7 +587,7 @@ function thuTuanExecute_(dryRun) {
 /** Không gửi, không ghi: báo kỳ, mã lời dạy, lý do chặn (nếu có) và số người sẽ nhận. */
 function xemTruocThuTuan() { return thuTuanExecute_(true); }
 // A trigger run stays quiet only for a finished week (including alreadySent dedupe) or the deliberate kill switch.
-var THU_TUAN_TRIGGER_QUIET_STATUSES_ = ['COMPLETE','DISABLED'];
+var THU_TUAN_TRIGGER_QUIET_STATUSES_ = ['COMPLETE','DISABLED','BEFORE_START_WEEK'];
 
 /** Manual runs return as before. A trigger run surfaces every other status as a failed execution. */
 function thuTuanTriggerResult_(event, result) {
@@ -570,6 +610,19 @@ function duyetNoiDungThuTuan(ky) {
   return thuTuanApproveContent_(ky);
 }
 
+/** Any Gmail/Zalo log row of this week, in any state. Re-stamping it would block reconciliation of the remaining parts. */
+function thuTuanWeekHasHistory_(privateId, ky) {
+  if (!privateId) throw new Error('MISSING_SHEET_CONFIG');
+  var book = SpreadsheetApp.openById(privateId);
+  var present = ['ThuTuan_NhatKyGui','ThuTuan_Zalo_NhatKyGui'].filter(function(name) { return !!book.getSheetByName(name); });
+  if (!present.length) throw new Error('MISSING_SHEET');
+  return present.some(function(name) {
+    return thuTuanRows_(thuTuanSheet_(privateId,name),name).some(function(row) {
+      return thuTuanText_(row.Ky) === ky || thuTuanText_(row.Khoa).indexOf(ky + '|') === 0;
+    });
+  });
+}
+
 /** Shared approval implementation; an internal verifier can bind TEST acceptance inside this same lock. */
 function thuTuanApproveContent_(ky, verifyBeforeWrite) {
   var cfg=thuTuanConfig_(), actor=thuTuanText_(Session.getActiveUser().getEmail()).toLowerCase();
@@ -582,11 +635,16 @@ function thuTuanApproveContent_(ky, verifyBeforeWrite) {
     var sheet=thuTuanSheet_(cfg.contentId,'LoiDay_NoiDung');
     var rows=thuTuanForKey_(thuTuanRows_(sheet,'LoiDay_NoiDung'), ky);
     if (rows.length!==1) throw new Error('INVALID_WEEK');
+    if (thuTuanWeekHasHistory_(cfg.privateId, ky)) throw new Error('WEEK_HAS_DELIVERY_HISTORY');
     var row=rows[0];
     THU_TUAN_REQUIRED.forEach(function(k) { if(!thuTuanText_(row[k]))throw new Error('INCOMPLETE_CONTENT'); });
     if (!thuTuanNotebookOk_(row.NotebookLM_URL)) throw new Error('INVALID_NOTEBOOKLM_URL');
     var approvedAt=new Date(Math.floor(Date.now()/1000)*1000);
     var approved=Object.assign({},row,{TrangThai:'DaDuyet',NguoiDuyet:actor,NgayDuyet:approvedAt});
+    if (cfg.transport === 'ZALO' && (cfg.weeklyPhoto || thuTuanApprovalVersion_(approved) === 3)) {
+      approved.DauVanBanDuyet = 'v3:';
+      thuTuanZaloOneMessage_(approved);
+    }
     var digest=thuTuanDigest_(approved, cfg.secret);
     if (verifyBeforeWrite) verifyBeforeWrite(cfg,row,approved,digest);
     sheet.getRange(row._row,10).setNumberFormat('@');

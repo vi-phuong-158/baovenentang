@@ -1,5 +1,7 @@
 # Lệnh Bot Zalo cho dự án học tập lời Bác
 
+Trạng thái05/10/2026: owner chỉ đạo dùng nhóm TEST thành Production; giữ Bot/GROUP/webhook URL hiện có, đổi profile sang PROD, TEST_MODE=false, relay ZALO_COMMAND_ENV=PROD. Catalog ký lại trong môi trường PROD; TEST history được giữ nguyên trong các tab archive. Thư tuần tự động nay dùng cùng ảnh D và full caption v3 như `/tuan`, receipt weekly tách riêng receipt lệnh. Bài12/10 LD047 đã duyệt và xác minh PNG/hash/caption1023,50 bài còn Nhap cần duyệt đúng kỳ. Giới hạn TEST-only và trạng thái cũ dưới đây là lịch sử.
+
 Trạng thái cập nhật 04/10/2026 23:35: TEST Web App version3, hai command flags=true; `/tuan` đã gửi ảnh D + toàn bộ thư trong một tin. Owner cấp riêng quyền công khai51 ảnhD/viewer; catalog224 mục (173 cũ +51ANHTUAN) đã đọc lại/duyệt. Native preview `/tuan 2` xác minh PNG1.000.862bytes/hash đúng/caption1023UTF16. Một input kiểm soát qua relay gửi SENT13,019s; replay ALREADY_HANDLED2,151s, không tin trùng. Native webhook healthy/logRows12, toàn SENT/receipt/target hợp lệ/no unresolved. Regression201/201 +33/33 actualcloudcompat +syntax22GAS đạt. Owner đã thử mention `/tuan 2` từ Zalo và xác nhận ảnh/thư hiển thị đúng; callback23:37:59 ROOT→SENT/HTTP200 được đối chiếu. Bot token/khóa duyệt/Properties cũ và lịch tuần giữ nguyên. Lỗi callback root-level trước đây đã sửa ở relay.
 
 ## Lệnh dành cho người dùng

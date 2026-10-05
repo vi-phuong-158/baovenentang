@@ -466,11 +466,12 @@ test('approval is verified by reading back; a stamp that does not survive Sheets
  assert.throws(()=>w.ctx.duyetNoiDungThuTuan('2026-09-21'),/APPROVAL_NOT_VERIFIED:STAMP_MISMATCH/);
  assert.equal(w.ctx.xemTruocThuTuan().reason,'STAMP_MISMATCH');
 });
-test('re-approving a week that already has send logs blocks further sends for that week',()=>{
+test('re-approving a week with delivery history is rejected without replacing its approval',()=>{
  const w=world({content:[draft({})],recipients:[{MaCB:'CB1',Email:'one@example.test',TrangThai:'DangNhan'},{MaCB:'CB2',Email:'two@example.test',TrangThai:'TamDung'}]});
  w.setNow('2026-09-21T01:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');w.ctx.guiThuTuan();
- w.sheets['private-id|ThuTuan_NguoiNhan'].data[2][2]='DangNhan';w.setNow('2026-09-21T05:00:00Z');w.ctx.duyetNoiDungThuTuan('2026-09-21');
- assert.equal(w.ctx.guiThuTuan().status,'CONTENT_CHANGED_DURING_WEEK');assert.equal(w.mail.length,1);
+ w.setNow('2026-09-21T05:00:00Z');
+ assert.throws(()=>w.ctx.duyetNoiDungThuTuan('2026-09-21'),/WEEK_HAS_DELIVERY_HISTORY/);
+ assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');assert.equal(w.mail.length,1);
 });
 
 // ---------- Triggers and key ----------

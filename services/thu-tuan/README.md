@@ -1,5 +1,7 @@
 # Thư tuần “Lời Bác dạy”
 
+> **Chỉ đạo hiện hành05/10/2026:** owner chuyển nhóm TEST thành Production. Project/hai Sheets của nhóm đã đổi tên PROD; profile hoạt động PROD/TEST_MODE=false, credential giữ nguyên. Lịch Production cũ tắt. Weekly adapter mới dùng ảnh ANHTUAN đúng Ky/MaLoiDay + toàn bộ thư v3 trong một tin khi THU_TUAN_ZALO_WEEKLY_PHOTO=true; thiếu ảnh/approval/hash hợp lệ sẽ chặn. THU_TUAN_START_WEEK=2026-10-12 ngăn gửi lại tuần05/10. TEST receipts/content được giữ ở4 tab hậu tố _TEST_20261005;51 bài vận hành,12/10 đã duyệt,50 bài còn Nhap phải được con người duyệt trước kỳ gửi. Ghi chú TEST-only bên dưới là lịch sử. Xem brain01/03/06 và ZaloProductionOperations.gs cho cutover/kiểm tra.
+
 > **Lệnh Zalo TEST (04/10/2026 23:35):** `/tuan` đã gửi ảnh D kèm toàn bộ thư trong một tin; dùng `/tuan 2` hoặc `/tuan 2026-10-12`. Owner cấp riêng quyền xem theo liên kết cho51 ảnhD. Web App version3/catalog224/flags true; native PNG/hash/caption xác minh, controlled trial SENT và replay ALREADY_HANDLED/no duplicate, webhook healthy/log12. 201 regression/33 actualcloudcompat/syntax22GAS đạt; owner đã thử mention /tuan 2 và xác nhận ảnh/thư hiển thị đúng. Properties cũ/lịch tuần/Production giữ nguyên. Chi tiết [ZALO-COMMANDS.md](ZALO-COMMANDS.md).
 
 Module Apps Script **độc lập**, gửi nội dung đã được con người duyệt trong Google Sheets qua Gmail (mặc định) hoặc Zalo Bot (plain text).
