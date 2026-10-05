@@ -1,5 +1,13 @@
 # 05-testing-and-deploy.md - Kiểm thử và Triển khai
 
+## Cập nhật Showcase PROD 04/10/2026
+
+- Owner yêu cầu trực tiếp Production, bỏ nghiệm thu môi trường TEST. Thay TEST-only của phần Showcase bên dưới; quy trình sender Thư tuần không đổi. Profile PROD có pin/HMAC riêng, không fallback TEST.
+- Runbook/bảng keys: docs/ZALO_SHOWCASE_V1.md. Read-only kiemTraZaloShowcaseProduction trong đúng backend; không setupSystem/cài lịch. Source push cần cập nhật version deployment.
+- Local 291/291 PASS (123 Showcase/relay,168 weekly/Card); PROD fixtures chỉ VM/mock. Runtime thật chưa chạy, không PASS. Sign-in Google 502/Connection refused, thiếu clasp auth/target đã xác minh nên chưa cloud deploy/config/send.
+- Bỏ nghiệm thu theo owner ghi skipped/pending. Không thay token/approval/lịch/trigger/Drive để demo; rollback adapter độc lập sender.
+
+
 ## Validation chuẩn bị pilot Production Thư tuần (01/10/2026)
 
 - `node --test tests/thu-tuan.test.cjs tests/thu-tuan-acceptance.test.cjs`: **148/148** (132 module + 16 acceptance), local/synthetic, không network. 13 test mới: receiver PROD chỉ ghi cặp PROD, không send/không lộ dữ liệu/không ghi TEST, chặn từng gate, cô lập entrypoint hai chiều, GROUP_CONFIRMED hiện có/race, marker cũ/PRIVATE/sai/domain TEST, readiness READY chỉ getMe + không mutation, NOT_READY theo mã, privacy output, trigger attention, `caiLichThuTuan` PROD, trigger PROD gửi một lần rồi alreadySent.

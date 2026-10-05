@@ -2,7 +2,6 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 // Separate from /api/gas. Never inject the general API/AI token or send a Bot message here.
 export const config = { maxDuration: 60 };
-const DOMAIN = 'ZALO_SHOWCASE_V1_TEST';
 
 function equalSecret(provided, expected) {
   if (typeof provided !== 'string' || typeof expected !== 'string') return false;
@@ -10,10 +9,11 @@ function equalSecret(provided, expected) {
   return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
 }
 
-export function makeEnvelope(event, secret, timestamp = Date.now(), nonce = randomUUID()) {
+export function makeEnvelope(event, secret, timestamp = Date.now(), nonce = randomUUID(), environment = 'TEST') {
+  if (!['TEST','PROD'].includes(environment)) throw new Error('ENV_BLOCKED');
   return {
     action: 'zalo_showcase_v1', version: 1, timestamp, nonce, event,
-    signature: createHmac('sha256', secret).update(JSON.stringify([DOMAIN, 1, timestamp, nonce, event])).digest('hex')
+    signature: createHmac('sha256', secret).update(JSON.stringify(['ZALO_SHOWCASE_V1_'+environment, 1, timestamp, nonce, event])).digest('hex')
   };
 }
 
@@ -22,15 +22,22 @@ export function createHandler({ env = process.env, fetchImpl = fetch, clock = Da
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     if (req.method !== 'POST') return res.status(405).json({ ok: false, status: 'METHOD_DENIED' });
-    if (env.ZALO_SHOWCASE_ENV !== 'TEST' || !['preview','development'].includes(env.VERCEL_ENV))
-      return res.status(503).json({ ok: false, status: 'TEST_ONLY' });
-    const webhookSecret = env.ZALO_SHOWCASE_TEST_WEBHOOK_SECRET;
-    const relaySecret = env.ZALO_SHOWCASE_TEST_RELAY_SECRET;
-    const url = env.ZALO_SHOWCASE_TEST_GAS_URL || '';
+    const environment = env.ZALO_SHOWCASE_ENV;
+    if (!(environment === 'TEST' && ['preview','development'].includes(env.VERCEL_ENV)) &&
+        !(environment === 'PROD' && env.VERCEL_ENV === 'production'))
+      return res.status(503).json({ ok: false, status: 'ENV_BLOCKED' });
+    const prefix = 'ZALO_SHOWCASE_'+environment+'_';
+    const webhookSecret = env[prefix+'WEBHOOK_SECRET'];
+    const relaySecret = env[prefix+'RELAY_SECRET'];
+    const url = env[prefix+'GAS_URL'] || '';
     if (typeof webhookSecret !== 'string' || webhookSecret.length < 8 || webhookSecret.length > 256 ||
         typeof relaySecret !== 'string' || !/^[A-Za-z0-9_-]{32,256}$/.test(relaySecret) ||
         !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/zalo-showcase-v1$/.test(url))
       return res.status(503).json({ ok: false, status: 'CONFIG_BLOCKED' });
+    const oppositePrefix = 'ZALO_SHOWCASE_'+(environment === 'TEST' ? 'PROD' : 'TEST')+'_';
+    if (['WEBHOOK_SECRET','RELAY_SECRET','GAS_URL'].some(key => env[oppositePrefix+key] === env[prefix+key]) ||
+        webhookSecret === relaySecret)
+      return res.status(503).json({ ok: false, status: 'ISOLATION_BLOCKED' });
     // Official Zalo verification: exact header value, no query/body fallback.
     if (!equalSecret(req.headers?.['x-bot-api-secret-token'], webhookSecret))
       return res.status(403).json({ ok: false, status: 'AUTH_DENIED' });
@@ -48,7 +55,7 @@ export function createHandler({ env = process.env, fetchImpl = fetch, clock = Da
         return res.status(400).json({ ok: false, status: 'MALFORMED_EVENT' });
       const upstream = await fetchImpl(url, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(makeEnvelope(event, relaySecret, clock())),
+        body: JSON.stringify(makeEnvelope(event, relaySecret, clock(), randomUUID(), environment)),
         signal: AbortSignal.timeout(45000), redirect: 'follow'
       });
       // GAS ContentService redirects to googleusercontent for its response.

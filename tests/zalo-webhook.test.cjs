@@ -29,3 +29,40 @@ test('invalid upstream/auth result remains blocked',async()=>{const {createHandl
 test('uncertain/duplicate/ignored deliveries ack without second send',async()=>{const {createHandler}=await ready;for(const status of ['DUPLICATE','HELD_NO_RETRY','IGNORED_CHAT','IGNORED_SELF','RATE_LIMITED']){const r=response();await createHandler({env:env(),fetchImpl:async()=>({ok:true,json:async()=>({status,raw:secret})})})(request(),r);assert.equal(r.code,200);assert.deepEqual(r.value,{ok:true,status});}});
 test('invalid JSON never reaches backend',async()=>{const {createHandler}=await ready,r=response();await createHandler({env:env(),fetchImpl:()=>assert.fail('No fetch')})(request({body:'{'}),r);assert.equal(r.code,503);});
 test('relay envelope signature binds exact event, timestamp and nonce',async()=>{const {makeEnvelope}=await ready;const e=makeEnvelope('original',relay,1,'fixture-nonce');const h=crypto.createHmac('sha256',relay).update(JSON.stringify(['ZALO_SHOWCASE_V1_TEST',1,1,'fixture-nonce','original'])).digest('hex');assert.equal(e.signature,h);assert.notEqual(makeEnvelope('tampered',relay,1,'fixture-nonce').signature,h);});
+
+function prodEnv(extra={}){return {VERCEL_ENV:'production',ZALO_SHOWCASE_ENV:'PROD',ZALO_SHOWCASE_PROD_WEBHOOK_SECRET:secret,
+  ZALO_SHOWCASE_PROD_RELAY_SECRET:relay,ZALO_SHOWCASE_PROD_GAS_URL:'https://script.google.com/macros/s/prod-fixture/exec/zalo-showcase-v1',...extra};}
+test('PROD relay requires production scope and signs PROD domain (local)',async()=>{
+  const {createHandler}=await ready,r=response(),calls=[];
+  await createHandler({env:prodEnv(),fetchImpl:async(u,p)=>{calls.push({u,p});return {ok:true,json:async()=>({status:'SENT'})};}})(request(),r);
+  assert.equal(r.code,200);assert.equal(calls.length,1);assert.equal(calls[0].u,prodEnv().ZALO_SHOWCASE_PROD_GAS_URL);
+  const e=JSON.parse(calls[0].p.body),expected=crypto.createHmac('sha256',relay).update(JSON.stringify(['ZALO_SHOWCASE_V1_PROD',1,e.timestamp,e.nonce,e.event])).digest('hex');
+  assert.equal(e.signature,expected);assert.ok(!calls[0].p.body.includes(secret));
+});
+test('PROD disabled for preview/development/missing scope and unknown mode (local)',async()=>{
+  const {createHandler}=await ready;for(const extra of [{VERCEL_ENV:'preview'},{VERCEL_ENV:'development'},{VERCEL_ENV:undefined},{ZALO_SHOWCASE_ENV:'prod'},{ZALO_SHOWCASE_ENV:undefined}]){
+    const r=response();await createHandler({env:prodEnv(extra),fetchImpl:()=>assert.fail('No fetch')})(request(),r);assert.equal(r.code,503);assert.equal(r.value.status,'ENV_BLOCKED');
+  }
+});
+test('complete TEST env never supplies missing PROD config (local)',async()=>{
+  const {createHandler}=await ready,r=response();await createHandler({env:env({VERCEL_ENV:'production',ZALO_SHOWCASE_ENV:'PROD'}),fetchImpl:()=>assert.fail('No fetch')})(request(),r);
+  assert.equal(r.code,503);assert.equal(r.value.status,'CONFIG_BLOCKED');
+});
+test('PROD config and header failures fail closed before forward (local)',async()=>{
+  const {createHandler}=await ready;
+  for(const extra of [{ZALO_SHOWCASE_PROD_WEBHOOK_SECRET:'short'},{ZALO_SHOWCASE_PROD_RELAY_SECRET:'short'},{ZALO_SHOWCASE_PROD_GAS_URL:'http://example.invalid/exec'}]){
+    const r=response();await createHandler({env:prodEnv(extra),fetchImpl:()=>assert.fail('No fetch')})(request(),r);assert.equal(r.code,503);
+  }
+  for(const auth of [undefined,'wrong',[secret]]){const r=response();await createHandler({env:prodEnv(),fetchImpl:()=>assert.fail('No fetch')})(request({headers:{'x-bot-api-secret-token':auth}}),r);assert.equal(r.code,403);}
+});
+test('known counterpart config collision blocked in both profiles (local)',async()=>{
+  const {createHandler}=await ready;for(const environment of ['TEST','PROD'])for(const field of ['WEBHOOK_SECRET','RELAY_SECRET','GAS_URL']){
+    const active=environment==='TEST'?env():prodEnv(),opposite=environment==='TEST'?'PROD':'TEST';
+    active['ZALO_SHOWCASE_'+opposite+'_'+field]=active['ZALO_SHOWCASE_'+environment+'_'+field];
+    const r=response();await createHandler({env:active,fetchImpl:()=>assert.fail('No fetch')})(request(),r);assert.equal(r.code,503);assert.equal(r.value.status,'ISOLATION_BLOCKED');
+  }
+});
+test('domain-separated envelope rejects invalid environment (local)',async()=>{
+  const {makeEnvelope}=await ready;assert.notEqual(makeEnvelope('event',relay,1,'nonce','PROD').signature,makeEnvelope('event',relay,1,'nonce','TEST').signature);
+  assert.throws(()=>makeEnvelope('event',relay,1,'nonce','prod'),/ENV_BLOCKED/);
+});

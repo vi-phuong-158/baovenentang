@@ -2,24 +2,23 @@
 
 Trình diễn mô hình **TUYỆT ĐỐI TRUNG THÀNH - CHỦ ĐỘNG, SÁNG TẠO** qua nội dung được kiểm soát. Mô hình và nền nếp học tập là trọng tâm; Bot là phương tiện hỗ trợ. V1 không gọi Gemini, không RAG/AI sinh nội dung và không ghi kết quả quiz hay danh sách người sử dụng vào bảng người nhận Thư tuần.
 
-## Trạng thái
+## Trạng thái hiện hành 04/10/2026
 
-- Code và test trên nhánh `codex/zalo-showcase-v1`, từ main `3789dd53d844c4fb2d13e94fb9a348a723c7337b`.
-- Nghiệm thu tương tác Zalo/GAS/Preview thật **chưa chạy**. Session không có credential TEST, local clasp authorization hoặc endpoint TEST đã xác minh. Nghiệm thu Thư tuần TEST trước đây không chứng minh Showcase này.
-- Runtime blocker: `ZALO_SHOWCASE_V1_RUNTIME_BLOCKED_NO_TEST_CREDENTIALS`.
-- Ảnh F: `BLOCKED_PRIVATE_MEDIA`. Text hoạt động độc lập với ảnh.
-- Không deploy, merge, gửi Production, sửa token/Properties/trigger/lịch Production hoặc đổi quyền Drive trong task này.
+- Owner đã merge PR #20 vào main `a91ef20997ecaf07acb00480d125adf73726b8d2`. Nhánh `codex/zalo-showcase-production` bổ sung PROD theo chỉ đạo mới: “Dùng luôn bản prod không cần test”. Không đổi nhãn Production thành TEST để vượt guard.
+- Owner bỏ nghiệm thu môi trường TEST. Local regression vẫn được kiểm tra; runtime tương tác thật chưa chạy và không được báo PASS. Nghiệm thu Thư tuần trước đây không chứng minh Showcase.
+- Deploy GAS bị chặn: không có clasp authorization/target backend đã xác minh; đăng nhập Google qua browser trả `502 Bad Gateway / Connection refused`. Chưa deploy/cấu hình/gửi Production. Verdict `ZALO_SHOWCASE_V1_RUNTIME_BLOCKED_GAS_ACCESS`.
+- Ảnh F: `BLOCKED_PRIVATE_MEDIA`; text độc lập. Không đổi token, lịch/trigger Thư tuần, quyền Drive hoặc merge mới.
 
 ## Kiến trúc và ranh giới tin cậy
 
-1. Zalo gọi `POST /api/zalo-webhook` trên **Preview/TEST**.
-2. Relay kiểm chính xác header `X-Bot-Api-Secret-Token`, Content-Type và kích thước JSON. Không lấy secret từ body/query, không dùng token API chung. Deployment `VERCEL_ENV=production` hoặc thiếu môi trường bị chặn.
-3. Relay ký HMAC-SHA256 envelope riêng, gửi tới Apps Script TEST `/exec/zalo-showcase-v1`. Payload ký là JSON của `["ZALO_SHOWCASE_V1_TEST", 1, timestamp, nonce, eventJsonString]`. Cửa sổ 5 phút; nonce UUID. Đây là giao thức **nội bộ relay**, không phải signature/schema của Zalo.
-4. `doPost` yêu cầu **cả path lẫn action `zalo_showcase_v1`**, từ chối payload lẫn `update_id`. Body Zalo trực tiếp luôn bị từ chối. Telegram và POST API hiện có giữ router riêng.
-5. `backend/13-zalo-bot.gs` kiểm pin TEST, HMAC envelope, official `{ok:true,result:{event_name,message}}`, chat GROUP allowlist, bot/self, độ dài/date/message ID. Tin thường bị bỏ qua.
-6. ScriptLock → dedupe bền vững → rate guard → deterministic router → đọc source/approval → getMe đúng Bot → kiểm lại cấu hình và approval trước **và sau** ghi SENDING → sendMessage → xác minh receipt → SENT. Timeout/kết quả không chắc chắn bị giữ, không tự gửi lại.
+1. Zalo gọi `POST /api/zalo-webhook`. Relay chỉ nhận cặp TEST + Vercel preview/development hoặc PROD + Vercel production; thiếu/sai cặp môi trường bị chặn.
+2. Relay kiểm chính xác header `X-Bot-Api-Secret-Token`, Content-Type/kích thước JSON; không lấy secret từ body/query hoặc token API chung. Chỉ lấy keys `ZALO_SHOWCASE_<ENV>_*`, không fallback TEST↔PROD. Known counterpart webhook/relay/GAS_URL collision bị chặn; webhook secret không dùng làm relay secret.
+3. Relay ký HMAC-SHA256 tới GAS `/exec/zalo-showcase-v1`: JSON `["ZALO_SHOWCASE_V1_<ENV>",1,timestamp,nonce,eventJsonString]`, ENV chính xác TEST hoặc PROD. Cửa sổ 5 phút, nonce UUID; đây là giao thức nội bộ, không phải signature Zalo. Domain khác nhau chặn envelope môi trường kia dù trùng khóa. Wire action/version/path không đổi; TEST tương thích cũ.
+4. `doPost` yêu cầu cả path và action `zalo_showcase_v1`, từ chối lẫn update_id và body native Zalo không xác thực. Telegram/API giữ router riêng.
+5. `backend/13-zalo-bot.gs` kiểm active `ZALO_BOT_<ENV>_*`, actual Script ID/Bot/nhóm/nguồn, HMAC đúng môi trường và official event wrapper. Pin/credential/target/relay secret trùng opposite profile đã khai báo bị chặn. Không dùng backend trong project sender Thư tuần hoặc đọc workbook recipient/log làm kho quiz/nội dung.
+6. ScriptLock → durable dedupe → rate guard → deterministic router → approval → getMe → recheck config/approval trước và sau SENDING → sendMessage → receipt → SENT. Timeout/uncertainty giữ để đối soát, không auto resend. Ordinary chat/self/ngoài allowlist bị ignore.
 
-`services/thu-tuan/ZaloTransport.gs` vẫn chỉ là outbound transport Thư tuần. Không thêm interactive router, doPost, trigger hoặc thuộc tính chọn tuần vào service này.
+`services/thu-tuan/ZaloTransport.gs` tiếp tục outbound độc lập; không thêm interactive router, doPost, trigger hoặc thuộc tính chọn tuần vào service.
 
 ## Tái sử dụng nguồn duy nhất
 
@@ -61,7 +60,7 @@ Tạo/cài **backend Apps Script TEST riêng**; không dùng project service Th�
 
 | Key | Giá trị/ý nghĩa |
 |---|---|
-| `ZALO_BOT_ENV` | Chính xác TEST; V1 không hỗ trợ PROD |
+| `ZALO_BOT_ENV` | TEST; PROD dùng profile riêng bên dưới |
 | `ZALO_BOT_ENABLED` | true để xử lý; false để ngừng |
 | `ZALO_BOT_TEST_SCRIPT_ID` | Pin project backend TEST thực tế, so `ScriptApp.getScriptId()` |
 | `ZALO_BOT_TEST_BOT_ID` / `ZALO_BOT_TEST_BOT_TOKEN` | Bot TEST đã xác minh, token trong secret store |
@@ -87,7 +86,44 @@ Chỉ cấu hình **Preview** environment variables trên Vercel:
 
 Không `VITE_*`, không credentials Production. `/api/zalo-webhook` không cần Bot token, GAS_API_TOKEN, AI accessCode hoặc IP_HASH_SALT. Không thay `/api/gas` hiện có.
 
+## Profile Production và triển khai trực tiếp
+
+Owner cho phép bỏ môi trường TEST; không yêu cầu agent gửi tin nghiệm thu trên Production. Read-only preflight/xác minh target vẫn cần để deploy đúng nơi; không coi build/merge là cloud deployment.
+
+Trong **backend Production**, dùng `ZALO_BOT_ENV=PROD`, `ZALO_BOT_ENABLED=true` và đủ các Script Properties sau:
+
+| Key | Ý nghĩa |
+|---|---|
+| `ZALO_BOT_PROD_SCRIPT_ID` | Actual Script ID backend PROD, không project sender |
+| `ZALO_BOT_PROD_BOT_ID`, `ZALO_BOT_PROD_BOT_TOKEN` | Bot/token PROD hiện có đã xác minh, không rotate để deploy |
+| `ZALO_BOT_PROD_CHAT_ID`, `ZALO_BOT_PROD_CHAT_SHA256` | Nhóm duy nhất allowlist và SHA-256 UTF-8 đúng chat.id |
+| `ZALO_BOT_PROD_GROUP_CONFIRMED` | true sau xác nhận đúng nhóm/Bot của người vận hành |
+| `ZALO_BOT_PROD_CONTENT_SHEET_ID` | Kho LoiDay_NoiDung đã duyệt PROD; có thể chung nguồn Thư tuần PROD |
+| `ZALO_BOT_PROD_QUIZ_SHEET_ID`, `ZALO_BOT_PROD_QUIZ_IDS` | Workbook QUIZ/schema hiện hữu và comma-separated authorized IDs |
+| `ZALO_BOT_PROD_RELAY_SECRET` | Khóa riêng ký envelope PROD, 32–256 base64url |
+| `THU_TUAN_APPROVAL_SECRET`, `THU_TUAN_APPROVER_EMAILS` | Đúng khóa/reviewer nguồn PROD; không ký lại/đổi khóa để qua gate |
+
+Vercel **Production scope**:
+
+| Key | Giá trị |
+|---|---|
+| `ZALO_SHOWCASE_ENV` | PROD; Preview riêng vẫn TEST nếu sử dụng |
+| `ZALO_SHOWCASE_PROD_WEBHOOK_SECRET` | secret_token 8–256 ký tự của webhook Bot PROD |
+| `ZALO_SHOWCASE_PROD_RELAY_SECRET` | Cùng khóa với backend PROD relay |
+| `ZALO_SHOWCASE_PROD_GAS_URL` | Deployment backend PROD đã xác minh, kết thúc `/exec/zalo-showcase-v1` |
+
+Không đặt secret PROD trong Preview/VITE hoặc dùng key TEST bù key PROD thiếu. Relay secret không dùng lại Bot token/approval/webhook secret. Counterpart đã khai báo phải khác identity/credential/target. Backend PROD có thể dùng cùng Bot/approved content với sender PROD, nhưng project và workbook recipient/log luôn độc lập.
+
+1. Xác minh đúng project backend bằng actual Script ID/source/deployment, Bot/getMe và nhóm; không chọn chỉ theo tên. Sao lưu source/config/deployment/webhook hiện hành ở nơi riêng tư để rollback. Không đọc recipient table nếu không cần.
+2. Đưa source backend đã review + generated read core vào đúng project, giữ manifest/scopes/permissions. Không chép service sender, không chạy setupSystem hoặc sửa triggers/lịch/flags sender. `clasp push` chỉ lưu source, chưa đổi Web App version.
+3. Cấu hình profile PROD trong secret store, giữ token/approval secret hiện có. Chạy `kiemTraZaloShowcaseProduction()` chỉ đọc: PROD_PREFLIGHT_OK, currentWeek đúng, currentApproved/quizAvailable theo dữ liệu thật. Thiếu/draft/stamp sai phải giữ từ chối; không tạo approved fixture để demo. TEST helper từ chối PROD trước I/O và ngược lại.
+4. Cập nhật deployment Web App hiện có sang version code đã review, giữ URL/quyền truy cập cũ; cấu hình relay Production scope và redeploy đúng commit. Không promote Preview mang TEST config thành PROD. Thiếu quyền/target → blocker, không nhận đã deploy bằng CI.
+5. Đọc trạng thái webhook/consumer hiện có theo API chính thức trước thay. Không tranh getUpdates, xóa webhook chưa biết hoặc rotate Bot token. Đăng ký `/api/zalo-webhook` Production đã xác minh với secret phù hợp, bảo toàn cấu hình rollback; không token/secret URL/query/log. Bỏ nghiệm thu gửi theo owner; không gửi tin chủ động để kiểm.
+6. Ghi evidence source push/version/relay/webhook riêng; runtime chưa quan sát thì pending/skipped, không PASS. Rollback adapter bằng `ZALO_BOT_ENABLED=false` và version/webhook cũ đã lưu; không disable sender, đổi lịch hoặc xóa dedupe để resend.
+
 ## Setup và nghiệm thu TEST thực tế
+
+Quy trình này dành cho khi owner yêu cầu TEST; lượt Production ngày 04/10/2026 bỏ bước này.
 
 1. Xác minh Bot/project/nhóm/kho TEST, không trùng Production. Không thay credential/lịch Thư tuần. Với Bot TEST đang dùng getUpdates cho chẩn đoán, phối hợp dừng consumer trước setWebhook vì hai cơ chế loại trừ nhau; không tự xóa webhook đang tồn tại để thử.
 2. Chạy generator/check; đưa backend và generated core vào project backend TEST riêng. Manifest giữ V8/timezone; dùng scopes Sheets/external_request hiện hữu. Triển khai Web App **chỉ TEST** có `/exec` truy cập được; bất kỳ route showcase không có HMAC đều fail closed. Không chép Code.gs sender, không thêm trigger.
@@ -110,7 +146,7 @@ Không `VITE_*`, không credentials Production. `/api/zalo-webhook` không cần
 
 ## Kiểm thử local và tài liệu chính thức
 
-Kết quả local ngày 04/10/2026: **264/264 PASS** (96 test Showcase/relay, 168 regression Thư tuần/Card Studio); frontend Vite build PASS. Có test relay → router → adapter bằng Google/Zalo giả lập, timezone ở ranh giới thứ Hai Việt Nam, draft/stamp sai, quiz state/TTL, durable duplicate, chat/auth/self/malformed, Telegram và POST API. Đây là evidence local, không phải runtime acceptance. CI kiểm generated core, cú pháp và toàn bộ 5 suite.
+Kết quả local ngày 04/10/2026: main sau merge **267/267 PASS**; profile PROD **291/291 PASS** (123 Showcase/relay, 168 regression Thư tuần/Card Studio). PROD fixtures chỉ chạy local VM, không API Google/Zalo thật. Bao phủ profile/pin, signed domain, six commands PROD, preflight chỉ đọc, private workbook/project isolation và config race; frontend build của main đã PASS. Có test relay → router → adapter bằng Google/Zalo giả lập, timezone ở ranh giới thứ Hai Việt Nam, draft/stamp sai, quiz state/TTL, durable duplicate, chat/auth/self/malformed, Telegram và POST API. Đây là evidence local, không phải runtime acceptance. CI kiểm generated core, cú pháp và toàn bộ 5 suite.
 
 ```bash
 node tools/build-zalo-read-core.cjs --check
