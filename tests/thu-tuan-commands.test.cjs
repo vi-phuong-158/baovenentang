@@ -1,6 +1,6 @@
 // Synthetic identities/data only. No network, real Sheets or Bot credentials.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),crypto=require('node:crypto');
-const root=path.resolve(__dirname,'..'),source=['Code.gs','EmailAssets.gs','ZaloTransport.gs','ZaloCommands.gs'].map(n=>fs.readFileSync(path.join(root,'services/thu-tuan',n),'utf8')).join('\n');
+const root=path.resolve(__dirname,'..'),source=['Code.gs','EmailAssets.gs','ZaloTransport.gs','ZaloCommands.gs','ZaloProductionOperations.gs'].map(n=>fs.readFileSync(path.join(root,'services/thu-tuan',n),'utf8')).join('\n');
 const secret='synthetic-approval-secret-0123456789abcdef',relaySecret='synthetic-relay-secret-0123456789abcdef',webhookSecret='synthetic-webhook-secret-0123456789abcdef';
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const now=Date.parse('2026-10-12T01:00:00Z');
@@ -66,6 +66,59 @@ function world(env='TEST'){
  return {ctx,props,sheets,catalog,log,content,row,messages,calls,writes,logs,event,envelope,run:(text,id)=>ctx.thuTuanCommandProcess_(envelope(event(text,id))),
   mutateFetch:fn=>{beforeFetch=fn;},failSend:()=>{failSend=true;},failReceipt:()=>{failReceipt=true;},busy:()=>{lock=false;},actor:s=>{actor=s;}};
 }
+
+function weeklyPhotoWorld(){
+ const w=world();approvePhoto(w);
+ w.props.THU_TUAN_ENABLED='true';w.props.THU_TUAN_ZALO_WEEKLY_PHOTO='true';
+ w.sheets['private-TEST|ThuTuan_Zalo_NhatKyGui']=sheet(w.ctx.THU_TUAN_HEADERS.ThuTuan_Zalo_NhatKyGui);
+ return w;
+}
+test('scheduled weekly adapter uses the same full v3 letter and one verified photo receipt, then deduplicates offline',()=>{
+ const w=weeklyPhotoWorld(),preview=w.ctx.xemTruocThuTuan();
+ assert.equal(preview.status,'PREVIEW');assert.equal(preview.total,1);assert.deepEqual(w.calls,[]);
+ assert.equal(w.ctx.guiThuTuan().status,'COMPLETE');assert.equal(w.messages.length,1);
+ assert.equal(w.messages[0].caption,w.ctx.thuTuanZaloOneMessage_(w.row));assert.ok(w.messages[0].photo);
+ assert.equal(w.sheets['private-TEST|ThuTuan_Zalo_NhatKyGui'].data[1][15],'synthetic.receipt.1');
+ const calls=w.calls.length;assert.equal(w.ctx.guiThuTuan().alreadySent,1);assert.equal(w.calls.length,calls);
+});
+test('weekly photo catalog approval, week and quotation identity are mandatory',()=>{
+ for(const mutate of [w=>w.catalog.data.at(-1)[2]='LD-003',w=>w.catalog.data.at(-1)[1]='ANH-2026-10-19',w=>w.catalog.data.at(-1)[4]='0'.repeat(64)]){
+  const w=weeklyPhotoWorld();mutate(w);
+  assert.equal(w.ctx.guiThuTuan().status,'ZALO_RUN_BLOCKED');assert.deepEqual(w.messages,[]);
+ }
+ const w=weeklyPhotoWorld();w.catalog.data.pop();
+ w.props.THU_TUAN_ZALO_COMMAND_CATALOG_STAMP=w.ctx.thuTuanCommandCatalog_(w.ctx.thuTuanCommandConfig_('TEST'),false).stamp;
+ assert.equal(w.ctx.guiThuTuan().status,'ZALO_RUN_BLOCKED');assert.deepEqual(w.calls,[]);
+});
+test('weekly photo checks catalog changes again after preflight and holds uncertain delivery without replay',()=>{
+ const drift=weeklyPhotoWorld();drift.mutateFetch(method=>{if(method==='getMe')drift.catalog.data.at(-1)[3]='https://drive.google.com/uc?export=download&id=edited';});
+ assert.equal(drift.ctx.guiThuTuan().status,'ZALO_RUN_BLOCKED');assert.equal(drift.messages.length,0);
+ const w=weeklyPhotoWorld();w.failSend();assert.equal(w.ctx.guiThuTuan().unknown,1);
+ assert.equal(w.ctx.guiThuTuan().status,'RECONCILIATION_REQUIRED');assert.equal(w.messages.length,1);
+});
+test('new v3 approval binds every Zalo field and cannot downgrade by removing the fields',()=>{
+ const w=world();assert.match(w.row.DauVanBanDuyet,/^v3:/);
+ for(const k of ['BoiCanhZalo','YNgiaVanDungZalo','HanhDongTuanNayZalo'])assert.notEqual(w.ctx.thuTuanDigest_({...w.row,[k]:'edited'},secret),w.row.DauVanBanDuyet);
+ const stripped={...w.row,BoiCanhZalo:'',YNgiaVanDungZalo:'',HanhDongTuanNayZalo:''};
+ assert.match(w.ctx.thuTuanDigest_(stripped,secret),/^v3:/);assert.notEqual(w.ctx.thuTuanDigest_(stripped,secret),w.row.DauVanBanDuyet);
+});
+test('cutover start week prevents a current-week delivery or preview before the new production lifecycle',()=>{
+ const w=weeklyPhotoWorld();w.props.THU_TUAN_START_WEEK='2026-10-19';
+ assert.equal(w.ctx.guiThuTuan().status,'BEFORE_START_WEEK');assert.equal(w.ctx.xemTruocThuTuan().status,'BEFORE_START_WEEK');
+ assert.deepEqual(w.calls,[]);assert.equal(w.sheets['private-TEST|ThuTuan_Zalo_NhatKyGui'].data.length,1);
+});
+test('malformed start week is surfaced as a trigger failure, never a quiet skip',()=>{
+ for(const value of ['2026-10-13','12/10/2026','2026-10-1']){
+  const w=weeklyPhotoWorld();w.props.THU_TUAN_START_WEEK=value;
+  assert.equal(w.ctx.guiThuTuan().status,'INVALID_START_WEEK');
+  assert.throws(()=>w.ctx.thuTuanTriggerResult_({triggerUid:'synthetic'},w.ctx.guiThuTuan()),/THU_TUAN_TRIGGER_ATTENTION:INVALID_START_WEEK/);
+  assert.deepEqual(w.calls,[]);
+ }
+});
+test('production check previews the upcoming Monday, never before the cutover week',()=>{
+ const w=world('PROD');assert.equal(w.ctx.thuTuanPromotedWeek_(),'2026-10-12');
+ assert.equal(w.ctx.chuyenNhomTestThanhProduction,undefined);assert.equal(w.ctx.tatLichProductionCu,undefined);
+});
 test('parser accepts accented/unaccented commands and mention prefix; ignores conversation',()=>{
  const w=world();for(const text of ['/gioithieu','/giới thiệu','giới thiệu','@Bot Mẫu /start'])assert.equal(w.ctx.thuTuanCommandParse_(text).name,'gioithieu');
  assert.equal(w.ctx.thuTuanCommandParse_('/tra cứu BẢN LĨNH').query,'ban linh');assert.equal(w.ctx.thuTuanCommandParse_('xin chào'),null);
@@ -175,20 +228,21 @@ test('oversized original quote is never truncated or split into extra replies',(
  const w=world();w.row.NoiDungNguyenVan='Nguyên văn '.repeat(200);w.row.DauVanBanDuyet=w.ctx.thuTuanDigest_(w.row,secret);w.content.data[1]=w.ctx.THU_TUAN_HEADERS.LoiDay_NoiDung.map(h=>w.row[h]??'');
  assert.equal(w.run('/tuan 2').status,'SENT');assert.ok(w.messages[0].text.includes('vượt độ dài'));assert.ok(!w.messages[0].text.includes('Nguyên văn'));assert.equal(w.messages.length,1);
 });
-test('approval requires allowlisted actor, explicit manual TEST/PROD and disabled commands',()=>{
- const w=world();assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_ADMIN_BLOCKED');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';w.actor('other@example.test');assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_ADMIN_BLOCKED');w.actor('reviewer@example.test');
- assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.ctx.duyetKhoTraCuuZaloTest({}).status,'COMMAND_MANUAL_ONLY');assert.equal(w.ctx.duyetKhoTraCuuZaloTest().status,'COMMAND_CATALOG_APPROVED');assert.deepEqual(w.writes,['THU_TUAN_ZALO_COMMAND_CATALOG_STAMP']);
+test('approval requires allowlisted actor, explicit manual PROD and disabled commands',()=>{
+ const w=world('PROD');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';w.actor('other@example.test');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_ADMIN_BLOCKED');w.actor('reviewer@example.test');
+ assert.equal(w.ctx.thuTuanCommandAdmin_(undefined,'TEST',true).status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.ctx.duyetKhoTraCuuZaloProd({}).status,'COMMAND_MANUAL_ONLY');assert.equal(w.ctx.duyetKhoTraCuuZaloProd().status,'COMMAND_CATALOG_APPROVED');assert.deepEqual(w.writes,['THU_TUAN_ZALO_COMMAND_CATALOG_STAMP']);
+ assert.equal(w.ctx.taoBangLenhZaloTest,undefined);assert.equal(w.ctx.duyetKhoTraCuuZaloTest,undefined);
 });
 test('HTTP response/status exposes no event, key, query, credential or raw exception',()=>{
  const w=world();w.failSend();const result=w.ctx.doPost({postData:{contents:JSON.stringify(w.envelope())}});assert.deepEqual(JSON.parse(result.text),{status:'REPLY_UNCONFIRMED'});assert.equal(w.logs.length,0);
 });
 test('setup creates only missing command tabs and preserves existing data; wrong schema is blocked',()=>{
- const w=world();w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';
+ const w=world('PROD');w.props.THU_TUAN_ZALO_COMMANDS_ENABLED='false';
  const before=JSON.stringify(w.content.data),catalogBefore=JSON.stringify(w.catalog.data);
- assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_SHEETS_READY');assert.equal(JSON.stringify(w.content.data),before);assert.equal(JSON.stringify(w.catalog.data),catalogBefore);
- delete w.sheets['private-TEST|ThuTuan_Zalo_Lenh'];assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_SHEETS_READY');assert.equal(w.sheets['private-TEST|ThuTuan_Zalo_Lenh'].data.length,1);
- w.catalog.data[0][0]='wrong';assert.equal(w.ctx.taoBangLenhZaloTest().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.catalog.data[0][0],'wrong');
- assert.ok(w.logs.every(s=>!s.includes(secret)&&!s.includes('synthetic-chat')&&!s.includes('content-TEST')));
+ assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_SHEETS_READY');assert.equal(JSON.stringify(w.content.data),before);assert.equal(JSON.stringify(w.catalog.data),catalogBefore);
+ delete w.sheets['private-PROD|ThuTuan_Zalo_Lenh'];assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_SHEETS_READY');assert.equal(w.sheets['private-PROD|ThuTuan_Zalo_Lenh'].data.length,1);
+ w.catalog.data[0][0]='wrong';assert.equal(w.ctx.taoBangLenhZaloProd().status,'COMMAND_ADMIN_BLOCKED');assert.equal(w.catalog.data[0][0],'wrong');
+ assert.ok(w.logs.every(s=>!s.includes(secret)&&!s.includes('synthetic-chat')&&!s.includes('content-PROD')));
 });
 test('missing receipt, malformed log, duplicate key and filled log all fail closed',()=>{
  for(const mutate of [w=>w.log.data.push(['bad','SENT',new Date(now),'gioithieu','', 'TEST',sha('synthetic-chat-TEST')]),

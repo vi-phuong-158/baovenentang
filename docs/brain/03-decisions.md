@@ -1,5 +1,19 @@
 # 03-decisions.md - Quyết định kỹ thuật
 
+## Quyết định 05/10/2026 — Gỡ công cụ TEST khỏi mã nguồn Thư tuần
+
+- Owner chỉ đạo bỏ TEST, chỉ còn Production. Gỡ các phần chỉ phục vụ TEST hoặc migration một lần: `ZaloAcceptance.gs`, `taoBangLenhZaloTest`/`duyetKhoTraCuuZaloTest`, `chuyenNhomTestThanhProduction`/`tatLichProductionCu`.
+- Giữ cờ TEST_MODE trong lõi và diagnostics chỉ đọc: cloud đã TEST_MODE=false, không còn profile TEST nên các nhánh này không thể gửi tin; gỡ lõi đòi viết lại phần lớn bộ kiểm thử và chạm luồng gửi ngay trước kỳ gửi thật 12/10. Có thể dọn tiếp sau khi 12/10 nghiệm thu thành công.
+- START_WEEK sai định dạng phải là lỗi (INVALID_START_WEEK), không được là trạng thái im lặng.
+
+## Quyết định 05/10/2026 — Owner chuyển nhóm TEST thành Production
+
+- Chỉ đạo mới “Đồng bộ lại đi giờ nhóm Test đấy làm thành Prod luôn” thay thế giới hạn TEST-only trong các ghi chú lịch sử. Giữ đúng Bot/GROUP đã xác minh, chuyển namespace pins/relay sang PROD, không nới isolation. Backup credential tại chính Script Properties, không xuất vào repo/log. Tắt lịch Production cũ để chỉ một nhóm nhận tự động.
+- Lỗi ảnh chụp05/10 là Production cũ vẫn chạy renderer v2/tách2 tin. Đồng bộ cloud v3 vào repo và nối weekly adapter tới catalog ANHTUAN; sendPhoto kèm full caption, không tóm tắt lúc gửi và không fallback bản v2 khi thiếu ảnh. v2 vẫn tương thích khi photo flag tắt.
+- TEST có các SENT gắn ngày tuần tương lai và fixture sai mã19/10,26/10. Giữ bản gốc ở4 tab archive, tạo lifecycle log PROD riêng với cutoff12/10; không xóa/đổi receipt, không reset cùng lifecycle để replay. Mọi trạng thái chưa SENT chặn migration trước mutation; chạy lại migration từ chối nếu đã bắt đầu.
+- Chỉ chuyển dấu duyệt con người khi tất cả trường biên tập/version khớp draft; không duyệt50 bài Nhap nhân danh owner. Cần duyệt đúng kỳ trước mỗi lần gửi. Re-approval sau delivery history bị chặn để không làm mất tính đối soát.
+- Không đổi stack, cột log, router, GAS backend Trợ lý35 hoặc URL webhook. Helper thủ công có lock/reviewer/pin và event guard; catalog được ký lại vì environment domain thay đổi. Cutoff chặn gửi hiện tại trước12/10, kể cả chạy tay.
+
 ## Quyết định 02/10/2026 — Duyệt trước hạn bằng kỳ tường minh
 
 - Lịch thứ Hai cần nội dung duyệt trước kỳ gửi, trong khi editor không truyền args. Một Script Property chọn kỳ giải quyết việc này qua API duyệt đã có; không hardcode tuần/clone fixture hoặc thêm batch-approval.

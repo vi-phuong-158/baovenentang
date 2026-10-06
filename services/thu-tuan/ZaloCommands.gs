@@ -290,7 +290,5 @@ function thuTuanCommandAdmin_(event,env,approve) {
 function thuTuanCommandAdminResult_(event,env,approve){
   var result=thuTuanCommandAdmin_(event,env,approve);Logger.log(JSON.stringify(result));return result;
 }
-function taoBangLenhZaloTest(event){return thuTuanCommandAdminResult_(event,'TEST',false);}
 function taoBangLenhZaloProd(event){return thuTuanCommandAdminResult_(event,'PROD',false);}
-function duyetKhoTraCuuZaloTest(event){return thuTuanCommandAdminResult_(event,'TEST',true);}
 function duyetKhoTraCuuZaloProd(event){return thuTuanCommandAdminResult_(event,'PROD',true);}
